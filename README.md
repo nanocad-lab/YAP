@@ -1,6 +1,6 @@
 # YAP
 - YAP is a python-based yield modeling and simulation tool for advanced packaging. Currently, the model is specifically designed for wafer-to-wafer (W2W) and die-to-wafer (D2W) hybrid bonding.
-- A GUI of YAP is available at http://nanocad.ee.ucla.edu:8081/yap_gui/.
+- A [GUI of YAP](http://nanocad.ee.ucla.edu:8081/yap_gui/) is available.
 # File Structure
 ```
 .
@@ -36,4 +36,4 @@ pip install -r requirements.txt
 
 
 # Paper Link
-This project is associated with the paper: _YAP: Yield Modeling and Simulation for Advanced Packaging_. The paper has been accepted by DAC 2025 and is currently available at https://nanocad.ee.ucla.edu/wp-content/papercite-data/pdf/c133.pdf. This paper summarizes the major failure mechanisms that induce yield loss for the hybrid bonding process, including overlay errors, particle defects, and Cu recess variations, etc. The paper introduced a near-analytical yield modeling tool and a simulator for multiple failure mechanisms.
+This project is associated with the paper: _YAP: Yield Modeling and Simulation for Advanced Packaging_. The paper has been accepted by [DAC 2025](https://62dac.conference-program.com/presentation/?id=RESEARCH480&sess=sess146) and is currently available [here](https://nanocad.ee.ucla.edu/wp-content/papercite-data/pdf/c133.pdf). This paper summarizes the major failure mechanisms that induce yield loss for the hybrid bonding process, including overlay errors, particle defects, and Cu recess variations, etc. The paper introduced a near-analytical yield modeling tool and a simulator for multiple failure mechanisms.
