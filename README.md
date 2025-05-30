@@ -36,4 +36,4 @@ pip install -r requirements.txt
 
 
 # Paper Link
-This project is associated with the paper: _A Comparative Analysis of Low Temperature and Room Temperature Circuit Operation_. The paper has been accepted by DAC 2025 and is currently available at https://nanocad.ee.ucla.edu/wp-content/papercite-data/pdf/c133.pdf. This paper summarizes the major failure mechanisms that induce yield loss for the hybrid bonding process, including overlay errors, particle defects, and Cu recess variations, etc. The paper introduced a near-analytical yield modeling tool and a simulator for multiple failure mechanisms.
+This project is associated with the paper: _YAP: Yield Modeling and Simulation for Advanced Packaging_. The paper has been accepted by DAC 2025 and is currently available at https://nanocad.ee.ucla.edu/wp-content/papercite-data/pdf/c133.pdf. This paper summarizes the major failure mechanisms that induce yield loss for the hybrid bonding process, including overlay errors, particle defects, and Cu recess variations, etc. The paper introduced a near-analytical yield modeling tool and a simulator for multiple failure mechanisms.
