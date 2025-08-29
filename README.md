@@ -13,7 +13,7 @@
 # Installation
 1. Clone the repository
 ```
-git clone -b yapplus https://github.com/nanocad-lab/YAP.git
+git clone -b yap+ https://github.com/nanocad-lab/YAP.git
 cd ./YAPlus
 ```
 2. Install dependencies:
