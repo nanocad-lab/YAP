@@ -1,0 +1,328 @@
+#### ==================================================================== ####
+#### Simulation parameters for Wafer-to-Wafer (W2W) hybrid bonding simulation.
+#### ==================================================================== ####
+w2w_simulation:
+  # === General Settings ===
+  MODE: "W2W_Hybrid_Bonding_Simulation"  # Name of the simulation
+  DEBUG: false                                      # Enable debug mode
+  # === Wafer and Die Settings ===
+  NUM_WAFERS: 10                        # Number of wafers used in simulation
+  PITCH: 10                             # Pad pitch (µm)
+  DIE_W: 10000                          # Die width (µm)
+  DIE_L: 10000                          # Die length (µm)
+  WAF_R: 150000                         # Wafer radius (µm)
+  PAD_BOT_R_ratio: 0.5                  # Ratio of bottom pad dimension to the pitch
+  PAD_TOP_R_ratio: 0.667                # Ratio of top pad radius to bottom pad radius
+  VOID_SHAPE: "circle"                  # Void shape: "circle" or "square"
+  dice_width: 1000                      # Width of one die (µm)
+
+  # === Fault-Tolerance Parameters ===
+  redundant_flag: True                  # Enable redundant pads
+  critical_pad_ratio: 0.2               # Critical pad ratio per die
+  redundant_pad_ratio: 0.5              # Redundant pad ratio per die
+  redundant_survival_ratio: 0.75        # Survival ratio of redundant pads
+  pad_block_dim: 400                    # Pad block dimension (µm)
+  redundant_logical_pad_ratio: 0.3      # Ratio of redundant logical pads
+  redundant_logical_pad_copy: 2         # Number of copies for each redundant logical pad
+  redundant_logical_pad_dist: 80.0      # Distance between redundant logical pads (pitch)
+  multi2one_flag: false                 # Enable multi-to-one mapping
+  multi2one_ratio: 80                   # Ratio for multi-to-one mapping (e.g., 80:1 replicas)
+
+  CONTACT_AREA_CONSTRAINT: 0.5         # Minimum allowed contact area ratio
+  CRITICAL_DIST_CONSTRAINT: 0.5        # Minimum distance constraint for critical pads
+
+  # === Misalignment Parameters ===
+  RANDOM_MISALIGNMENT_MEAN: 5e-3        # Random misalignment mean (µm)
+  RANDOM_MISALIGNMENT_STD: 1e-2         # Random misalignment standard deviation (µm)
+  SYSTEM_TRANSLATION_X_MEAN: 5e-3       # Systematic X translation mean (µm)
+  SYSTEM_TRANSLATION_X_STD: 1e-2        # Systematic X translation std (µm)
+  SYSTEM_TRANSLATION_Y_MEAN: 5e-3       # Systematic Y translation mean (µm)
+  SYSTEM_TRANSLATION_Y_STD: 1e-2        # Systematic Y translation std (µm)
+  SYSTEM_ROTATION_MEAN: 1e-7            # Systematic rotation mean (rad)
+  SYSTEM_ROTATION_STD: 5e-8             # Systematic rotation std (rad)
+
+  # === Bowing and Magnification ===
+  BOW_DIFFERENCE_MEAN: 10               # Wafer bowing difference mean (µm)
+  BOW_DIFFERENCE_STD: 3                 # Wafer bowing difference std (µm)
+  k_mag: 0.1                           # Magnification coefficient
+  M_0: 0                                # Magnification offset (ppm)
+
+  # === Defect Parameters ===
+  D0: 1e-9                              # Particle density (1/µm²)
+  z: 3                                  # Particle thickness distribution exponent
+  t_0: 1                                # Minimum particle thickness (µm)
+  k_r: 1.8e-4
+  k_r0: 230
+  k_L: 6.2e-2
+  k_n: 9e-5
+  k_S: 2.7
+
+  # === Cu Dishing Parameters ===
+  TOP_DISH_MEAN: -10.0                  # Top pad dish mean (nm)
+  TOP_DISH_STD: 1.0                     # Top pad dish std (nm)
+  BOT_DISH_MEAN: -10.0                  # Bottom pad dish mean (nm)
+  BOT_DISH_STD: 1.0                     # Bottom pad dish std (nm)
+  k_et: 0.053                           # Top Cu expansion coefficient (nm/K)
+  k_eb: 0.053                           # Bottom Cu expansion coefficient (nm/K)
+  T_R: 25                               # Room temperature (°C)
+  T_anl: 300                            # Annealing temperature (°C)
+
+  # === Roughness Parameters ===
+  Asperity_R: 2e-6                      # Asperity curvature radius (m)
+  Roughness_sigma: 1e-9                 # Surface roughness std (m)
+  eta_s: 40e12                          # Asperity density (1/m²)
+  Roughness_constant: 0.07
+  Adhesion_energy: 1.2                  # Adhesion energy (J/m²)
+  Young_modulus: 7.3e10                 # Young's modulus (Pa)
+  Dielectric_thickness: 1.5e-6          # Dielectric thickness (m)
+  DISH_0: 75e-9                         # Reference dish depth (m)
+  k_peel: 6.66e12                       # Peel force constant (N/m⁴/K)
+
+  # === Simulation Control ===
+  simulation_times: 1                  # Number of simulation iterations
+  approximate_set: 1                   # 1: enable overlay simulation approximation, 0: disable
+
+
+
+
+#### ==================================================================== ####
+#### Modeling parameters for Wafer-to-Wafer (W2W) hybrid bonding simulation.
+#### ==================================================================== ####
+w2w_modeling:
+  # === General Settings ===
+  MODE: "W2W_Hybrid_Bonding_Modeling"   # Name of the modeling
+  DEBUG: false                          # Enable debug mode
+  # === Per Wafer Parameters ===
+  PITCH: 10                             # Pad pitch (µm)
+  DIE_W: 10000                          # Die width (µm)
+  DIE_L: 10000                          # Die length (µm)
+  WAF_R: 150000                         # Wafer radius (µm)
+  PAD_BOT_R_ratio: 0.5                  # Ratio of bottom pad dimension to the pitch
+  PAD_TOP_R_ratio: 0.667                # Ratio of top pad radius to bottom pad radius
+  VOID_SHAPE: "circle"                  # Shape of void: "circle" or "square"
+  dice_width: 1000                      # Dice width to separate dies (µm)
+
+  # === Fault Tolerance Parameters ===
+  redundant_flag: True                  # Enable redundant pads
+  critical_pad_ratio: 0.2               # Critical pad ratio per die
+  redundant_pad_ratio: 0.8              # Redundant pad ratio per die
+  redundant_survival_ratio: 0.75        # Survival ratio of redundant pads
+  pad_block_dim: 400                    # Pad block dimension (µm)
+  redundant_logical_pad_ratio: 0.3      # Ratio of redundant logical pads
+  redundant_logical_pad_copy: 2         # Number of copies for each redundant logical pad
+  redundant_logical_pad_dist: 80.0      # Distance between redundant logical pads (pitch)
+  multi2one_flag: false                 # Enable multi-to-one mapping
+  multi2one_ratio: 80                   # Ratio for multi-to-one mapping (e.g., 80:1 replicas)
+
+  CONTACT_AREA_CONSTRAINT: 0.5         # Minimum allowed contact area ratio
+  CRITICAL_DIST_CONSTRAINT: 0.5        # Minimum distance constraint for critical pads
+
+  # === Overlay Parameters ===
+  num_samples: 10000                    # Number of samples for misalignment input parameters
+  RANDOM_MISALIGNMENT_MEAN: 5e-3        # Mean of random overlay error (µm)
+  RANDOM_MISALIGNMENT_STD: 1e-2         # Std of random overlay error (µm)
+  SYSTEM_TRANSLATION_X_MEAN: 5e-3       # Mean of systematic X translation (µm)
+  SYSTEM_TRANSLATION_X_STD: 1e-2        # Std of systematic X translation (µm)
+  SYSTEM_TRANSLATION_Y_MEAN: 5e-3       # Mean of systematic Y translation (µm)
+  SYSTEM_TRANSLATION_Y_STD: 1e-2        # Std of systematic Y translation (µm)
+  SYSTEM_ROTATION_MEAN: 1e-7            # Mean of systematic rotation (rad)
+  SYSTEM_ROTATION_STD: 5e-8             # Std of systematic rotation (rad)
+  BOW_DIFFERENCE_MEAN: 10               # Bow difference mean (µm)
+  BOW_DIFFERENCE_STD: 3                 # Bow difference std (µm)
+  k_mag: 0.1                           # Magnification slope coefficient
+  M_0: 0                                # Magnification offset
+
+  # === Defect Parameters ===
+  D0: 1e-9                              # Particle density (1/µm²)
+  z: 3                                  # Thickness distribution exponent factor
+  t_0: 0.1                              # Minimum particle thickness (µm)
+  k_r: 1.8e-4
+  k_r0: 230
+  k_L: 6.2e-2
+  k_n: 9e-5
+  k_S: 2.7
+
+  # === Cu Expansion / Dishing Parameters ===
+  TOP_DISH_MEAN: -10.0                  # Top pad dish mean (nm)
+  TOP_DISH_STD: 1.0                     # Top pad dish std (nm)
+  BOT_DISH_MEAN: -10.0                  # Bottom pad dish mean (nm)
+  BOT_DISH_STD: 1.0                     # Bottom pad dish std (nm)
+  k_et: 0.053                           # Top Cu expansion coef (nm/K)
+  k_eb: 0.053                           # Bottom Cu expansion coef (nm/K)
+  T_R: 25                               # Room temperature (°C)
+  T_anl: 300                            # Annealing temperature (°C)
+
+  # === Roughness Parameters ===
+  Asperity_R: 2e-6                      # Asperity curvature radius (m)
+  Roughness_sigma: 1.0e-9               # Roughness standard deviation (m)
+  eta_s: 40e12                          # Asperity density (1/m²)
+  Roughness_constant: 0.07
+  Adhesion_energy: 1.2                  # Adhesion energy (J/m²)
+  Young_modulus: 73e9                   # Dielectric Young's modulus (Pa)
+  Dielectric_thickness: 1.5e-6          # Dielectric layer thickness (m)
+  DISH_0: 75e-9                         # Reference dish height (m)
+  k_peel: 6.66e15                       # Peel force coefficient (N/m⁴/K)
+
+
+
+#### ==================================================================== ####
+#### Simulation parameters for Die-to-Wafer (W2W) hybrid bonding simulation.
+#### ==================================================================== ####
+d2w_simulation:
+  # === General Settings ===
+  MODE: "D2W_Hybrid_Bonding_Simulation" # Name of the simulation
+  DEBUG: false                          # Enable debug mode
+  # === Die Settings ===
+  NUM_DIES: 20000                       # Number of Dies used in simulation
+  PITCH: 1                             # Pad pitch (µm)
+  DIE_W: 10000                          # Die width (µm)
+  DIE_L: 10000                          # Die length (µm)
+  PAD_BOT_R_ratio: 0.5                  # Ratio of bottom pad dimension to the pitch
+  PAD_TOP_R_ratio: 0.667                # Ratio of top pad radius to bottom pad radius
+  VOID_SHAPE: "circle"                  # Void shape: "circle" or "square"
+  dice_width: 1000                      # Width of one die (µm)
+
+  # === Fault-Tolerance Parameters ===
+  redundant_flag: True                  # Enable redundant pads
+  critical_pad_ratio: 0.9999               # Critical pad ratio per die
+  redundant_pad_ratio: 0.0001              # Redundant pad ratio per die
+  redundant_survival_ratio: 0.75        # Survival ratio of redundant pads
+  pad_block_dim: 100                    # Pad block dimension (µm)
+  redundant_logical_pad_ratio: 0.005      # Ratio of redundant logical pads
+  redundant_logical_pad_copy: 2         # Number of copies for each redundant logical pad
+  redundant_logical_pad_dist: 2.0      # Distance between redundant logical pads (pitch)
+  multi2one_flag: false                 # Enable multi-to-one mapping
+  multi2one_ratio: 80                   # Ratio for multi-to-one mapping (e.g., 80:1 replicas)
+
+  CONTACT_AREA_CONSTRAINT: 0.5         # Minimum allowed contact area ratio
+  CRITICAL_DIST_CONSTRAINT: 0.5        # Minimum distance constraint for critical pads
+
+  # === Misalignment Parameters ===
+  RANDOM_MISALIGNMENT_MEAN: 5e-3        # Random misalignment mean (µm)
+  RANDOM_MISALIGNMENT_STD: 1e-2         # Random misalignment standard deviation (µm)
+  SYSTEM_TRANSLATION_X_MEAN: 5e-3       # Systematic X translation mean (µm)
+  SYSTEM_TRANSLATION_X_STD: 1e-2        # Systematic X translation std (µm)
+  SYSTEM_TRANSLATION_Y_MEAN: 5e-3       # Systematic Y translation mean (µm)
+  SYSTEM_TRANSLATION_Y_STD: 1e-2        # Systematic Y translation std (µm)
+  SYSTEM_ROTATION_MEAN: 2e-6            # Systematic rotation mean (rad)
+  SYSTEM_ROTATION_STD: 1e-6             # Systematic rotation std (rad)
+
+  # === Bowing and Magnification ===
+  BOW_DIFFERENCE_MEAN: 0.5               # Bow difference mean (µm)
+  BOW_DIFFERENCE_STD: 0.1                 # Bow difference std (µm)
+  k_mag: 0.1                           # Magnification slope coefficient
+  M_0: 0                                # Magnification offset
+
+  # === Defect Parameters ===
+  D0: 1e-9                              # Particle density (1/µm²)
+  z: 3                                  # Particle thickness distribution exponent
+  t_0: 0.1                                # Minimum particle thickness (µm)
+  k_r: 1.8e-4
+  k_r0: 230
+  k_L: 6.2e-2
+  k_n: 9e-5
+  k_S: 2.7
+
+  # === Cu Dishing Parameters ===
+  TOP_DISH_MEAN: -10.0                  # Top pad dish mean (nm)
+  TOP_DISH_STD: 1.0                     # Top pad dish std (nm)
+  BOT_DISH_MEAN: -10.0                  # Bottom pad dish mean (nm)
+  BOT_DISH_STD: 1.0                     # Bottom pad dish std (nm)
+  k_et: 0.053                           # Top Cu expansion coefficient (nm/K)
+  k_eb: 0.053                           # Bottom Cu expansion coefficient (nm/K)
+  T_R: 25                               # Room temperature (°C)
+  T_anl: 300                            # Annealing temperature (°C)
+
+  # === Roughness Parameters ===
+  Asperity_R: 2e-6                      # Asperity curvature radius (m)
+  Roughness_sigma: 1e-9                 # Surface roughness std (m)
+  eta_s: 40e12                          # Asperity density (1/m²)
+  Roughness_constant: 0.07
+  Adhesion_energy: 1.2                  # Adhesion energy (J/m²)
+  Young_modulus: 7.3e10                 # Young's modulus (Pa)
+  Dielectric_thickness: 1.5e-6          # Dielectric thickness (m)
+  DISH_0: 75e-9                         # Reference dish depth (m)
+  k_peel: 6.66e12                       # Peel force constant (N/m⁴/K)
+
+  # === Simulation Control ===
+  simulation_times: 1                  # Number of simulation iterations
+  approximate_set: 100                   # 1: enable overlay simulation approximation, 0: disable
+
+
+
+#### ==================================================================== ####
+#### Modeling parameters for Die-to-Wafer (W2W) hybrid bonding simulation.
+#### ==================================================================== ####
+d2w_modeling:
+  # === General Settings ===
+  MODE: "D2W_Hybrid_Bonding_Modeling"   # Name of the modeling
+  DEBUG: false                          # Enable debug mode
+  # === Per Wafer Parameters ===
+  PITCH: 1                             # Pad pitch (µm)
+  DIE_W: 10000                          # Die width (µm)
+  DIE_L: 10000                          # Die length (µm)
+  PAD_BOT_R_ratio: 0.5                  # Ratio of bottom pad dimension to the pitch
+  PAD_TOP_R_ratio: 0.667                # Ratio of top pad radius to bottom pad radius
+  VOID_SHAPE: "circle"                  # Shape of void: "circle" or "square"
+  dice_width: 1000                      # Dice width to separate dies (µm)
+
+  # === Fault Tolerance Parameters ===
+  redundant_flag: True                  # Enable redundant pads
+  critical_pad_ratio: 1.0               # Critical pad ratio per die
+  redundant_pad_ratio: 0.0              # Redundant pad ratio per die
+  redundant_survival_ratio: 0.75        # Survival ratio of redundant pads
+  pad_block_dim: 400                    # Pad block dimension (µm)
+  redundant_logical_pad_ratio: 0.005    # Ratio of redundant logical pads
+  redundant_logical_pad_copy: 2         # Number of copies for each redundant logical pad
+  redundant_logical_pad_dist: 2.0      # Distance between redundant logical pads (pitch)
+  multi2one_flag: false                 # Enable multi-to-one mapping
+  multi2one_ratio: 80                   # Ratio for multi-to-one mapping (e.g., 80:1 replicas)
+
+  CONTACT_AREA_CONSTRAINT: 0.5         # Minimum allowed contact area ratio
+  CRITICAL_DIST_CONSTRAINT: 0.5        # Minimum distance constraint for critical pads
+
+  # === Overlay Parameters ===
+  num_samples: 100000                    # Number of samples for misalignment input parameters
+  RANDOM_MISALIGNMENT_MEAN: 0        # Mean of random overlay error (µm)
+  RANDOM_MISALIGNMENT_STD: 2e-2         # Std of random overlay error (µm)
+  SYSTEM_TRANSLATION_X_MEAN: 0       # Mean of systematic X translation (µm)
+  SYSTEM_TRANSLATION_X_STD: 2e-2        # Std of systematic X translation (µm)
+  SYSTEM_TRANSLATION_Y_MEAN: 0       # Mean of systematic Y translation (µm)
+  SYSTEM_TRANSLATION_Y_STD: 2e-2        # Std of systematic Y translation (µm)
+  SYSTEM_ROTATION_MEAN: 1e-6            # Mean of systematic rotation (rad)
+  SYSTEM_ROTATION_STD: 5e-7             # Std of systematic rotation (rad)
+  BOW_DIFFERENCE_MEAN: 0.5               # Bow difference mean (µm)
+  BOW_DIFFERENCE_STD: 0.1                 # Bow difference std (µm)
+  k_mag: 0.1                           # Magnification slope coefficient
+  M_0: 0                                # Magnification offset
+
+  # === Defect Parameters ===
+  D0: 1e-9                              # Particle density (1/µm²)
+  z: 3                                  # Thickness distribution exponent factor
+  t_0: 0.1                              # Minimum particle thickness (µm)
+  k_r: 1.8e-4
+  k_r0: 230
+  k_L: 6.2e-2
+  k_n: 9e-5
+  k_S: 2.7
+
+  # === Cu Expansion / Dishing Parameters ===
+  TOP_DISH_MEAN: -10.0                  # Top pad dish mean (nm)
+  TOP_DISH_STD: 1.0                     # Top pad dish std (nm)
+  BOT_DISH_MEAN: -10.0                  # Bottom pad dish mean (nm)
+  BOT_DISH_STD: 1.0                     # Bottom pad dish std (nm)
+  k_et: 0.053                           # Top Cu expansion coef (nm/K)
+  k_eb: 0.053                           # Bottom Cu expansion coef (nm/K)
+  T_R: 25                               # Room temperature (°C)
+  T_anl: 300                            # Annealing temperature (°C)
+
+  # === Roughness Parameters ===
+  Asperity_R: 2e-6                      # Asperity curvature radius (m)
+  Roughness_sigma: 1.0e-9               # Roughness standard deviation (m)
+  eta_s: 40e12                          # Asperity density (1/m²)
+  Roughness_constant: 0.07
+  Adhesion_energy: 1.2                  # Adhesion energy (J/m²)
+  Young_modulus: 73e9                   # Dielectric Young's modulus (Pa)
+  Dielectric_thickness: 1.5e-6          # Dielectric layer thickness (m)
+  DISH_0: 75e-9                         # Reference dish height (m)
+  k_peel: 6.66e15                       # Peel force coefficient (N/m⁴/K)
