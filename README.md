@@ -26,11 +26,13 @@ pip install -r requirements.txt
   ```
   cd W2W
   ```
+  Modify `configs/config.yaml` to update modeling or simulation configurations.
   Execute the `simulator_main.ipynb` for the simulation and `calculator_main.ipynb` for the modeling.
 - Run the simulator and model for D2W hybrid bonding.
   ```
   cd D2W
   ```
+  Modify `configs/config.yaml` to update modeling or simulation configurations.
   Execute the `simulator_main.ipynb` for the simulation and `calculator_main.ipynb` for the modeling.
 
 
