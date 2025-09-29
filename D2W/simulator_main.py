@@ -29,7 +29,7 @@ bow_difference_mean_list = np.linspace(10, 10, num_points)
 assembly_yield_list = []
 
 # Generate pad bitmap collection
-pad_bitmap_collection = pad_bitmap_generate_random(cfg=cfg)  
+pad_bitmap_collection = pad_bitmap_generate_random(cfg=cfg, pad_layout_pattern='center')
 
 single_config_yield_list_array = np.zeros([len(particle_density_list), cfg.simulation_times * cfg.NUM_DIES])
 
