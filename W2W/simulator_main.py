@@ -12,7 +12,7 @@ cfg = load_modeling_config(path='configs/config.yaml',
                      debug=False)
 
 # Generate pad bitmap collection
-pad_bitmap_collection = pad_bitmap_generate_random(cfg=cfg)  
+pad_bitmap_collection = pad_bitmap_generate_random(cfg=cfg, pad_layout_pattern='center')
 
 # Explore the impact of the pitch
 particle_density_list = np.logspace(-10, -8.4, 100)
