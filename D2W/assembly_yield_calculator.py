@@ -12,71 +12,60 @@ from wafer_die_initialization import die_initialize
 from overlay_yield_calculator import overlay_yield_calculator
 from defect_yield_calculator import defect_yield_calculator
 from Cu_expansion_yield_calculator import Cu_expansion_yield_calculator
-from roughness_parameters import roughness_parameters
+
 
 
 
 
 def Assembly_Yield_Calculator(
     cfg,
-    pad_bitmap_collection,
-):
-    zeta_1_ = roughness_parameters(
-        Asperity_R            =       cfg.Asperity_R,
-        Roughness_sigma       =       cfg.Roughness_sigma,
-        eta_s                 =       cfg.eta_s,
-        Roughness_constant    =       cfg.Roughness_constant,
-        Adhesion_energy       =       cfg.Adhesion_energy,
-        Young_modulus         =       cfg.Young_modulus,
-        Dielectric_thickness  =       cfg.Dielectric_thickness,
-        PITCH                 =       cfg.PITCH,
-        PAD_BOT_R             =       cfg.PAD_BOT_R,
-        DISH_0                =       cfg.DISH_0,
-        k_peel                =       cfg.k_peel,
-    )
-    zeta_1 = max(zeta_1_, 0)
-    
+    pad_bitmap_collection: dict,
+):  
     # Initialize the die list
-    die_list, _ = die_initialize(
+    DIE_L_umist, _ = die_initialize(
         NUM_DIES        =       1,
-        DIE_W           =       cfg.DIE_W,
-        DIE_L           =       cfg.DIE_L,
-        PAD_ARR_W       =       cfg.PAD_ARR_W,
-        PAD_ARR_L       =       cfg.PAD_ARR_L,
+        DIE_W_um           =       cfg.DIE_W_um,
+        DIE_L_um           =       cfg.DIE_L_um,
+        PAD_ARR_W_um       =       cfg.PAD_ARR_W_um,
+        PAD_ARR_L_um       =       cfg.PAD_ARR_L_um,
         PAD_ARR_ROW     =       cfg.PAD_ARR_ROW,
         PAD_ARR_COL     =       cfg.PAD_ARR_COL,
-        PITCH           =       cfg.PITCH,
+        PITCH_um           =       cfg.PITCH_um,
         pad_bitmap_collection = pad_bitmap_collection,  
+        pad_yield_flag     =       cfg.pad_yield_flag,
     )
-    die = die_list[0]
+    die = DIE_L_umist[0]
     # fig, ax = plt.subplots(figsize=(4, 6))
     # die.draw_die(ax)
 
     # Calculate the overlay yield
     # Calculate the overlay yield
-    overlay_yield = overlay_yield_calculator(
-        PAD_TOP_R                    =       cfg.PAD_TOP_R,
-        PAD_BOT_R                    =       cfg.PAD_BOT_R,
-        PITCH                        =       cfg.PITCH,
-        num_samples                  =       cfg.num_samples,
-        CONTACT_AREA_CONSTRAINT      =       cfg.CONTACT_AREA_CONSTRAINT,
-        CRITICAL_DIST_CONSTRAINT     =       cfg.CRITICAL_DIST_CONSTRAINT,
-        SYSTEM_MAGNIFICATION_MEAN    =       cfg.SYSTEM_MAGNIFICATION_MEAN,
-        SYSTEM_MAGNIFICATION_STD     =       cfg.SYSTEM_MAGNIFICATION_STD,
-        SYSTEM_ROTATION_MEAN         =       cfg.SYSTEM_ROTATION_MEAN,
-        SYSTEM_ROTATION_STD          =       cfg.SYSTEM_ROTATION_STD,
-        SYSTEM_TRANSLATION_X_MEAN    =       cfg.SYSTEM_TRANSLATION_X_MEAN,
-        SYSTEM_TRANSLATION_X_STD     =       cfg.SYSTEM_TRANSLATION_X_STD,
-        SYSTEM_TRANSLATION_Y_MEAN    =       cfg.SYSTEM_TRANSLATION_Y_MEAN,
-        SYSTEM_TRANSLATION_Y_STD     =       cfg.SYSTEM_TRANSLATION_Y_STD,
-        RANDOM_MISALIGNMENT_MEAN     =       cfg.RANDOM_MISALIGNMENT_MEAN,
-        RANDOM_MISALIGNMENT_STD      =       cfg.RANDOM_MISALIGNMENT_STD,
-        die                          =       die,
-        redundant_flag               =       cfg.redundant_flag,
+    overlay_die_yield, overlay_pad_yield_map = overlay_yield_calculator(
+        PAD_TOP_R_um                    =       cfg.PAD_TOP_R_um,
+        PAD_BOT_R_um                    =       cfg.PAD_BOT_R_um,
+        PAD_ARR_ROW                     =       cfg.PAD_ARR_ROW,
+        PAD_ARR_COL                     =       cfg.PAD_ARR_COL,
+        PITCH_um                        =       cfg.PITCH_um,
+        num_samples                     =       cfg.num_samples,
+        CONTACT_AREA_CONSTRAINT         =       cfg.CONTACT_AREA_CONSTRAINT,
+        CRITICAL_DIST_CONSTRAINT        =       cfg.CRITICAL_DIST_CONSTRAINT,
+        SYSTEM_MAGNIFICATION_MEAN_ppm   =       cfg.SYSTEM_MAGNIFICATION_MEAN_ppm,
+        SYSTEM_MAGNIFICATION_STD_ppm    =       cfg.SYSTEM_MAGNIFICATION_STD_ppm,
+        SYSTEM_ROTATION_MEAN_rad        =       cfg.SYSTEM_ROTATION_MEAN_rad,
+        SYSTEM_ROTATION_STD_rad         =       cfg.SYSTEM_ROTATION_STD_rad,
+        SYSTEM_TRANSLATION_X_MEAN_um    =       cfg.SYSTEM_TRANSLATION_X_MEAN_um,
+        SYSTEM_TRANSLATION_X_STD_um     =       cfg.SYSTEM_TRANSLATION_X_STD_um,
+        SYSTEM_TRANSLATION_Y_MEAN_um    =       cfg.SYSTEM_TRANSLATION_Y_MEAN_um,
+        SYSTEM_TRANSLATION_Y_STD_um     =       cfg.SYSTEM_TRANSLATION_Y_STD_um,
+        RANDOM_MISALIGNMENT_MEAN_um     =       cfg.RANDOM_MISALIGNMENT_MEAN_um,
+        RANDOM_MISALIGNMENT_STD_um      =       cfg.RANDOM_MISALIGNMENT_STD_um,
+        die                             =       die,
+        redundant_flag                  =       cfg.redundant_flag,
+        pad_yield_flag                  =       cfg.pad_yield_flag,
     )
     # Calculate the defect distribution
     start_time = time.time()
-    defect_yield = defect_yield_calculator(
+    defect_die_yield, defect_pad_yield_map = defect_yield_calculator(
         cfg               =       cfg,
         eff_DIE_R         =       cfg.eff_DIE_R,
         D0                =       cfg.D0,
@@ -87,30 +76,38 @@ def Assembly_Yield_Calculator(
         k_n               =       cfg.k_n,
         k_S               =       cfg.k_S,
         k_L               =       cfg.k_L,
-        PAD_TOP_R         =       cfg.PAD_TOP_R,
-        PITCH             =       cfg.PITCH,
+        PAD_TOP_R_um      =       cfg.PAD_TOP_R_um,
+        PITCH_um          =       cfg.PITCH_um,
         PAD_ARR_ROW       =       cfg.PAD_ARR_ROW,
         PAD_ARR_COL       =       cfg.PAD_ARR_COL,
+        PAD_ARR_W_um      =       cfg.PAD_ARR_W_um,
+        PAD_ARR_L_um      =       cfg.PAD_ARR_L_um,
         VOID_SHAPE        =       cfg.VOID_SHAPE,
-        PAD_ARR_W         =       cfg.PAD_ARR_W,
-        PAD_ARR_L         =       cfg.PAD_ARR_L,
+        die               =       die,
         pad_bitmap_collection  = pad_bitmap_collection,
+        pad_yield_flag    =       cfg.pad_yield_flag,
     )
     print(f"Defect yield calculation took {time.time() - start_time:.2f} seconds")
     # Calculate the Cu expansion yield
-    Cu_expansion_yield = Cu_expansion_yield_calculator(
-        top_dish_mean    =       cfg.TOP_DISH_MEAN,
-        top_dish_std     =       cfg.TOP_DISH_STD,
-        bot_dish_mean    =       cfg.BOT_DISH_MEAN,
-        bot_dish_std     =       cfg.BOT_DISH_STD,
-        k_et             =       cfg.k_et,
-        k_eb             =       cfg.k_eb,
-        T_R              =       cfg.T_R,
-        T_anl            =       cfg.T_anl,
-        zeta_1           =       zeta_1,
+    Cu_expansion_die_yield = Cu_expansion_yield_calculator(
+        cfg                 =       cfg,
+        die                 =       die,
+        PAD_ARR_ROW         =       cfg.PAD_ARR_ROW,
+        PAD_ARR_COL         =       cfg.PAD_ARR_COL,
+        TOP_DISH_MEAN_nm    =       cfg.TOP_DISH_MEAN_nm,
+        TOP_DISH_STD_nm     =       cfg.TOP_DISH_STD_nm,
+        BOT_DISH_MEAN_nm    =       cfg.BOT_DISH_MEAN_nm,
+        BOT_DISH_STD_nm     =       cfg.BOT_DISH_STD_nm,
+        k_et                =       cfg.k_et,
+        k_eb                =       cfg.k_eb,
+        T_R                 =       cfg.T_R,
+        T_anl               =       cfg.T_anl,
         pad_bitmap_collection  = pad_bitmap_collection,
+        pad_yield_flag      =       cfg.pad_yield_flag,
     )
-    assembly_yield = overlay_yield * defect_yield * Cu_expansion_yield
+    assembly_die_yield = overlay_die_yield * defect_die_yield * Cu_expansion_die_yield
+    # assembly_pad_yield_map = overlay_pad_yield_map * defect_pad_yield_map * Cu_expansion_pad_yield_map if cfg.pad_yield_flag else None
+    
     
     del die
-    return assembly_yield, overlay_yield, defect_yield, Cu_expansion_yield
+    return assembly_die_yield, overlay_die_yield, defect_die_yield, Cu_expansion_die_yield

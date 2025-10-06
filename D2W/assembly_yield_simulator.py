@@ -23,16 +23,16 @@ def Assembly_Yield_Simulator(
 ):
     zeta_0 = cfg.k_et * (cfg.T_anl - cfg.T_R) + cfg.k_eb * (cfg.T_anl - cfg.T_R)    # The total expansion of the Cu pad after annealing (nm)
     zeta_1_ = roughness_parameters(
-        Asperity_R             =       cfg.Asperity_R,
-        Roughness_sigma        =       cfg.Roughness_sigma,
+        Asperity_R_m             =       cfg.Asperity_R_m,
+        Roughness_sigma_m        =       cfg.Roughness_sigma_m,
         eta_s                  =       cfg.eta_s,
         Roughness_constant     =       cfg.Roughness_constant,
         Adhesion_energy        =       cfg.Adhesion_energy,
-        Young_modulus          =       cfg.Young_modulus,
+        Young_modulus_Pa          =       cfg.Young_modulus_Pa,
         Dielectric_thickness   =       cfg.Dielectric_thickness,
-        PITCH                  =       cfg.PITCH,
-        PAD_BOT_R              =       cfg.PAD_BOT_R,
-        DISH_0                 =       cfg.DISH_0,
+        PITCH_um                  =       cfg.PITCH_um,
+        PAD_BOT_R_um              =       cfg.PAD_BOT_R_um,
+        DISH_0_m                 =       cfg.DISH_0_m,
         k_peel                 =       cfg.k_peel,
     )
     zeta_1 = max(zeta_1_, 0) 
@@ -44,33 +44,33 @@ def Assembly_Yield_Simulator(
             print("Processing batch {}/{}...".format(i + 1, cfg.simulation_times))
 
         # Initialize the die list
-        die_list, base_pad_coords = die_initialize(
+        DIE_L_umist, base_pad_coords = die_initialize(
             NUM_DIES                =       cfg.NUM_DIES,
-            DIE_W                   =       cfg.DIE_W,
-            DIE_L                   =       cfg.DIE_L,
-            PAD_ARR_W               =       cfg.PAD_ARR_W,
-            PAD_ARR_L               =       cfg.PAD_ARR_L,
+            DIE_W_um                   =       cfg.DIE_W_um,
+            DIE_L_um                   =       cfg.DIE_L_um,
+            PAD_ARR_W_um               =       cfg.PAD_ARR_W_um,
+            PAD_ARR_L_um               =       cfg.PAD_ARR_L_um,
             PAD_ARR_ROW             =       cfg.PAD_ARR_ROW,
             PAD_ARR_COL             =       cfg.PAD_ARR_COL,
-            PITCH                   =       cfg.PITCH,
+            PITCH_um                   =       cfg.PITCH_um,
             pad_bitmap_collection   =       pad_bitmap_collection,
         )
 
         # Generate overlay terms
-        system_translation_x, system_translation_y, system_rotation, system_magnification, MAX_ALLOWED_MISALIGNMENT = overlay_term_simulator(
-            PAD_TOP_R                   =       cfg.PAD_TOP_R,
-            PAD_BOT_R                   =       cfg.PAD_BOT_R,
-            PITCH                       =       cfg.PITCH,
+        system_translation_x_um, system_translation_y_um, system_rotation_um, system_magnification, MAX_ALLOWED_MISALIGNMENT = overlay_term_simulator(
+            PAD_TOP_R_um                   =       cfg.PAD_TOP_R_um,
+            PAD_BOT_R_um                   =       cfg.PAD_BOT_R_um,
+            PITCH_um                       =       cfg.PITCH_um,
             CONTACT_AREA_CONSTRAINT     =       cfg.CONTACT_AREA_CONSTRAINT,
             CRITICAL_DIST_CONSTRAINT    =       cfg.CRITICAL_DIST_CONSTRAINT,
-            SYSTEM_ROTATION_MEAN        =       cfg.SYSTEM_ROTATION_MEAN,
-            SYSTEM_ROTATION_STD         =       cfg.SYSTEM_ROTATION_STD,
-            SYSTEM_TRANSLATION_X_MEAN   =       cfg.SYSTEM_TRANSLATION_X_MEAN,
-            SYSTEM_TRANSLATION_X_STD    =       cfg.SYSTEM_TRANSLATION_X_STD,
-            SYSTEM_TRANSLATION_Y_MEAN   =       cfg.SYSTEM_TRANSLATION_Y_MEAN,
-            SYSTEM_TRANSLATION_Y_STD    =       cfg.SYSTEM_TRANSLATION_Y_STD,
-            BOW_DIFFERENCE_MEAN         =       cfg.BOW_DIFFERENCE_MEAN,
-            BOW_DIFFERENCE_STD          =       cfg.BOW_DIFFERENCE_STD,
+            SYSTEM_ROTATION_MEAN_rad        =       cfg.SYSTEM_ROTATION_MEAN_rad,
+            SYSTEM_ROTATION_STD_rad         =       cfg.SYSTEM_ROTATION_STD_rad,
+            SYSTEM_TRANSLATION_X_MEAN_um   =       cfg.SYSTEM_TRANSLATION_X_MEAN_um,
+            SYSTEM_TRANSLATION_X_STD_um    =       cfg.SYSTEM_TRANSLATION_X_STD_um,
+            SYSTEM_TRANSLATION_Y_MEAN_um   =       cfg.SYSTEM_TRANSLATION_Y_MEAN_um,
+            SYSTEM_TRANSLATION_Y_STD_um    =       cfg.SYSTEM_TRANSLATION_Y_STD_um,
+            BOW_DIFFERENCE_MEAN_um         =       cfg.BOW_DIFFERENCE_MEAN_um,
+            BOW_DIFFERENCE_STD_um          =       cfg.BOW_DIFFERENCE_STD_um,
             NUM_DIES                    =       cfg.NUM_DIES,
             k_mag                       =       cfg.k_mag,
             M_0                         =       cfg.M_0,
@@ -87,39 +87,39 @@ def Assembly_Yield_Simulator(
             k_L             =       cfg.k_L,
             k_S             =       cfg.k_S,
             VOID_SHAPE      =       cfg.VOID_SHAPE,
-            DIE_W           =       cfg.DIE_W,
-            DIE_L           =       cfg.DIE_L,
+            DIE_W_um           =       cfg.DIE_W_um,
+            DIE_L_um           =       cfg.DIE_L_um,
             NUM_DIES        =       cfg.NUM_DIES,
-            die_list        =       die_list,
+            DIE_L_umist        =       DIE_L_umist,
         )
 
        
         # Calculate the overall yield
         yield_list = overall_yield_simulator(
-            die_list                    =       die_list,
+            DIE_L_umist                    =       DIE_L_umist,
             NUM_DIES                    =       cfg.NUM_DIES,
-            DIE_W                       =       cfg.DIE_W,
-            DIE_L                       =       cfg.DIE_L,
+            DIE_W_um                       =       cfg.DIE_W_um,
+            DIE_L_um                       =       cfg.DIE_L_um,
             base_pad_coords             =       base_pad_coords,
-            system_translation_x        =       system_translation_x,
-            system_translation_y        =       system_translation_y,
-            system_rotation             =       system_rotation,
+            system_translation_x_um        =       system_translation_x_um,
+            system_translation_y_um        =       system_translation_y_um,
+            system_rotation_um             =       system_rotation_um,
             system_magnification        =       system_magnification,
             MAX_ALLOWED_MISALIGNMENT    =       MAX_ALLOWED_MISALIGNMENT,
             zeta_0                      =       zeta_0,
             zeta_1                      =       zeta_1,
-            PAD_ARR_W                   =       cfg.PAD_ARR_W,
-            PAD_ARR_L                   =       cfg.PAD_ARR_L,
+            PAD_ARR_W_um                   =       cfg.PAD_ARR_W_um,
+            PAD_ARR_L_um                   =       cfg.PAD_ARR_L_um,
             PAD_ARR_ROW                 =       cfg.PAD_ARR_ROW,
             PAD_ARR_COL                 =       cfg.PAD_ARR_COL,
-            TOP_DISH_MEAN               =       cfg.TOP_DISH_MEAN,
-            TOP_DISH_STD                =       cfg.TOP_DISH_STD,
-            BOT_DISH_MEAN               =       cfg.BOT_DISH_MEAN,
-            BOT_DISH_STD                =       cfg.BOT_DISH_STD,
-            PITCH                       =       cfg.PITCH,
-            PAD_TOP_R                   =       cfg.PAD_TOP_R,
-            RANDOM_MISALIGNMENT_MEAN    =       cfg.RANDOM_MISALIGNMENT_MEAN,
-            RANDOM_MISALIGNMENT_STD     =       cfg.RANDOM_MISALIGNMENT_STD,
+            TOP_DISH_MEAN_nm               =       cfg.TOP_DISH_MEAN_nm,
+            TOP_DISH_STD_nm                =       cfg.TOP_DISH_STD_nm,
+            BOT_DISH_MEAN_nm               =       cfg.BOT_DISH_MEAN_nm,
+            BOT_DISH_STD_nm                =       cfg.BOT_DISH_STD_nm,
+            PITCH_um                       =       cfg.PITCH_um,
+            PAD_TOP_R_um                   =       cfg.PAD_TOP_R_um,
+            RANDOM_MISALIGNMENT_MEAN_um    =       cfg.RANDOM_MISALIGNMENT_MEAN_um,
+            RANDOM_MISALIGNMENT_STD_um     =       cfg.RANDOM_MISALIGNMENT_STD_um,
             redundant_survival_ratio    =       cfg.redundant_survival_ratio,
             approximate_set             =       cfg.approximate_set,
             redundant_flag              =       cfg.redundant_flag,
@@ -127,7 +127,7 @@ def Assembly_Yield_Simulator(
         )
         single_config_yield_list.append(yield_list)
         
-        del die_list
+        del DIE_L_umist
     if cfg.simulation_times > 1:
         print("The batch yield list is: ", single_config_yield_list)
     assembly_yield = np.mean(single_config_yield_list)

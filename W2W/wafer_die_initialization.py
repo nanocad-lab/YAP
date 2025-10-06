@@ -12,12 +12,12 @@ import matplotlib.patches as patches
 
 class Die:
     def __init__(
-        self, die_width, die_length, die_center, NUM_PADS_PER_DIE,
+        self, DIE_W_umidth, DIE_L_umength, die_center, NUM_PADS_PER_DIE,
         DIE_VERTEX_COORDS, PAD_ARR_BOX, 
         pad_boundary_bitmap_coords
     ):
-        self.die_width = die_width
-        self.die_length = die_length
+        self.DIE_W_umidth = DIE_W_umidth
+        self.DIE_L_umength = DIE_L_umength
         self.die_center = die_center
         self.num_pad = NUM_PADS_PER_DIE
         self.vertices_coords = self.get_vertices_coords(die_center, DIE_VERTEX_COORDS)
@@ -39,21 +39,21 @@ class Wafer:
     def __init__(
         self,
         wafer_radius,
-        die_width,
-        die_length,
-        pad_top_radius,
-        pad_bot_radius,
+        DIE_W_umidth,
+        DIE_L_umength,
+        PAD_TOP_R_umadius,
+        PAD_BOT_R_umadius,
         base_pad_coords,
         dice_width,
-        die_pad_pitch,
+        die_pad_PITCH_um,
         dice_proportion=1.0,
     ):
         self.wafer_radius = wafer_radius
-        self.die_width = die_width
-        self.die_length = die_length
-        self.pad_top_radius = pad_top_radius
-        self.pad_bot_radius = pad_bot_radius
-        self.die_list = []
+        self.DIE_W_umidth = DIE_W_umidth
+        self.DIE_L_umength = DIE_L_umength
+        self.PAD_TOP_R_umadius = PAD_TOP_R_umadius
+        self.PAD_BOT_R_umadius = PAD_BOT_R_umadius
+        self.DIE_L_umist = []
         self.dice_proportion = dice_proportion
         self.voids = []
         self.safe_voids_mask = []
@@ -61,23 +61,23 @@ class Wafer:
         self.survival_die = 0
         self.base_pad_coords = base_pad_coords
         self.dice_width = dice_width
-        self.die_pad_pitch = die_pad_pitch
+        self.die_pad_PITCH_um = die_pad_PITCH_um
 
     def generate_die(self, NUM_PADS_PER_DIE, DIE_VERTEX_COORDS, PAD_ARR_BOX, pad_boundary_bitmap_coords):
-        die_row = 2 * self.wafer_radius // (self.die_length + self.dice_width) + 1
-        die_col = 2 * self.wafer_radius // (self.die_width + self.dice_width) + 1
+        die_row = 2 * self.wafer_radius // (self.DIE_L_umength + self.dice_width) + 1
+        die_col = 2 * self.wafer_radius // (self.DIE_W_umidth + self.dice_width) + 1
         flag_die_outside = False
         for i in range(int(die_row)):
             for j in range(int(die_col)):
                 flag_die_outside = False
                 die_center = np.array(
                     [
-                        -die_col * (self.die_width + self.dice_width) / 2
-                        + (self.die_width + self.dice_width) / 2
-                        + j * (self.die_width + self.dice_width),
-                        die_row * (self.die_length + self.dice_width) / 2
-                        - (self.die_length + self.dice_width) / 2
-                        - i * (self.die_length + self.dice_width),
+                        -die_col * (self.DIE_W_umidth + self.dice_width) / 2
+                        + (self.DIE_W_umidth + self.dice_width) / 2
+                        + j * (self.DIE_W_umidth + self.dice_width),
+                        die_row * (self.DIE_L_umength + self.dice_width) / 2
+                        - (self.DIE_L_umength + self.dice_width) / 2
+                        - i * (self.DIE_L_umength + self.dice_width),
                     ]
                 )
                 if (
@@ -87,8 +87,8 @@ class Wafer:
                     flag_die_outside = True
                     continue
                 die = Die(
-                    self.die_width,
-                    self.die_length,
+                    self.DIE_W_umidth,
+                    self.DIE_L_umength,
                     die_center,
                     NUM_PADS_PER_DIE,
                     DIE_VERTEX_COORDS,
@@ -104,7 +104,7 @@ class Wafer:
                         break
                 if flag_die_outside:
                     continue
-                self.die_list.append(die)
+                self.DIE_L_umist.append(die)
 
     def draw_wafer_die(self, fig_size=(30, 30)):
         fig, ax = plt.subplots(figsize=fig_size, dpi=900)
@@ -113,7 +113,7 @@ class Wafer:
         ax.set_xlim(-self.wafer_radius * 1.1, self.wafer_radius * 1.1)
         ax.set_ylim(-self.wafer_radius * 1.1, self.wafer_radius * 1.1)
         # draw dies
-        for die in self.die_list:
+        for die in self.DIE_L_umist:
             # Draw the pad array box
             ax.plot(
                 [die.pad_array_box[0][0], die.pad_array_box[1][0]],
@@ -180,8 +180,8 @@ class Wafer:
             # draw pads
             # die_pad_coords = die.center + PAD_COORDS
             # for pad in die_pad_coords:
-            #     ax.add_artist(patches.Circle((pad[0], pad[1]), self.pad_top_radius, color='blue', fill=False))
-            #     ax.add_artist(patches.Circle((pad[0], pad[1]), self.pad_bot_radius, color='orange', fill=False))
+            #     ax.add_artist(patches.Circle((pad[0], pad[1]), self.PAD_TOP_R_umadius, color='blue', fill=False))
+            #     ax.add_artist(patches.Circle((pad[0], pad[1]), self.PAD_BOT_R_umadius, color='orange', fill=False))
 
         # Draw voids
         for v in self.voids:
@@ -197,16 +197,16 @@ class Wafer:
 
 def wafer_initialize(
     NUM_WAFERS,
-    DIE_W,
-    DIE_L,
-    PAD_ARR_W,
-    PAD_ARR_L,
+    DIE_W_um,
+    DIE_L_um,
+    PAD_ARR_W_um,
+    PAD_ARR_L_um,
     PAD_ARR_ROW,
     PAD_ARR_COL,
-    PITCH,
-    WAF_R,
-    PAD_TOP_R,
-    PAD_BOT_R,
+    PITCH_um,
+    WAF_R_um,
+    PAD_TOP_R_um,
+    PAD_BOT_R_um,
     dice_width,
     pad_bitmap_collection
 ):
@@ -214,23 +214,23 @@ def wafer_initialize(
     # Calculate the die center standard coordinates
     DIE_VERTEX_COORDS = np.array(
         [
-            [-DIE_W / 2, DIE_L / 2],
-            [DIE_W / 2, DIE_L / 2],
-            [-DIE_W / 2, -DIE_L / 2],
-            [DIE_W / 2, -DIE_L / 2],
+            [-DIE_W_um / 2, DIE_L_um / 2],
+            [DIE_W_um / 2, DIE_L_um / 2],
+            [-DIE_W_um / 2, -DIE_L_um / 2],
+            [DIE_W_um / 2, -DIE_L_um / 2],
         ]
     )  # die vertex coordinates: [top-left, top-right, bottom-left, bottom-right]
     PAD_ARR_BOX = np.array(
         [
-            [-PAD_ARR_W / 2, PAD_ARR_L / 2], 
-            [PAD_ARR_W / 2, PAD_ARR_L / 2], 
-            [-PAD_ARR_W / 2, -PAD_ARR_L / 2], 
-            [PAD_ARR_W / 2, -PAD_ARR_L / 2]])
+            [-PAD_ARR_W_um / 2, PAD_ARR_L_um / 2], 
+            [PAD_ARR_W_um / 2, PAD_ARR_L_um / 2], 
+            [-PAD_ARR_W_um / 2, -PAD_ARR_L_um / 2], 
+            [PAD_ARR_W_um / 2, -PAD_ARR_L_um / 2]])
     
     NUM_PADS_PER_DIE = PAD_ARR_ROW * PAD_ARR_COL  # number of pads in a die
     
     # Calculate the top-left pad coordinates of the pad array
-    if PITCH >= 1.0:
+    if PITCH_um >= 1.0:
         PAD_COORDS = np.zeros([PAD_ARR_ROW * PAD_ARR_COL, 2], dtype=np.float16)  # pad coordinates: [x, y]
     
         # Create grid of row and column indices
@@ -239,8 +239,8 @@ def wafer_initialize(
         col_grid, row_grid = np.meshgrid(col_indices, row_indices)
 
         # Calculate x and y coordinates
-        x_coords = (-PAD_ARR_W / 2 + col_grid * PITCH).astype(np.float16)
-        y_coords = (PAD_ARR_L / 2 - row_grid * PITCH).astype(np.float16)
+        x_coords = (-PAD_ARR_W_um / 2 + col_grid * PITCH_um).astype(np.float16)
+        y_coords = (PAD_ARR_L_um / 2 - row_grid * PITCH_um).astype(np.float16)
 
         # Combine x and y coordinates
         PAD_COORDS = np.stack((x_coords, y_coords), axis=-1).reshape(-1, 2)
@@ -252,12 +252,16 @@ def wafer_initialize(
     # (row, col) of the critical pads, top left corner, top right corner, bottom left corner, bottom right corner
     pad_block_size = pad_bitmap_collection["pad_block_size"]
     critical_pad_boundary_bitmap_row_col_block_ind = pad_bitmap_collection["critical_pad_boundary_bitmap_row_col_block_ind"]    
-    critical_pad_boundary_bitmap_coords = critical_pad_boundary_bitmap_row_col_block_ind * pad_block_size * PITCH + [-PAD_ARR_W / 2, PAD_ARR_L / 2]
+    critical_pad_boundary_bitmap_row_col_block_ind_non_zero_mask = (critical_pad_boundary_bitmap_row_col_block_ind != 0).astype(int)
+    # We did some fine tuning here to make sure the coordinates are correct
+    origin = [-PAD_ARR_W_um / 2, -PAD_ARR_L_um / 2]
+    bias = critical_pad_boundary_bitmap_row_col_block_ind * pad_block_size * PITCH_um - critical_pad_boundary_bitmap_row_col_block_ind_non_zero_mask * [(DIE_W_um - PAD_ARR_W_um), (DIE_L_um - PAD_ARR_L_um)]
+    critical_pad_boundary_bitmap_coords = bias + origin
     redundant_copy_pad_boundary_bitmap_row_col_block_ind = pad_bitmap_collection["redundant_copy_pad_boundary_bitmap_row_col_block_ind"]
     
     # If there are redundant pads, concatenate their coordinates and critical pad coordinates as the pad boundary coordinates (considered in the overlahy error)
     if redundant_copy_pad_boundary_bitmap_row_col_block_ind is not None:
-        redundant_pad_boundary_bitmap_coords = redundant_copy_pad_boundary_bitmap_row_col_block_ind * pad_block_size * PITCH + [-PAD_ARR_W / 2, PAD_ARR_L / 2]
+        redundant_pad_boundary_bitmap_coords = redundant_copy_pad_boundary_bitmap_row_col_block_ind * pad_block_size * PITCH_um + [-PAD_ARR_W_um / 2, PAD_ARR_L_um / 2]
         pad_boundary_bitmap_coords = np.concatenate((critical_pad_boundary_bitmap_coords, redundant_pad_boundary_bitmap_coords), axis=0)
     else:
         pad_boundary_bitmap_coords = critical_pad_boundary_bitmap_coords
@@ -266,21 +270,21 @@ def wafer_initialize(
     # Initialize the wafer
     for i in range(NUM_WAFERS):
         wafer = Wafer(
-            wafer_radius=WAF_R,
-            die_width=DIE_W,
-            die_length=DIE_L,
-            pad_top_radius=PAD_TOP_R,
-            pad_bot_radius=PAD_BOT_R,
+            wafer_radius=WAF_R_um,
+            DIE_W_umidth=DIE_W_um,
+            DIE_L_umength=DIE_L_um,
+            PAD_TOP_R_umadius=PAD_TOP_R_um,
+            PAD_BOT_R_umadius=PAD_BOT_R_um,
             base_pad_coords=PAD_COORDS,
             dice_width=dice_width,
-            die_pad_pitch=PITCH,
+            die_pad_PITCH_um=PITCH_um,
         )
         wafer.generate_die(NUM_PADS_PER_DIE, DIE_VERTEX_COORDS, PAD_ARR_BOX, pad_boundary_bitmap_coords)
         # wafer.draw_wafer_die()
         # break
-        wafer.survival_die = len(wafer.die_list)
+        wafer.survival_die = len(wafer.DIE_L_umist)
         waf_list.append(wafer)
-    # print("{} dies in the wafer.".format(len(wafer.die_list)))
+    # print("{} dies in the wafer.".format(len(wafer.DIE_L_umist)))
     
     return waf_list
 

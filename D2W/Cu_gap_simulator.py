@@ -10,13 +10,13 @@ import numpy as np
 
 
 def Cu_gap_simulator(
-        top_dish_mean, 
-        top_dish_std, 
-        bot_dish_mean, 
-        bot_dish_std, 
+        TOP_DISH_MEAN_nm, 
+        TOP_DISH_STD_nm, 
+        BOT_DISH_MEAN_nm, 
+        BOT_DISH_STD_nm, 
         num_pad,
     ):
-    top_dish = np.random.normal(top_dish_mean, top_dish_std, num_pad).astype(np.float16)
-    bot_dish = np.random.normal(bot_dish_mean, bot_dish_std, num_pad).astype(np.float16)
+    top_dish = np.random.normal(TOP_DISH_MEAN_nm, TOP_DISH_STD_nm, num_pad).astype(np.float16)
+    bot_dish = np.random.normal(BOT_DISH_MEAN_nm, BOT_DISH_STD_nm, num_pad).astype(np.float16)
     Cu_gap = top_dish + bot_dish
     return Cu_gap

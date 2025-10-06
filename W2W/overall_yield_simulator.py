@@ -33,30 +33,30 @@ def total_memory_mb(obj):
 
 def overall_yield_simulator(
     waf_list,
-    WAF_R,
-    system_translation_x,
-    system_translation_y,
-    system_rotation,
+    WAF_R_um,
+    system_translation_x_um,
+    system_translation_y_um,
+    system_rotation_um,
     system_magnification,
     MAX_ALLOWED_MISALIGNMENT,
     zeta_0,
     zeta_1,
-    PAD_ARR_W,
-    PAD_ARR_L,
+    PAD_ARR_W_um,
+    PAD_ARR_L_um,
     PAD_ARR_ROW,
     PAD_ARR_COL,
-    TOP_DISH_MEAN,
-    TOP_DISH_STD,
-    BOT_DISH_MEAN,
-    BOT_DISH_STD,
+    TOP_DISH_MEAN_nm,
+    TOP_DISH_STD_nm,
+    BOT_DISH_MEAN_nm,
+    BOT_DISH_STD_nm,
     k_et,
     k_eb,
     T_R,
     T_anl,
-    PITCH,
-    PAD_TOP_R,
-    RANDOM_MISALIGNMENT_MEAN,
-    RANDOM_MISALIGNMENT_STD,
+    PITCH_um,
+    PAD_TOP_R_um,
+    RANDOM_MISALIGNMENT_MEAN_um,
+    RANDOM_MISALIGNMENT_STD_um,
     redundant_survival_ratio,
     approximate_set,
     redundant_flag,
@@ -83,10 +83,10 @@ def overall_yield_simulator(
         redundant_fail = 0
 
 
-        for die, die_ind in zip(wafer.die_list, range(len(wafer.die_list))):
+        for die, die_ind in zip(wafer.DIE_L_umist, range(len(wafer.DIE_L_umist))):
             die_count += 1
             if die_count % 10 == 0:
-                print("Processing die {}/{}...".format(die_count, len(wafer.die_list)))
+                print("Processing die {}/{}...".format(die_count, len(wafer.DIE_L_umist)))
                 print("Time taken for every 10 dies: {:.2f} seconds".format((time.time() - start_time) / die_count * 10))
                 # start_time = time.time()
             redundant_pad_fail_map = np.zeros((PAD_ARR_ROW, PAD_ARR_COL))
@@ -103,8 +103,8 @@ def overall_yield_simulator(
                                                         system_translation_y=system_translation_y[waf_ind],
                                                         system_rotation=system_rotation[waf_ind],
                                                         system_magnification=system_magnification[waf_ind],
-                                                        RANDOM_MISALIGNMENT_MEAN=RANDOM_MISALIGNMENT_MEAN,
-                                                        RANDOM_MISALIGNMENT_STD=RANDOM_MISALIGNMENT_STD,
+                                                        RANDOM_MISALIGNMENT_MEAN_um=RANDOM_MISALIGNMENT_MEAN_um,
+                                                        RANDOM_MISALIGNMENT_STD_um=RANDOM_MISALIGNMENT_STD_um,
                                                         approximate_set=approximate_set,
                                                         redundant_flag=redundant_flag,
                                                         )
@@ -177,8 +177,8 @@ def overall_yield_simulator(
                 pad_array_box_y = die.pad_array_box[2][1]
 
                 # Calculate closest x and y distances for all voids simultaneously
-                closest_x = np.maximum(pad_array_box_x, np.minimum(voids[:, 0], pad_array_box_x + PAD_ARR_W))
-                closest_y = np.maximum(pad_array_box_y, np.minimum(voids[:, 1], pad_array_box_y + PAD_ARR_L))
+                closest_x = np.maximum(pad_array_box_x, np.minimum(voids[:, 0], pad_array_box_x + PAD_ARR_W_um))
+                closest_y = np.maximum(pad_array_box_y, np.minimum(voids[:, 1], pad_array_box_y + PAD_ARR_L_um))
 
                 # Calculate distance from each void to the closest point on the pad array box
                 distances = (closest_x - voids[:, 0]) ** 2 + (closest_y - voids[:, 1]) ** 2
@@ -193,17 +193,17 @@ def overall_yield_simulator(
                     # The i, j here are the indices of the pad array bitmap. The origin is the bottom left corner of the pad array box. 
                     # It is noticed that the origin of the bitmap is the top left corner of the pad array box. Switching is needed.
                     in_die_voids = voids[overlap_void_die_mask]
-                    i_coord_min = min(in_die_voids[:, 0] - in_die_voids[:, 2] - PAD_TOP_R - pad_array_box_x)
-                    i_coord_max = max(in_die_voids[:, 0] + in_die_voids[:, 2] + PAD_TOP_R - pad_array_box_x)
-                    j_coord_min = min(in_die_voids[:, 1] - in_die_voids[:, 2] - PAD_TOP_R - pad_array_box_y)
-                    j_coord_max = max(in_die_voids[:, 1] + in_die_voids[:, 2] + PAD_TOP_R - pad_array_box_y)
-                    i_min = max(0, int(np.floor(i_coord_min / PITCH)))  # (col_start)
-                    i_max = min(PAD_ARR_ROW-1, int(np.ceil(i_coord_max / PITCH)))   # H = i_max - i_min + 1 (col_end)
-                    j_min = max(0, int(np.floor(j_coord_min / PITCH)))  # (row_start)
-                    j_max = min(PAD_ARR_COL-1, int(np.ceil(j_coord_max / PITCH)))   # W = j_max - j_min + 1 (row_end)
+                    i_coord_min = min(in_die_voids[:, 0] - in_die_voids[:, 2] - PAD_TOP_R_um - pad_array_box_x)
+                    i_coord_max = max(in_die_voids[:, 0] + in_die_voids[:, 2] + PAD_TOP_R_um - pad_array_box_x)
+                    j_coord_min = min(in_die_voids[:, 1] - in_die_voids[:, 2] - PAD_TOP_R_um - pad_array_box_y)
+                    j_coord_max = max(in_die_voids[:, 1] + in_die_voids[:, 2] + PAD_TOP_R_um - pad_array_box_y)
+                    i_min = max(0, int(np.floor(i_coord_min / PITCH_um)))  # (col_start)
+                    i_max = min(PAD_ARR_ROW-1, int(np.ceil(i_coord_max / PITCH_um)))   # H = i_max - i_min + 1 (col_end)
+                    j_min = max(0, int(np.floor(j_coord_min / PITCH_um)))  # (row_start)
+                    j_max = min(PAD_ARR_COL-1, int(np.ceil(j_coord_max / PITCH_um)))   # W = j_max - j_min + 1 (row_end)
 
-                    check_pad_x_coords = pad_array_box_x + np.arange(i_min, i_max+1) * PITCH
-                    check_pad_y_coords = pad_array_box_y + np.arange(j_min, j_max+1) * PITCH
+                    check_pad_x_coords = pad_array_box_x + np.arange(i_min, i_max+1) * PITCH_um
+                    check_pad_y_coords = pad_array_box_y + np.arange(j_min, j_max+1) * PITCH_um
                     check_pad_x_mesh, check_pad_y_mesh = np.meshgrid(check_pad_x_coords, check_pad_y_coords, indexing='xy')
 
                     # Calculate the distance from each void to the closest point on the critical pads
@@ -216,7 +216,7 @@ def overall_yield_simulator(
                     pad_y = check_pad_y_mesh[np.newaxis, :, :]  # shape (1, H, W)
                     # print(pad_y)
                     dist_sq = (pad_x - voids_x) ** 2 + (pad_y - voids_y) ** 2  # shape (N, H, W)
-                    overlap_void_pad_mask = dist_sq < (voids_r + PAD_TOP_R) ** 2 # shape (N, H, W)
+                    overlap_void_pad_mask = dist_sq < (voids_r + PAD_TOP_R_um) ** 2 # shape (N, H, W)
                     overlap_void_pad_mask = np.any(overlap_void_pad_mask, axis=0)  # shape (H, W)
                     if np.any(overlap_void_pad_mask):
                         die.voids_occur = True      # Will draw the die to green if it still survives
@@ -283,7 +283,7 @@ def overall_yield_simulator(
             Check the Cu gap, a true Monte Carlo simulator
             '''
             # # Check the Cu expansion
-            # Cu_gap = Cu_gap_simulator(TOP_DISH_MEAN, TOP_DISH_STD, BOT_DISH_MEAN, BOT_DISH_STD, int(die.num_pad))
+            # Cu_gap = Cu_gap_simulator(TOP_DISH_MEAN_nm, TOP_DISH_STD_nm, BOT_DISH_MEAN_nm, BOT_DISH_STD_nm, int(die.num_pad))
             # Cu_gap = Cu_gap.reshape(die_critical_pad_bitmap.shape)
             # # Check critical pad Cu gap
             # critical_pad_Cu_gap = Cu_gap * die_critical_pad_bitmap
@@ -325,15 +325,15 @@ def overall_yield_simulator(
         # wafer.draw_wafer_die(fig_size=(30, 30))
         # raise ValueError("Stop here")
         # print("Critical pad fail: {}, Redundant pad fail: {}".format(critical_fail, redundant_fail))
-        die_yield = wafer.survival_die / len(wafer.die_list)
+        die_yield = wafer.survival_die / len(wafer.DIE_L_umist)
         # Because there are too many pads! Cu pad recess height simulation will be very slow!
         # Hence, we will not consider the Cu pad recess height simulation here.
         # We use Cu yield model to calculate the yield.
         Cu_expansion_yield = Cu_expansion_yield_calculator(
-            top_dish_mean=TOP_DISH_MEAN,
-            top_dish_std=TOP_DISH_STD,
-            bot_dish_mean=BOT_DISH_MEAN,
-            bot_dish_std=BOT_DISH_STD,
+            TOP_DISH_MEAN_nm=TOP_DISH_MEAN_nm,
+            TOP_DISH_STD_nm=TOP_DISH_STD_nm,
+            BOT_DISH_MEAN_nm=BOT_DISH_MEAN_nm,
+            BOT_DISH_STD_nm=BOT_DISH_STD_nm,
             k_et=k_et,
             k_eb=k_eb,
             T_R=T_R,

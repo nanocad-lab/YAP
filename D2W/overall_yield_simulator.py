@@ -15,30 +15,30 @@ from Cu_expansion_yield_calculator import Cu_expansion_yield_calculator
 
 
 def overall_yield_simulator(
-    die_list,
+    DIE_L_umist,
     NUM_DIES,
     base_pad_coords,
-    system_translation_x,
-    system_translation_y,
-    system_rotation,
+    system_translation_x_um,
+    system_translation_y_um,
+    system_rotation_um,
     system_magnification,
     MAX_ALLOWED_MISALIGNMENT,
     zeta_0,
     zeta_1,
-    PAD_ARR_W,
-    PAD_ARR_L,
+    PAD_ARR_W_um,
+    PAD_ARR_L_um,
     PAD_ARR_ROW,
     PAD_ARR_COL,
-    DIE_W,
-    DIE_L,
-    TOP_DISH_MEAN,
-    TOP_DISH_STD,
-    BOT_DISH_MEAN,
-    BOT_DISH_STD,
-    PITCH,
-    PAD_TOP_R,
-    RANDOM_MISALIGNMENT_MEAN,
-    RANDOM_MISALIGNMENT_STD,
+    DIE_W_um,
+    DIE_L_um,
+    TOP_DISH_MEAN_nm,
+    TOP_DISH_STD_nm,
+    BOT_DISH_MEAN_nm,
+    BOT_DISH_STD_nm,
+    PITCH_um,
+    PAD_TOP_R_um,
+    RANDOM_MISALIGNMENT_MEAN_um,
+    RANDOM_MISALIGNMENT_STD_um,
     redundant_survival_ratio,
     approximate_set,
     redundant_flag,
@@ -52,8 +52,8 @@ def overall_yield_simulator(
         # # check start time
         # start_time = time.time()
         if die_count % 100 == 0:
-            print("Processing die {}/{}...".format(die_count, len(die_list)))
-        die = die_list[die_ind]
+            print("Processing die {}/{}...".format(die_count, len(DIE_L_umist)))
+        die = DIE_L_umist[die_ind]
         die_count += 1
         # Read the critical pad bitmap
         die_critical_pad_bitmap = pad_bitmap_collection["CRITICAL_PAD_BITMAP"]
@@ -82,8 +82,8 @@ def overall_yield_simulator(
                                                     system_translation_y=system_translation_y[die_ind],
                                                     system_rotation=system_rotation[die_ind],
                                                     system_magnification=system_magnification[die_ind],
-                                                    RANDOM_MISALIGNMENT_MEAN=RANDOM_MISALIGNMENT_MEAN,
-                                                    RANDOM_MISALIGNMENT_STD=RANDOM_MISALIGNMENT_STD,
+                                                    RANDOM_MISALIGNMENT_MEAN_um=RANDOM_MISALIGNMENT_MEAN_um,
+                                                    RANDOM_MISALIGNMENT_STD_um=RANDOM_MISALIGNMENT_STD_um,
                                                     approximate_set=approximate_set,
                                                     redundant_flag=redundant_flag,
                                                     )
@@ -146,8 +146,8 @@ def overall_yield_simulator(
             pad_array_box_y = die.pad_array_box[2][1]
 
             # Calculate closest x and y distances for all voids simultaneously
-            closest_x = np.maximum(pad_array_box_x, np.minimum(voids[:, 0], pad_array_box_x + PAD_ARR_W))
-            closest_y = np.maximum(pad_array_box_y, np.minimum(voids[:, 1], pad_array_box_y + PAD_ARR_L))
+            closest_x = np.maximum(pad_array_box_x, np.minimum(voids[:, 0], pad_array_box_x + PAD_ARR_W_um))
+            closest_y = np.maximum(pad_array_box_y, np.minimum(voids[:, 1], pad_array_box_y + PAD_ARR_L_um))
 
             # Calculate distance from each void to the closest point on the pad array box
             distances = np.sqrt((closest_x - voids[:, 0]) ** 2 + (closest_y - voids[:, 1]) ** 2)
@@ -164,22 +164,22 @@ def overall_yield_simulator(
                     # Calculate the pad range we need to consider (critical, near the void)
                     # The i, j here are the indices of the pad array bitmap. The origin is the bottom left corner of the pad array box. 
                     # It is noticed that the origin of the bitmap is the top left corner of the pad array box. Switching is needed.
-                    i_coords_min = void[0] - void[2] - PAD_TOP_R - pad_array_box_x
-                    i_coords_max = void[0] + void[2] + PAD_TOP_R - pad_array_box_x
-                    j_coords_min = void[1] - void[2] - PAD_TOP_R - pad_array_box_y
-                    j_coords_max = void[1] + void[2] + PAD_TOP_R - pad_array_box_y
-                    i_min = max(0,              int(np.floor(i_coords_min / PITCH)))     # (col_start)
-                    i_max = min(PAD_ARR_ROW-1,  int(np.ceil (i_coords_max / PITCH))) # H = i_max - i_min + 1 (col_end)
-                    j_min = max(0,              int(np.floor(j_coords_min / PITCH)))     # (row_start)
-                    j_max = min(PAD_ARR_COL-1,  int(np.ceil (j_coords_max / PITCH))) # W = j_max - j_min + 1 (row_end)
+                    i_coords_min = void[0] - void[2] - PAD_TOP_R_um - pad_array_box_x
+                    i_coords_max = void[0] + void[2] + PAD_TOP_R_um - pad_array_box_x
+                    j_coords_min = void[1] - void[2] - PAD_TOP_R_um - pad_array_box_y
+                    j_coords_max = void[1] + void[2] + PAD_TOP_R_um - pad_array_box_y
+                    i_min = max(0,              int(np.floor(i_coords_min / PITCH_um)))     # (col_start)
+                    i_max = min(PAD_ARR_ROW-1,  int(np.ceil (i_coords_max / PITCH_um))) # H = i_max - i_min + 1 (col_end)
+                    j_min = max(0,              int(np.floor(j_coords_min / PITCH_um)))     # (row_start)
+                    j_max = min(PAD_ARR_COL-1,  int(np.ceil (j_coords_max / PITCH_um))) # W = j_max - j_min + 1 (row_end)
 
-                    check_pad_x_coords = pad_array_box_x + np.arange(i_min, i_max+1) * PITCH
-                    check_pad_y_coords = pad_array_box_y + np.arange(j_min, j_max+1) * PITCH
+                    check_pad_x_coords = pad_array_box_x + np.arange(i_min, i_max+1) * PITCH_um
+                    check_pad_y_coords = pad_array_box_y + np.arange(j_min, j_max+1) * PITCH_um
                     check_pad_x_mesh, check_pad_y_mesh = np.meshgrid(check_pad_x_coords, check_pad_y_coords, indexing='xy')
 
                     # Calculate the distance from the void to the closest point on the critical pads
                     dist_sq = (check_pad_x_mesh - void[0]) ** 2 + (check_pad_y_mesh - void[1]) ** 2 # Shape (H, W)
-                    overlap_void_pad_mask = (dist_sq < (void[2] + PAD_TOP_R) ** 2)      # shape (H, W)
+                    overlap_void_pad_mask = (dist_sq < (void[2] + PAD_TOP_R_um) ** 2)      # shape (H, W)
                     if np.any(overlap_void_pad_mask):
                         die.voids_occur = True  # Will draw the die to green if it still survives
 
@@ -237,7 +237,7 @@ def overall_yield_simulator(
         Check the Cu gap, a true Monte Carlo simulator
         '''
         # # Check the Cu expansion
-        # Cu_gap = Cu_gap_simulator(TOP_DISH_MEAN, TOP_DISH_STD, BOT_DISH_MEAN, BOT_DISH_STD, int(die.num_pad))
+        # Cu_gap = Cu_gap_simulator(TOP_DISH_MEAN_nm, TOP_DISH_STD_nm, BOT_DISH_MEAN_nm, BOT_DISH_STD_nm, int(die.num_pad))
         # Cu_gap = Cu_gap.reshape(die_critical_pad_bitmap.shape)
         # # Check critical pad Cu gap
         # critical_pad_Cu_gap = Cu_gap * die_critical_pad_bitmap
