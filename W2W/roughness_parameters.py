@@ -11,9 +11,9 @@ import matplotlib.pyplot as plt
 from scipy.optimize import root_scalar
 
 
-def theta_func(R, sigma, adhesion_w, young_modulus_E):
+def theta_func(R, sigma, adhesion_w, Young_modulus_Pa_E):
     # Only works when you assume two wafers have the same surface roughness profile
-    theta = young_modulus_E / adhesion_w * np.sqrt(sigma ** 3 / R)  # dimensionless parameter
+    theta = Young_modulus_Pa_E / adhesion_w * np.sqrt(sigma ** 3 / R)  # dimensionless parameter
     return theta
 
 
@@ -44,25 +44,25 @@ def P_star(s_star, constant, theta):
 
 
 def roughness_parameters(
-    Asperity_R,
-    Roughness_sigma,
+    Asperity_R_m,
+    Roughness_sigma_m,
     eta_s,
     Roughness_constant,
     Adhesion_energy,
-    Young_modulus,
+    Young_modulus_Pa,
     Dielectric_thickness,
-    PITCH,
-    PAD_BOT_R,
-    DISH_0,
+    PITCH_um,
+    PAD_BOT_R_um,
+    DISH_0_m,
     k_peel,
 ):
-    Roughness_sigma_renorm = Roughness_sigma * np.sqrt(2)
-    Young_modulus_renorm = Young_modulus * 0.5
+    Roughness_sigma_m_renorm = Roughness_sigma_m * np.sqrt(2)
+    Young_modulus_Pa_renorm = Young_modulus_Pa * 0.5
     # Calculate theta
-    theta = theta_func(R=Asperity_R,
-                          sigma=Roughness_sigma_renorm,
+    theta = theta_func(R=Asperity_R_m,
+                          sigma=Roughness_sigma_m_renorm,
                           adhesion_w=Adhesion_energy,
-                          young_modulus_E=Young_modulus_renorm)
+                          Young_modulus_Pa_E=Young_modulus_Pa_renorm)
     constant = Roughness_constant
     # Calculate s_star_b: assume s_star_b is between -10 and 10
     s_star_b = root_scalar(lambda s_star: P_star(s_star, constant=constant, theta=theta), bracket=[-10, 10], method='brentq')
@@ -70,21 +70,21 @@ def roughness_parameters(
     A_star_b = A_star(s_star_b.root, constant=constant)
     # print("The normalized effective contact area A_star_b is: ", A_star_b)
 
-    # print("Young_modulus_renorm: ", Young_modulus_renorm)
+    # print("Young_modulus_Pa_renorm: ", Young_modulus_Pa_renorm)
     # print("Adhesion_energy: ", Adhesion_energy)
     # print("Dielectric_thickness: ", Dielectric_thickness)
-    max_acceptable_stress = np.sqrt(2 * Young_modulus_renorm * Adhesion_energy / Dielectric_thickness)
+    max_acceptable_stress = np.sqrt(2 * Young_modulus_Pa_renorm * Adhesion_energy / Dielectric_thickness)
     # print("The maximum acceptable stress is: ", max_acceptable_stress/1e6, "MPa")
     max_acceptable_stress = max_acceptable_stress * A_star_b
     # print("The effective maximum acceptable stress is: ", max_acceptable_stress/1e6, "MPa")
 
     # Calculate the Cu pattern density
-    D_cu = np.pi * PAD_BOT_R ** 2 / PITCH ** 2
+    D_cu = np.pi * PAD_BOT_R_um ** 2 / PITCH_um ** 2
     # print("The Cu pattern density D_cu is: ", D_cu)
 
     # The equilibirum condition for dielectric layer delamination is max_acceptable_stress = peak_annealing_stress
-    # peak_annealing_stress = k_peel * D_cu * (DISH_0 - zeta_1_)
-    zeta_1_ = DISH_0 - max_acceptable_stress / (k_peel * D_cu)
+    # peak_annealing_stress = k_peel * D_cu * (DISH_0_m - zeta_1_)
+    zeta_1_ = DISH_0_m - max_acceptable_stress / (k_peel * D_cu)
     zeta_1_ = zeta_1_ * 1e9     # Convert to nm
     zeta_1_ = zeta_1_ * 2        # Convert to the sum of the top and bottom Cu pad expansion
     # print("The roughness parameter zeta_1_ is: ", zeta_1_)

@@ -13,13 +13,13 @@ import numpy as np
 # def generate_samples(num_pad, mean, std):
 #     return np.random.normal(mean, std, num_pad)
 
-# def Cu_gap_simulator(top_dish_mean, 
-#         top_dish_std, 
-#         bot_dish_mean, 
-#         bot_dish_std, 
+# def Cu_gap_simulator(TOP_DISH_MEAN_nm, 
+#         TOP_DISH_STD_nm, 
+#         BOT_DISH_MEAN_nm, 
+#         BOT_DISH_STD_nm, 
 #         num_pad, num_processes=4):
-#     mean = top_dish_mean + bot_dish_mean
-#     std = np.sqrt(top_dish_std**2 + bot_dish_std**2)
+#     mean = TOP_DISH_MEAN_nm + BOT_DISH_MEAN_nm
+#     std = np.sqrt(TOP_DISH_STD_nm**2 + BOT_DISH_STD_nm**2)
 #     pool = Pool(processes=num_processes)
     
 #     # Split num_pads into chunks for parallel processing
@@ -34,13 +34,13 @@ import numpy as np
 
 
 def Cu_gap_simulator(
-        top_dish_mean, 
-        top_dish_std, 
-        bot_dish_mean, 
-        bot_dish_std, 
+        TOP_DISH_MEAN_nm, 
+        TOP_DISH_STD_nm, 
+        BOT_DISH_MEAN_nm, 
+        BOT_DISH_STD_nm, 
         num_pad,
     ):
-    top_dish = np.random.normal(top_dish_mean, top_dish_std, num_pad)
-    bot_dish = np.random.normal(bot_dish_mean, bot_dish_std, num_pad)
+    top_dish = np.random.normal(TOP_DISH_MEAN_nm, TOP_DISH_STD_nm, num_pad)
+    bot_dish = np.random.normal(BOT_DISH_MEAN_nm, BOT_DISH_STD_nm, num_pad)
     Cu_gap = top_dish + bot_dish
     return Cu_gap

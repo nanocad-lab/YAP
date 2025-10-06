@@ -280,6 +280,8 @@ def pad_bitmap_generate_random(cfg, pad_layout_pattern):
     critical_pad_boundary_bitmap_row_col_block_ind[1] = top_right_ind / pad_block_size
     critical_pad_boundary_bitmap_row_col_block_ind[2] = bottom_left_ind / pad_block_size 
     critical_pad_boundary_bitmap_row_col_block_ind[3] = bottom_right_ind / pad_block_size
+    critical_pad_boundary_bitmap_row_col_block_ind_non_zero_mask = (critical_pad_boundary_bitmap_row_col_block_ind != 0)
+    critical_pad_boundary_bitmap_row_col_block_ind = critical_pad_boundary_bitmap_row_col_block_ind + critical_pad_boundary_bitmap_row_col_block_ind_non_zero_mask
     # print("Critical pad boundary bitmap row-col indices:", critical_pad_boundary_bitmap_row_col_block_ind)
 
 
@@ -443,7 +445,7 @@ def pad_bitmap_generate_random(cfg, pad_layout_pattern):
 
             # Assign the physical pads for the redundant logical pads
             # Each redundant logical pad has redundant_logical_pad_copy copies
-            # Each copy has a distance of at least redundant_logical_pad_dist * PITCH
+            # Each copy has a distance of at least redundant_logical_pad_dist * PITCH_um
             for idx, (main_block_ind, copy_block_ind) in enumerate(redundant_pad_block_pair_dict.items()):
                 if idx % 20 == 0:
                     print("Processing redundant block {}/{}..., cluster size: {}".format(idx + 1, num_redundant_pad_blocks, int((col_end - col_start) / (2 * redundant_logical_pad_dist))))
@@ -611,7 +613,7 @@ def pad_bitmap_generate_random(cfg, pad_layout_pattern):
 
             # Assign the physical pads for the redundant logical pads
             # Each redundant logical pad has redundant_logical_pad_copy copies
-            # Each copy has a distance of at least redundant_logical_pad_dist * PITCH
+            # Each copy has a distance of at least redundant_logical_pad_dist * PITCH_um
             for idx, (main_block_ind, copy_block_ind) in enumerate(redundant_pad_block_pair_dict.items()):
                 if idx % 20 == 0:
                     print("Processing redundant block {}/{}..., cluster size: {}".format(idx + 1, num_redundant_pad_blocks, int((col_end - col_start) / (multi2one_ratio + redundant_logical_pad_dist + 1))))
@@ -847,7 +849,7 @@ def crop_to_nonzero(structure):
     return structure[top:bottom+1, left:right+1]
 
 def A_critical_l_across_theta(cfg,
-                              PITCH,
+                              PITCH_um,
                                 l,
                                 r_avg_mv,
                                 angle_step,
@@ -867,7 +869,7 @@ def A_critical_l_across_theta(cfg,
 
     # print("[Time] Downsampling:", time.time() - start)
     # Add padding to the bitmap
-    padding_size = int(np.ceil(l / PITCH / pad_block_size))
+    padding_size = int(np.ceil(l / PITCH_um / pad_block_size))
 
     if cfg.DEBUG == True:
         # Draw REDUNDANT_MAIN_PAD_BLOCK_BITMAP_DILATED
@@ -927,7 +929,7 @@ def A_critical_l_across_theta(cfg,
         line_defect_info["theta"] = theta
         line_defect_info["l"] = l
         line_defect_info["r_avg_mv"] = r_avg_mv
-        line_defect = build_struture(mode="void_tail", defect_info=line_defect_info, pixel_size=PITCH*pad_block_size)
+        line_defect = build_struture(mode="void_tail", defect_info=line_defect_info, pixel_size=PITCH_um*pad_block_size)
         line_defect = crop_to_nonzero(line_defect)
 
         TOTAL_CRITICAL_AREA_BITMAP = np.zeros_like(CRITICAL_PAD_BLOCK_BITMAP_EXPAND[0], dtype=bool)
@@ -1037,9 +1039,9 @@ def A_critical_l_across_theta(cfg,
             # sio.savemat("pad_bitmap/TOTAL_CRITICAL_AREA_BITMAP.mat", {"TOTAL_CRITICAL_AREA_BITMAP": TOTAL_CRITICAL_AREA_BITMAP})
             raise ValueError("Critical area is not correct.")
         # print("How many total critical area blocks are dilated:", np.sum(TOTAL_CRITICAL_AREA_BITMAP))
-        # print("Critical area: {}", np.sum(TOTAL_CRITICAL_AREA_BITMAP) * PITCH**2 * pad_block_size**2)
+        # print("Critical area: {}", np.sum(TOTAL_CRITICAL_AREA_BITMAP) * PITCH_um**2 * pad_block_size**2)
         # Calculate the critical area
-        critical_area_list_across_theta.append(np.sum(TOTAL_CRITICAL_AREA_BITMAP) * PITCH**2 * pad_block_size**2)
+        critical_area_list_across_theta.append(np.sum(TOTAL_CRITICAL_AREA_BITMAP) * PITCH_um**2 * pad_block_size**2)
         
         # print("[Time] One theta critical area:", time.time() - t0)
 
@@ -1054,7 +1056,7 @@ def A_critical_l_across_theta(cfg,
 
 
 def A_critical_r_mv(cfg,
-                    PITCH,
+                    PITCH_um,
                     r_mv,
                     bitmap_collection,):
     '''
@@ -1069,7 +1071,7 @@ def A_critical_r_mv(cfg,
 
     # print("[Time] Downsampling:", time.time() - start)
     # Add padding to the bitmap
-    padding_size = int(np.ceil(2 * r_mv / PITCH / pad_block_size))
+    padding_size = int(np.ceil(2 * r_mv / PITCH_um / pad_block_size))
 
     if cfg.DEBUG == True:
         print("r_mv:", r_mv)
@@ -1123,7 +1125,7 @@ def A_critical_r_mv(cfg,
     void_defect_info = dict()
     void_defect_info["r_mv"] = r_mv
     # Dilate the critical pad bitmap to generate critical area
-    void_defect = build_struture(mode="main_void", defect_info=void_defect_info, pixel_size=PITCH*pad_block_size)
+    void_defect = build_struture(mode="main_void", defect_info=void_defect_info, pixel_size=PITCH_um*pad_block_size)
     void_defect = crop_to_nonzero(void_defect)
 
 
@@ -1225,9 +1227,9 @@ def A_critical_r_mv(cfg,
         raise ValueError("Critical area is not correct.")
 
     # print("How many total critical area blocks are dilated:", np.sum(TOTAL_CRITICAL_AREA_BITMAP))
-    # print("Critical area: {}", np.sum(TOTAL_CRITICAL_AREA_BITMAP) * PITCH**2 * pad_block_size**2)
+    # print("Critical area: {}", np.sum(TOTAL_CRITICAL_AREA_BITMAP) * PITCH_um**2 * pad_block_size**2)
     # Calculate the critical area
-    critical_area_r_mv = np.sum(TOTAL_CRITICAL_AREA_BITMAP) * PITCH**2 * pad_block_size**2
+    critical_area_r_mv = np.sum(TOTAL_CRITICAL_AREA_BITMAP) * PITCH_um**2 * pad_block_size**2
     
     # print("Critical area of the main void:", critical_area_r_mv)
     # raise ValueError("Critical area figure drawing.")
