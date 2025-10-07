@@ -12,16 +12,16 @@ import matplotlib.patches as patches
 
 class Die:
     def __init__(
-        self, DIE_W_umidth, DIE_L_umength, die_center, 
-        DIE_VERTEX_COORDS, num_pad, PAD_ARR_BOX,
+        self, DIE_W_um, DIE_L_um, die_center, 
+        DIE_VERTEX_COORDS, num_pads, PAD_ARR_BOX,
         pad_boundary_bitmap_coords,
         pad_yield_flag: bool,
         BASE_PAD_COORDS: np.ndarray = None,
     ):
-        self.DIE_W_umidth = DIE_W_umidth
-        self.DIE_L_umength = DIE_L_umength
+        self.DIE_W_um = DIE_W_um
+        self.DIE_L_um = DIE_L_um
         self.die_center = die_center
-        self.num_pad = num_pad
+        self.num_pads = num_pads
         self.vertices_coords = self.get_vertices_coords(die_center, DIE_VERTEX_COORDS)
         self.pad_array_box = PAD_ARR_BOX + die_center
         self.ovl_critical_pad_boundary_coords = pad_boundary_bitmap_coords + die_center
@@ -31,6 +31,9 @@ class Die:
         self.safe_voids_mask = []
         self.voids = []
         self.voids_occur = False
+
+        self.die_yield = {}
+        self.pad_yield_map = {}
 
     def get_vertices_coords(self, die_center, DIE_VERTEX_COORDS):
         vertices_coords = DIE_VERTEX_COORDS + die_center
@@ -106,34 +109,34 @@ class Die:
             ax.add_artist(patches.Circle((v[0], v[1]), v[2], color="red", fill=False))
         ax.set_aspect("equal")
         # set x and y axis limits
-        ax.set_xlim(-self.DIE_W_umidth*0.6, self.DIE_W_umidth*0.6)
-        ax.set_ylim(-self.DIE_L_umength*0.6, self.DIE_L_umength*0.6)
+        ax.set_xlim(-self.DIE_W_um*0.6, self.DIE_W_um*0.6)
+        ax.set_ylim(-self.DIE_L_um*0.6, self.DIE_L_um*0.6)
         plt.show()
 
         # # draw pads
         # for pad in die.pad_coords:
-        #     ax.add_artist(patches.Circle((pad[0], pad[1]), self.PAD_TOP_R_umadius, color='blue', fill=False))
-        #     ax.add_artist(patches.Circle((pad[0], pad[1]), self.PAD_BOT_R_umadius, color='orange', fill=False))    
+        #     ax.add_artist(patches.Circle((pad[0], pad[1]), self.PAD_TOP_R_um, color='blue', fill=False))
+        #     ax.add_artist(patches.Circle((pad[0], pad[1]), self.PAD_BOT_R_um, color='orange', fill=False))    
 
 
 class Wafer:
     def __init__(
         self,
         wafer_radius,
-        DIE_W_umidth,
-        DIE_L_umength,
-        PAD_TOP_R_umadius,
-        PAD_BOT_R_umadius,
+        DIE_W_um,
+        DIE_L_um,
+        PAD_TOP_R_um,
+        PAD_BOT_R_um,
         base_pad_coords,
         dice_width,
         dice_proportion=1.0,
     ):
         self.wafer_radius = wafer_radius
-        self.DIE_W_umidth = DIE_W_umidth
-        self.DIE_L_umength = DIE_L_umength
-        self.PAD_TOP_R_umadius = PAD_TOP_R_umadius
-        self.PAD_BOT_R_umadius = PAD_BOT_R_umadius
-        self.DIE_L_umist = []
+        self.DIE_W_um = DIE_W_um
+        self.DIE_L_um = DIE_L_um
+        self.PAD_TOP_R_um = PAD_TOP_R_um
+        self.PAD_BOT_R_um = PAD_BOT_R_um
+        self.die_list = []
         self.dice_proportion = dice_proportion
         self.voids = []
         self.safe_voids_mask = []
@@ -143,20 +146,20 @@ class Wafer:
         self.dice_width = dice_width
 
     def generate_die(self, DIE_VERTEX_COORDS, PAD_COORDS, PAD_ARR_BOX):
-        die_row = 2 * self.wafer_radius // (self.DIE_L_umength + self.dice_width) + 1
-        die_col = 2 * self.wafer_radius // (self.DIE_W_umidth + self.dice_width) + 1
+        die_row = 2 * self.wafer_radius // (self.DIE_L_um + self.dice_width) + 1
+        die_col = 2 * self.wafer_radius // (self.DIE_W_um + self.dice_width) + 1
         flag_die_outside = False
         for i in range(int(die_row)):
             for j in range(int(die_col)):
                 flag_die_outside = False
                 die_center = np.array(
                     [
-                        -die_col * (self.DIE_W_umidth + self.dice_width) / 2
-                        + (self.DIE_W_umidth + self.dice_width) / 2
-                        + j * (self.DIE_W_umidth + self.dice_width),
-                        die_row * (self.DIE_L_umength + self.dice_width) / 2
-                        - (self.DIE_L_umength + self.dice_width) / 2
-                        - i * (self.DIE_L_umength + self.dice_width),
+                        -die_col * (self.DIE_W_um + self.dice_width) / 2
+                        + (self.DIE_W_um + self.dice_width) / 2
+                        + j * (self.DIE_W_um + self.dice_width),
+                        die_row * (self.DIE_L_um + self.dice_width) / 2
+                        - (self.DIE_L_um + self.dice_width) / 2
+                        - i * (self.DIE_L_um + self.dice_width),
                     ]
                 )
                 if (
@@ -166,8 +169,8 @@ class Wafer:
                     flag_die_outside = True
                     continue
                 die = Die(
-                    self.DIE_W_umidth,
-                    self.DIE_L_umength,
+                    self.DIE_W_um,
+                    self.DIE_L_um,
                     die_center,
                     DIE_VERTEX_COORDS,
                     PAD_COORDS,
@@ -182,7 +185,7 @@ class Wafer:
                         break
                 if flag_die_outside:
                     continue
-                self.DIE_L_umist.append(die)
+                self.die_list.append(die)
 
     def draw_wafer_die(self, fig_size=(30, 30)):
         fig, ax = plt.subplots(figsize=fig_size)
@@ -191,7 +194,7 @@ class Wafer:
         ax.set_xlim(-self.wafer_radius * 1.1, self.wafer_radius * 1.1)
         ax.set_ylim(-self.wafer_radius * 1.1, self.wafer_radius * 1.1)
         # draw dies
-        for die in self.DIE_L_umist:
+        for die in self.die_list:
             if die.survival == True:
                 ax.plot(
                     [die.vertices_coords[0][0], die.vertices_coords[1][0]],
@@ -268,8 +271,8 @@ class Wafer:
             # draw pads
             # die_pad_coords = die.center + PAD_COORDS
             # for pad in die_pad_coords:
-            #     ax.add_artist(patches.Circle((pad[0], pad[1]), self.PAD_TOP_R_umadius, color='blue', fill=False))
-            #     ax.add_artist(patches.Circle((pad[0], pad[1]), self.PAD_BOT_R_umadius, color='orange', fill=False))
+            #     ax.add_artist(patches.Circle((pad[0], pad[1]), self.PAD_TOP_R_um, color='blue', fill=False))
+            #     ax.add_artist(patches.Circle((pad[0], pad[1]), self.PAD_BOT_R_um, color='orange', fill=False))
 
         # Draw voids
         for v in self.voids:
@@ -292,7 +295,7 @@ def die_initialize(
     pad_bitmap_collection,
     pad_yield_flag: bool = False,
 ):
-    DIE_L_umist = []
+    die_list = []
     # Calculate the die center standard coordinates
     DIE_VERTEX_COORDS = np.array(
         [
@@ -309,7 +312,7 @@ def die_initialize(
             [-PAD_ARR_W_um / 2, -PAD_ARR_L_um / 2], 
             [PAD_ARR_W_um / 2, -PAD_ARR_L_um / 2]])
 
-    num_pad = PAD_ARR_ROW * PAD_ARR_COL  # Total number of pads in the pad array
+    num_pads = PAD_ARR_ROW * PAD_ARR_COL  # Total number of pads in the pad array
 
     if PITCH_um >= 1.0:
     # Calculate the top-left pad coordinates of the pad array
@@ -349,15 +352,15 @@ def die_initialize(
         
     for i in range(NUM_DIES):
         die = Die(
-            DIE_W_umidth=DIE_W_um,
-            DIE_L_umength=DIE_L_um,
+            DIE_W_um=DIE_W_um,
+            DIE_L_um=DIE_L_um,
             die_center=np.array([0, 0]),
             DIE_VERTEX_COORDS=DIE_VERTEX_COORDS,
-            num_pad=num_pad,
+            num_pads=num_pads,
             PAD_ARR_BOX=PAD_ARR_BOX,
             pad_boundary_bitmap_coords=pad_boundary_bitmap_coords,
             pad_yield_flag=pad_yield_flag,
             BASE_PAD_COORDS=PAD_COORDS,
         )
-        DIE_L_umist.append(die)
-    return DIE_L_umist, PAD_COORDS
+        die_list.append(die)
+    return die_list, PAD_COORDS

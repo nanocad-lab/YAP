@@ -83,10 +83,10 @@ def overall_yield_simulator(
         redundant_fail = 0
 
 
-        for die, die_ind in zip(wafer.DIE_L_umist, range(len(wafer.DIE_L_umist))):
+        for die, die_ind in zip(wafer.die_list, range(len(wafer.die_list))):
             die_count += 1
             if die_count % 10 == 0:
-                print("Processing die {}/{}...".format(die_count, len(wafer.DIE_L_umist)))
+                print("Processing die {}/{}...".format(die_count, len(wafer.die_list)))
                 print("Time taken for every 10 dies: {:.2f} seconds".format((time.time() - start_time) / die_count * 10))
                 # start_time = time.time()
             redundant_pad_fail_map = np.zeros((PAD_ARR_ROW, PAD_ARR_COL))
@@ -283,7 +283,7 @@ def overall_yield_simulator(
             Check the Cu gap, a true Monte Carlo simulator
             '''
             # # Check the Cu expansion
-            # Cu_gap = Cu_gap_simulator(TOP_DISH_MEAN_nm, TOP_DISH_STD_nm, BOT_DISH_MEAN_nm, BOT_DISH_STD_nm, int(die.num_pad))
+            # Cu_gap = Cu_gap_simulator(TOP_DISH_MEAN_nm, TOP_DISH_STD_nm, BOT_DISH_MEAN_nm, BOT_DISH_STD_nm, int(die.num_pads))
             # Cu_gap = Cu_gap.reshape(die_critical_pad_bitmap.shape)
             # # Check critical pad Cu gap
             # critical_pad_Cu_gap = Cu_gap * die_critical_pad_bitmap
@@ -325,7 +325,7 @@ def overall_yield_simulator(
         # wafer.draw_wafer_die(fig_size=(30, 30))
         # raise ValueError("Stop here")
         # print("Critical pad fail: {}, Redundant pad fail: {}".format(critical_fail, redundant_fail))
-        die_yield = wafer.survival_die / len(wafer.DIE_L_umist)
+        die_yield = wafer.survival_die / len(wafer.die_list)
         # Because there are too many pads! Cu pad recess height simulation will be very slow!
         # Hence, we will not consider the Cu pad recess height simulation here.
         # We use Cu yield model to calculate the yield.

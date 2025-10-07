@@ -49,20 +49,20 @@ def downsample_bitmap(bitmap, block_size):
     return bitmap_down
 
 
-def assign_pad_blocks(mode, num_pad_blocks, num_pad_block_row, num_pad_block_col,
+def assign_pad_blocks(mode, num_pads_blocks, num_pads_block_row, num_pads_block_col,
                       num_critical_pad_blocks, num_redundant_pad_blocks, 
                       redundant_mesh_spacing=2, sparse_stride=3):
-    all_blocks_idx = np.arange(num_pad_blocks)
+    all_blocks_idx = np.arange(num_pads_blocks)
 
-    block_row_idx = all_blocks_idx // num_pad_block_col
-    block_col_idx = all_blocks_idx % num_pad_block_col
+    block_row_idx = all_blocks_idx // num_pads_block_col
+    block_col_idx = all_blocks_idx % num_pads_block_col
 
     # Calculate the ring index for each block (0 at the outermost ring, increasing towards the center)
     ring_index = np.minimum.reduce([
         block_row_idx,
         block_col_idx,
-        num_pad_block_row - 1 - block_row_idx,
-        num_pad_block_col - 1 - block_col_idx
+        num_pads_block_row - 1 - block_row_idx,
+        num_pads_block_col - 1 - block_col_idx
     ])
 
     # === Critical pad assignment ===
@@ -93,7 +93,7 @@ def assign_pad_blocks(mode, num_pad_blocks, num_pad_block_row, num_pad_block_col
             raise ValueError("Even stride=1 cannot provide enough checkerboard blocks.")
 
         # Step 2: 均匀采样
-        center_row, center_col = (num_pad_block_row - 1) / 2, (num_pad_block_col - 1) / 2
+        center_row, center_col = (num_pads_block_row - 1) / 2, (num_pads_block_col - 1) / 2
         dist = np.abs(block_row_idx[mesh_indices] - center_row) + np.abs(block_col_idx[mesh_indices] - center_col)
         sorted_indices = mesh_indices[np.argsort(dist)]
 
@@ -117,7 +117,7 @@ def assign_pad_blocks(mode, num_pad_blocks, num_pad_block_row, num_pad_block_col
 
     if mesh_count >= num_redundant_pad_blocks:
         # prioritize innermost mesh blocks
-        center_row, center_col = (num_pad_block_row - 1) / 2, (num_pad_block_col - 1) / 2
+        center_row, center_col = (num_pads_block_row - 1) / 2, (num_pads_block_col - 1) / 2
         manhattan_distance = np.abs(block_row_idx - center_row) + np.abs(block_col_idx - center_col)
         sorted_redundant_blocks = potential_redundant_blocks[
             np.argsort(manhattan_distance[potential_redundant_blocks])
@@ -134,7 +134,7 @@ def assign_pad_blocks(mode, num_pad_blocks, num_pad_block_row, num_pad_block_col
         elif mode == 'center':
             gap_blocks_sorted = gap_blocks[np.argsort(-ring_index[gap_blocks])]
         elif mode == 'sparse':
-            center_row, center_col = (num_pad_block_row - 1) / 2, (num_pad_block_col - 1) / 2
+            center_row, center_col = (num_pads_block_row - 1) / 2, (num_pads_block_col - 1) / 2
             manhattan_distance = np.abs(block_row_idx - center_row) + np.abs(block_col_idx - center_col)
             gap_blocks_sorted = gap_blocks[np.argsort(manhattan_distance[gap_blocks])]
         else:
@@ -224,20 +224,20 @@ def pad_bitmap_generate_random(cfg, pad_layout_pattern):
     print("PAD_ARR_COL:", PAD_ARR_COL)
 
     # Initialize the pad block
-    num_pad_block_row = math.ceil(PAD_ARR_ROW / pad_block_size)
-    num_pad_block_col = math.ceil(PAD_ARR_COL / pad_block_size)
-    num_pad_blocks = num_pad_block_row * num_pad_block_col
+    num_pads_block_row = math.ceil(PAD_ARR_ROW / pad_block_size)
+    num_pads_block_col = math.ceil(PAD_ARR_COL / pad_block_size)
+    num_pads_blocks = num_pads_block_row * num_pads_block_col
     num_critical_pad_blocks = math.ceil(num_critical_pads / (pad_block_size ** 2))
     num_redundant_pad_blocks = min(math.ceil(num_redundant_pads / (pad_block_size ** 2)), \
-                                   num_pad_blocks - num_critical_pad_blocks)
-    num_dummy_pad_blocks = num_pad_blocks - num_critical_pad_blocks - num_redundant_pad_blocks
+                                   num_pads_blocks - num_critical_pad_blocks)
+    num_dummy_pad_blocks = num_pads_blocks - num_critical_pad_blocks - num_redundant_pad_blocks
 
     # Update the number of types of pads
     num_critical_pads = num_critical_pad_blocks * pad_block_size ** 2
     num_redundant_pads = num_redundant_pad_blocks * pad_block_size ** 2
     num_redundant_logical_pads = math.ceil(num_redundant_pads * redundant_logical_pad_ratio)
 
-    print("Number of pad blocks:", num_pad_blocks)
+    print("Number of pad blocks:", num_pads_blocks)
     print("Pad block size:", pad_block_size)
     print("Number of critical pad blocks:", num_critical_pad_blocks)
     print("Number of redundant pad blocks:", num_redundant_pad_blocks)
@@ -245,9 +245,9 @@ def pad_bitmap_generate_random(cfg, pad_layout_pattern):
 
     # Assign pad block locations for critical, redundant, and dummy pad blocks
     critical_pad_blocks, redundant_pad_blocks, dummy_pad_blocks = assign_pad_blocks(pad_layout_pattern,
-                                                                                    num_pad_blocks, 
-                                                                                    num_pad_block_row, 
-                                                                                    num_pad_block_col, 
+                                                                                    num_pads_blocks, 
+                                                                                    num_pads_block_row, 
+                                                                                    num_pads_block_col, 
                                                                                     num_critical_pad_blocks, 
                                                                                     num_redundant_pad_blocks, 
                                                                                     redundant_mesh_spacing=3)
@@ -261,8 +261,8 @@ def pad_bitmap_generate_random(cfg, pad_layout_pattern):
 
     # Place critical pad blocks
     for i in range(num_critical_pad_blocks):
-        row_start = (critical_pad_blocks[i] // num_pad_block_col) * pad_block_size
-        col_start = (critical_pad_blocks[i] % num_pad_block_col) * pad_block_size
+        row_start = (critical_pad_blocks[i] // num_pads_block_col) * pad_block_size
+        col_start = (critical_pad_blocks[i] % num_pads_block_col) * pad_block_size
         row_end = row_start + pad_block_size
         col_end = col_start + pad_block_size
         # Prevent out of bounds
@@ -289,8 +289,8 @@ def pad_bitmap_generate_random(cfg, pad_layout_pattern):
     redundant_pad_block_info_dict = dict()
     for redundant_block_ind in redundant_pad_blocks:
         # print("Processing redundant pad block {}/{}...".format(redundant_block_ind + 1, num_redundant_pad_blocks))
-        row_start = (redundant_block_ind // num_pad_block_col) * pad_block_size
-        col_start = (redundant_block_ind % num_pad_block_col) * pad_block_size
+        row_start = (redundant_block_ind // num_pads_block_col) * pad_block_size
+        col_start = (redundant_block_ind % num_pads_block_col) * pad_block_size
         row_end = row_start + pad_block_size
         col_end = col_start + pad_block_size
         # Prevent out of bounds
@@ -373,7 +373,7 @@ def pad_bitmap_generate_random(cfg, pad_layout_pattern):
             pad_block_dist = int(redundant_logical_pad_dist / pad_block_size)
             # Get the pad block row-column ids for the redundant pads
             pad_block_row_col_map = np.array([
-                (block_ind // num_pad_block_col, block_ind % num_pad_block_col)
+                (block_ind // num_pads_block_col, block_ind % num_pads_block_col)
                 for block_ind in redundant_pad_blocks
             ])
             # Build a KD-tree for fast nearest neighbor search
@@ -388,7 +388,7 @@ def pad_bitmap_generate_random(cfg, pad_layout_pattern):
                 if block_ind in used_redundant_pad_block_ids_set:
                     continue
                 main_block_ind = block_ind
-                main_block_pos = np.array([(main_block_ind // num_pad_block_col, main_block_ind % num_pad_block_col)])
+                main_block_pos = np.array([(main_block_ind // num_pads_block_col, main_block_ind % num_pads_block_col)])
                 # Query the KD-tree for the nearest neighbors
                 # inner_neighbor_ids = pad_block_tree.query_ball_point(main_block_pos, r=max(0,pad_block_dist-1))[0]
                 inner_neighbor_ids = pad_block_tree.query_ball_point(main_block_pos, r=pad_block_dist-0.1)[0]
@@ -540,7 +540,7 @@ def pad_bitmap_generate_random(cfg, pad_layout_pattern):
             pad_block_dist = np.ceil(redundant_logical_pad_dist / pad_block_size - 1)
             # Get the pad block row-column ids for the redundant pads
             pad_block_row_col_map = np.array([
-                (block_ind // num_pad_block_col, block_ind % num_pad_block_col)
+                (block_ind // num_pads_block_col, block_ind % num_pads_block_col)
                 for block_ind in redundant_pad_blocks
             ])
             # Build a KD-tree for fast nearest neighbor search
@@ -557,7 +557,7 @@ def pad_bitmap_generate_random(cfg, pad_layout_pattern):
                     continue
 
                 main_block_ind = block_ind
-                main_block_pos = np.array([(main_block_ind // num_pad_block_col, main_block_ind % num_pad_block_col)])
+                main_block_pos = np.array([(main_block_ind // num_pads_block_col, main_block_ind % num_pads_block_col)])
                 main_block_to_be_allocated_ind_list.append(main_block_ind)
                 used_redundant_pad_block_ids_set.add(main_block_ind)
                 # Query the KD-tree for the nearest neighbors
@@ -657,15 +657,15 @@ def pad_bitmap_generate_random(cfg, pad_layout_pattern):
             print("Redundant blocks and pads assigned.")
 
     
-    REDUNDANT_MAIN_PAD_BLOCK_BITMAP = np.zeros((len(redundant_pad_block_pair_dict), num_pad_block_row, num_pad_block_col), dtype=bool)
-    REDUNDANT_COPY_PAD_BLOCK_BITMAP = np.zeros((len(redundant_pad_block_pair_dict), num_pad_block_row, num_pad_block_col), dtype=bool)
+    REDUNDANT_MAIN_PAD_BLOCK_BITMAP = np.zeros((len(redundant_pad_block_pair_dict), num_pads_block_row, num_pads_block_col), dtype=bool)
+    REDUNDANT_COPY_PAD_BLOCK_BITMAP = np.zeros((len(redundant_pad_block_pair_dict), num_pads_block_row, num_pads_block_col), dtype=bool)
     for idx, (main_block_ind, copy_block_ind) in enumerate(redundant_pad_block_pair_dict.items()):
-        main_row = (main_block_ind // num_pad_block_col)
-        main_col = (main_block_ind % num_pad_block_col)
+        main_row = (main_block_ind // num_pads_block_col)
+        main_col = (main_block_ind % num_pads_block_col)
         REDUNDANT_MAIN_PAD_BLOCK_BITMAP[idx, main_row, main_col] = True
 
-        copy_row = (copy_block_ind // num_pad_block_col)
-        copy_col = (copy_block_ind % num_pad_block_col)
+        copy_row = (copy_block_ind // num_pads_block_col)
+        copy_col = (copy_block_ind % num_pads_block_col)
         REDUNDANT_COPY_PAD_BLOCK_BITMAP[idx, copy_row, copy_col] = True
 
     # Calculate the outmost redundant copy pad coordinates for overlay simulation (4 totally)

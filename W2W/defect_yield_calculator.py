@@ -15,7 +15,10 @@ from scipy.integrate import dblquad
 from pad_bitmap_generation import A_critical_l_across_theta
 
 
-def get_bitmap_bounds(bitmap, pad_block_size):
+def get_bitmap_bounds(*,
+        bitmap: np.ndarray,
+        pad_block_size: int
+    ):
     # Find the bounds of the non-zero pixels in the bitmap
     rows = np.any(bitmap, axis=1)
     cols = np.any(bitmap, axis=0)
@@ -33,25 +36,25 @@ def get_bitmap_bounds(bitmap, pad_block_size):
 
 def defect_yield_calculator(
     cfg,
-    WAF_R_um,
-    D0,
-    t_0,
-    z,
-    k_r,
-    k_r0,
-    k_n,
-    k_S,
-    k_L,
-    PAD_TOP_R_um,
-    PITCH_um,
-    PAD_ARR_ROW,
-    PAD_ARR_COL,
-    PAD_ARR_W_um,
-    PAD_ARR_L_um,
-    VOID_SHAPE,
-    num_die,
-    dice_width,
-    pad_bitmap_collection,
+    WAF_R_um: float,
+    D0: float,
+    t_0: float,
+    z: float,
+    k_r: float,
+    k_r0: float,
+    k_n: float,
+    k_S: float,
+    k_L: float,
+    PAD_TOP_R_um: float,
+    PITCH_um: float,
+    PAD_ARR_ROW: int,
+    PAD_ARR_COL: int,
+    PAD_ARR_W_um: float,
+    PAD_ARR_L_um: float,
+    VOID_SHAPE: str,
+    num_die: int,
+    dice_width: float,
+    pad_bitmap_collection: dict,
 ):
     # Read the bitmap collection info
     r_mv = sp.symbols("r_mv")

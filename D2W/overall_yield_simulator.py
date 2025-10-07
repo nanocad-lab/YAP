@@ -15,7 +15,7 @@ from Cu_expansion_yield_calculator import Cu_expansion_yield_calculator
 
 
 def overall_yield_simulator(
-    DIE_L_umist,
+    die_list,
     NUM_DIES,
     base_pad_coords,
     system_translation_x_um,
@@ -52,8 +52,8 @@ def overall_yield_simulator(
         # # check start time
         # start_time = time.time()
         if die_count % 100 == 0:
-            print("Processing die {}/{}...".format(die_count, len(DIE_L_umist)))
-        die = DIE_L_umist[die_ind]
+            print("Processing die {}/{}...".format(die_count, len(die_list)))
+        die = die_list[die_ind]
         die_count += 1
         # Read the critical pad bitmap
         die_critical_pad_bitmap = pad_bitmap_collection["CRITICAL_PAD_BITMAP"]
@@ -237,7 +237,7 @@ def overall_yield_simulator(
         Check the Cu gap, a true Monte Carlo simulator
         '''
         # # Check the Cu expansion
-        # Cu_gap = Cu_gap_simulator(TOP_DISH_MEAN_nm, TOP_DISH_STD_nm, BOT_DISH_MEAN_nm, BOT_DISH_STD_nm, int(die.num_pad))
+        # Cu_gap = Cu_gap_simulator(TOP_DISH_MEAN_nm, TOP_DISH_STD_nm, BOT_DISH_MEAN_nm, BOT_DISH_STD_nm, int(die.num_pads))
         # Cu_gap = Cu_gap.reshape(die_critical_pad_bitmap.shape)
         # # Check critical pad Cu gap
         # critical_pad_Cu_gap = Cu_gap * die_critical_pad_bitmap
