@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import sympy as sp
 import os
+import math
 from scipy.integrate import quad
 from pad_bitmap_generation import A_critical_r_mv
 
@@ -57,6 +58,7 @@ def defect_yield_calculator(
     die,
     pad_bitmap_collection: dict,
     pad_yield_flag: bool = False,
+    pad_yield_map_sub_factor: int = 1,
 ):
     # r_mv = sp.symbols("r_mv")
     pad_block_size = pad_bitmap_collection["pad_block_size"]
@@ -166,16 +168,39 @@ def defect_yield_calculator(
     avg_main_voids_per_pad = avg_defects_fail_pad_critical(cfg=cfg, die=die, D0=D0, PAD_TOP_R_um=PAD_TOP_R_um, k_r=k_r, k_r0=k_r0, t_0=t_0, z=z) if pad_yield_flag else None
 
     particle_defect_die_yield = np.exp(-avg_main_voids_per_die)
-    particle_defect_pad_yield_map = np.exp(-avg_main_voids_per_pad) if pad_yield_flag else None
+    if pad_yield_flag == True:
+        glb_defect_pad_yield_min = 1.0
+        glb_defect_pad_yield_max = 0.0
+        particle_defect_pad_yield_map = np.exp(-avg_main_voids_per_pad)
+        glb_defect_pad_yield_min = min(glb_defect_pad_yield_min, particle_defect_pad_yield_map.min())
+        glb_defect_pad_yield_max = max(glb_defect_pad_yield_max, particle_defect_pad_yield_map.max())
+        die.glb_pad_yield_min_max_dict['Y_df'] = (glb_defect_pad_yield_min, glb_defect_pad_yield_max)
+        # Subsampling the pad yield map to save memory and speed up the plotting
+        nr = math.ceil(PAD_ARR_ROW / pad_yield_map_sub_factor)
+        nc = math.ceil(PAD_ARR_COL / pad_yield_map_sub_factor)
+        r_idx = np.round(np.linspace(0, PAD_ARR_ROW - 1, nr)).astype(int)
+        c_idx = np.round(np.linspace(0, PAD_ARR_COL - 1, nc)).astype(int)
+        RR, CC = np.meshgrid(r_idx, c_idx, indexing='ij')   # shape (nr, nc)
+        I = RR * PAD_ARR_COL + CC  # linear indices. shape (nr, nc)
+        particle_defect_pad_yield_map_sub = particle_defect_pad_yield_map[I]
+    else:
+        particle_defect_pad_yield_map = None
+        particle_defect_pad_yield_map_sub = None
 
     if pad_yield_flag:
         # Draw heatmap of pad-level defect yield map
         plt.figure(figsize=(8, 6))
-        plt.imshow(particle_defect_pad_yield_map.reshape((PAD_ARR_ROW, PAD_ARR_COL)), cmap='viridis', interpolation='nearest')
-        plt.colorbar(label='Pad-level Defect Yield')
+        plt.imshow(
+            particle_defect_pad_yield_map_sub, 
+            cmap='viridis', 
+            vmin=die.glb_pad_yield_min_max_dict['Y_df'][0],
+            vmax=die.glb_pad_yield_min_max_dict['Y_df'][1],
+            interpolation='nearest'
+            )
+        plt.colorbar(label='Pad-level Defect Yield (Subsampled)')
         plt.title('Pad-level Defect Yield Map')
         plt.xlabel('Pad Column Index')
         plt.ylabel('Pad Row Index')
         plt.show()
 
-    return particle_defect_die_yield, particle_defect_pad_yield_map
+    return particle_defect_die_yield, particle_defect_pad_yield_map_sub

@@ -17,6 +17,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from scipy.optimize import fsolve
+import math
 import sympy as sp
 from scipy.integrate import quad
 from scipy.stats import norm
@@ -57,6 +58,7 @@ def overlay_yield_calculator(*,
     die,
     redundant_flag: bool,
     pad_yield_flag: bool = False,
+    pad_yield_map_sub_factor: int = 1,
 ):
     def max_allowed_misalignment_calculator(*,
         PAD_TOP_R_um: float, 
@@ -164,35 +166,48 @@ def overlay_yield_calculator(*,
     
 
     if pad_yield_flag == True:
+        glb_defect_pad_yield_min = 1.0
+        glb_defect_pad_yield_max = 0.0
         # Sample the systematic misalignment for every pad based on the systematic translation, rotation, and magnification
         # Calculate the pad yield for each pad and return the pad yield map
         # When calculate the pad yield, we ignore the whether the pad is critical or not.
-        # TODO: This will be a very large matrix, need to optimize the memory usage.
-        overlay_pad_yield_map = np.zeros(die.num_pads)
-        for i in range(die.num_pads):
-            dx_array_samples_i = (system_translation_x_samples_um - system_rotation_samples_rad * die.pad_array[i, 1] + system_magnification_samples * die.pad_array[i, 0])
-            dy_array_samples_i = (system_translation_y_samples_um + system_rotation_samples_rad * die.pad_array[i, 0] + system_magnification_samples * die.pad_array[i, 1])
-            pad_misalignment_samples_i = np.sqrt(dx_array_samples_i**2 + dy_array_samples_i**2)
-            upper_limit_i = MAX_ALLOWED_MISALIGNMENT - pad_misalignment_samples_i
-            lower_limit_i = -MAX_ALLOWED_MISALIGNMENT - pad_misalignment_samples_i
-            overlay_pad_yield_map[i] = np.mean(
-                                        norm.cdf(upper_limit_i, loc=RANDOM_MISALIGNMENT_MEAN_um, scale=RANDOM_MISALIGNMENT_STD_um) \
-                                        - norm.cdf(lower_limit_i, loc=RANDOM_MISALIGNMENT_MEAN_um, scale=RANDOM_MISALIGNMENT_STD_um)
-                                    )
+        nr = math.ceil(PAD_ARR_ROW / pad_yield_map_sub_factor)
+        nc = math.ceil(PAD_ARR_COL / pad_yield_map_sub_factor)
+        overlay_pad_yield_map_sub = np.zeros((nr, nc))
+        for kr in range(nr):
+            r = round(kr * (PAD_ARR_ROW - 1) / (nr - 1))
+            for kc in range(nc):
+                c = round(kc * (PAD_ARR_COL - 1) / (nc - 1))
+                i = r * PAD_ARR_COL + c
+                dx_array_samples_i = (system_translation_x_samples_um - system_rotation_samples_rad * die.pad_array[i, 1] + system_magnification_samples * die.pad_array[i, 0])
+                dy_array_samples_i = (system_translation_y_samples_um + system_rotation_samples_rad * die.pad_array[i, 0] + system_magnification_samples * die.pad_array[i, 1])
+                pad_misalignment_samples_i = np.sqrt(dx_array_samples_i**2 + dy_array_samples_i**2)
+                upper_limit_i = MAX_ALLOWED_MISALIGNMENT - pad_misalignment_samples_i
+                lower_limit_i = -MAX_ALLOWED_MISALIGNMENT - pad_misalignment_samples_i
+                overlay_pad_yield_map_sub[kr, kc] = np.mean(
+                                            norm.cdf(upper_limit_i, loc=RANDOM_MISALIGNMENT_MEAN_um, scale=RANDOM_MISALIGNMENT_STD_um)  \
+                                            - norm.cdf(lower_limit_i, loc=RANDOM_MISALIGNMENT_MEAN_um, scale=RANDOM_MISALIGNMENT_STD_um)
+                                        )
+        glb_defect_pad_yield_min = min(glb_defect_pad_yield_min, overlay_pad_yield_map_sub.min())
+        glb_defect_pad_yield_max = max(glb_defect_pad_yield_max, overlay_pad_yield_map_sub.max())
+        die.glb_pad_yield_min_max_dict['Y_ovl'] = (glb_defect_pad_yield_min, glb_defect_pad_yield_max)
         # Draw the pad yield map
         plt.figure(figsize=(8, 6))
-        # plt.scatter(die.pad_array[:, 0], die.pad_array[:, 1], 
-        #             c=overlay_pad_yield_map, cmap='viridis', marker='s',
-        #             s=50)
-        plt.imshow(overlay_pad_yield_map.reshape((PAD_ARR_ROW, PAD_ARR_COL)), cmap='viridis', interpolation='nearest')
-        plt.colorbar(label='Pad Overlay Yield')
+        plt.imshow(
+            overlay_pad_yield_map_sub, 
+            cmap='viridis', 
+            vmin=die.glb_pad_yield_min_max_dict['Y_ovl'][0],
+            vmax=die.glb_pad_yield_min_max_dict['Y_ovl'][1],
+            interpolation='nearest',
+            )
+        plt.colorbar(label='Pad Overlay Yield (Subsampled)')
         plt.xlabel('Pad Column Index')
         plt.ylabel('Pad Row Index')
         plt.show()
         print ("The overall overlay yield for the die is {:.6f}.".format(overlay_die_yield))
-        print ("The overlay pad yield minimum is {:.6f}.".format(overlay_pad_yield_map.min()))
+        print ("The overlay pad yield minimum is {:.6f}.".format(overlay_pad_yield_map_sub.min()))
     else:
         print ("The overall overlay yield for the die is {:.6f}.".format(overlay_die_yield))
-        overlay_pad_yield_map = None
+        overlay_pad_yield_map_sub = None
         
-    return overlay_die_yield, overlay_pad_yield_map
+    return overlay_die_yield, overlay_pad_yield_map_sub

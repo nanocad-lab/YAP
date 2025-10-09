@@ -16,7 +16,8 @@ w2w_simulation:
   VOID_SHAPE: "circle"                  # Void shape: "circle" or "square"
   dice_width: 1000                      # Width of one die (µm)
   pad_yield_flag: True
-
+  pad_yield_map_sub_factor: 25          # Subsampling factor for pad yield map (1: no subsampling, 10: rows/10 and cols/10)
+  
   # === Fault-Tolerance Parameters ===
   redundant_flag: True                  # Enable redundant pads
   critical_pad_ratio: 0.2               # Critical pad ratio per die
@@ -103,6 +104,7 @@ w2w_modeling:
   VOID_SHAPE: "circle"                  # Shape of void: "circle" or "square"
   dice_width: 1000                      # Dice width to separate dies (µm)
   pad_yield_flag: True                  # Enable pad yield map generation
+  pad_yield_map_sub_factor: 25          # Subsampling factor for pad yield map (1: no subsampling, 10: rows/10 and cols/10)
 
   # === Fault Tolerance Parameters ===
   redundant_flag: True                  # Enable redundant pads
@@ -184,6 +186,7 @@ d2w_simulation:
   VOID_SHAPE: "circle"                  # Void shape: "circle" or "square"
   dice_width: 1000                      # Width of one die (µm)
   pad_yield_flag: True
+  pad_yield_map_sub_factor: 25          # Subsampling factor for pad yield map (1: no subsampling, 10: rows/10 and cols/10)
 
   # === Fault-Tolerance Parameters ===
   redundant_flag: True                  # Enable redundant pads
@@ -269,6 +272,7 @@ d2w_modeling:
   VOID_SHAPE: "circle"                  # Shape of void: "circle" or "square"
   dice_width: 1000                      # Dice width to separate dies (µm)
   pad_yield_flag: True                  # Enable pad yield map generation
+  pad_yield_map_sub_factor: 25          # Subsampling factor for pad yield map (1: no subsampling, 10: rows/10 and cols/10)
 
   # === Fault Tolerance Parameters ===
   redundant_flag: True                  # Enable redundant pads

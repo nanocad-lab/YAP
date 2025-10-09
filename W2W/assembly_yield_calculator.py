@@ -39,10 +39,14 @@ def Assembly_Yield_Calculator(
     
     wafer = waf_list[0]
     print(len(wafer.die_list), "dies initialized on the wafer.")
-    wafer_time = time.time() - start_time
-    print("Wafer initialization time: {} seconds.".format(wafer_time))
+    wafer_init_time = time.time() - start_time
+    print("Wafer initialization time: {} seconds.".format(wafer_init_time))
+
     # Calculate the overlay yield
     overlay_die_yield = overlay_yield_calculator(
+        cfg                             = cfg,
+        PAD_ARR_ROW                     = cfg.PAD_ARR_ROW,
+        PAD_ARR_COL                     = cfg.PAD_ARR_COL,
         PAD_TOP_R_um                    = cfg.PAD_TOP_R_um,
         PAD_BOT_R_um                    = cfg.PAD_BOT_R_um,
         PITCH_um                        = cfg.PITCH_um,
@@ -62,37 +66,43 @@ def Assembly_Yield_Calculator(
         wafer                           = wafer,
         redundant_flag                  = cfg.redundant_flag,
         pad_yield_flag                  = cfg.pad_yield_flag,
+        pad_yield_map_sub_factor        = cfg.pad_yield_map_sub_factor,
     )
-    overlay_yield_time = time.time() - start_time - wafer_time
+    overlay_yield_time = time.time() - start_time - wafer_init_time
     print("Overlay yield calculation time: {} seconds.".format(overlay_yield_time))
+    # Draw the die-level overlay yield map
+    # wafer.draw_wafer_die(fig_size=(30, 30), draw_pad_yield_map_option='Y_ovl')
+
     # Calculate the defect distribution
     defect_die_yield = defect_yield_calculator(
-        cfg                     = cfg,
-        wafer                   = wafer,
-        WAF_R_um                = cfg.WAF_R_um,
-        D0                      = cfg.D0,
-        t_0                     = cfg.t_0,
-        z                       = cfg.z,
-        k_r                     = cfg.k_r,
-        k_r0                    = cfg.k_r0,
-        k_n                     = cfg.k_n,
-        k_S                     = cfg.k_S,
-        k_L                     = cfg.k_L,
-        PAD_TOP_R_um            = cfg.PAD_TOP_R_um,
-        PITCH_um                = cfg.PITCH_um,
-        PAD_ARR_ROW             = cfg.PAD_ARR_ROW,
-        PAD_ARR_COL             = cfg.PAD_ARR_COL,
-        PAD_ARR_W_um            = cfg.PAD_ARR_W_um,
-        PAD_ARR_L_um            = cfg.PAD_ARR_L_um,
-        VOID_SHAPE              = cfg.VOID_SHAPE,
-        num_die                 = len(wafer.die_list),
-        dice_width              = cfg.dice_width,
-        pad_bitmap_collection   = pad_bitmap_collection,
+        cfg                         = cfg,
+        wafer                       = wafer,
+        WAF_R_um                    = cfg.WAF_R_um,
+        D0                          = cfg.D0,
+        t_0                         = cfg.t_0,
+        z                           = cfg.z,
+        k_r                         = cfg.k_r,
+        k_r0                        = cfg.k_r0,
+        k_n                         = cfg.k_n,
+        k_S                         = cfg.k_S,
+        k_L                         = cfg.k_L,
+        PAD_TOP_R_um                = cfg.PAD_TOP_R_um,
+        PITCH_um                    = cfg.PITCH_um,
+        PAD_ARR_ROW                 = cfg.PAD_ARR_ROW,
+        PAD_ARR_COL                 = cfg.PAD_ARR_COL,
+        PAD_ARR_W_um                = cfg.PAD_ARR_W_um,
+        PAD_ARR_L_um                = cfg.PAD_ARR_L_um,
+        VOID_SHAPE                  = cfg.VOID_SHAPE,
+        num_die                     = len(wafer.die_list),
+        dice_width                  = cfg.dice_width,
+        pad_bitmap_collection       = pad_bitmap_collection,
+        pad_yield_flag              = cfg.pad_yield_flag,
+        pad_yield_map_sub_factor    = cfg.pad_yield_map_sub_factor,
     )
-    defect_yield_time = time.time() - start_time - wafer_time - overlay_yield_time
+    defect_yield_time = time.time() - start_time - wafer_init_time - overlay_yield_time
     print("Defect yield calculation time: {} seconds.".format(defect_yield_time))
     # Draw the die-level defect yield map
-    wafer.draw_wafer_die(fig_size=(30, 30))
+    wafer.draw_wafer_die(fig_size=(10, 10), draw_pad_yield_map_option='Y_df')
 
 
 
@@ -112,7 +122,7 @@ def Assembly_Yield_Calculator(
         pad_yield_flag          = cfg.pad_yield_flag,
     )
 
-    Cu_expansion_yield_time = time.time() - start_time - wafer_time - overlay_yield_time - defect_yield_time
+    Cu_expansion_yield_time = time.time() - start_time - wafer_init_time - overlay_yield_time - defect_yield_time
     print("Cu expansion yield calculation time: {} seconds.".format(Cu_expansion_yield_time))
     
 

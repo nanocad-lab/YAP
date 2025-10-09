@@ -61,6 +61,7 @@ def Assembly_Yield_Calculator(
         die                             =       die,
         redundant_flag                  =       cfg.redundant_flag,
         pad_yield_flag                  =       cfg.pad_yield_flag,
+        pad_yield_map_sub_factor        =       cfg.pad_yield_map_sub_factor,
     )
     die.die_yield['Y_ovl'], die.pad_yield_map['Y_ovl'] = overlay_die_yield, overlay_pad_yield_map
 
@@ -87,6 +88,7 @@ def Assembly_Yield_Calculator(
         die               =       die,
         pad_bitmap_collection  = pad_bitmap_collection,
         pad_yield_flag    =       cfg.pad_yield_flag,
+        pad_yield_map_sub_factor = cfg.pad_yield_map_sub_factor,
     )
     die.die_yield['Y_df'], die.pad_yield_map['Y_df'] = defect_die_yield, defect_pad_yield_map
     print(f"Defect yield calculation took {time.time() - start_time:.2f} seconds")
