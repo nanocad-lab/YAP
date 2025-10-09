@@ -114,7 +114,7 @@ def overlay_yield_calculator(
     
     # # Record the time
     # start_time = time.time()
-    for die in wafer.die_list:
+    for die_id, die in enumerate(wafer.die_list):
         if redundant_flag == True:
             far_dx_samples_0 = (system_translation_x_samples_um - system_rotation_samples_rad * die.ovl_critical_pad_boundary_coords[0, 1] + system_magnification_samples * die.ovl_critical_pad_boundary_coords[0, 0])
             far_dy_samples_0 = (system_translation_y_samples_um + system_rotation_samples_rad * die.ovl_critical_pad_boundary_coords[0, 0] + system_magnification_samples * die.ovl_critical_pad_boundary_coords[0, 1])
@@ -147,31 +147,32 @@ def overlay_yield_calculator(
         upper_limit_3 = MAX_ALLOWED_MISALIGNMENT - far_pad_misalignment_samples_3
         lower_limit_3 = -MAX_ALLOWED_MISALIGNMENT - far_pad_misalignment_samples_3
         
-        currnt_die_corner_yield_0 = np.mean(norm.cdf(upper_limit_0, loc=RANDOM_MISALIGNMENT_MEAN_um, scale=RANDOM_MISALIGNMENT_STD_um) - norm.cdf(lower_limit_0, loc=RANDOM_MISALIGNMENT_MEAN_um, scale=RANDOM_MISALIGNMENT_STD_um))
-        currnt_die_corner_yield_1 = np.mean(norm.cdf(upper_limit_1, loc=RANDOM_MISALIGNMENT_MEAN_um, scale=RANDOM_MISALIGNMENT_STD_um) - norm.cdf(lower_limit_1, loc=RANDOM_MISALIGNMENT_MEAN_um, scale=RANDOM_MISALIGNMENT_STD_um))
-        currnt_die_corner_yield_2 = np.mean(norm.cdf(upper_limit_2, loc=RANDOM_MISALIGNMENT_MEAN_um, scale=RANDOM_MISALIGNMENT_STD_um) - norm.cdf(lower_limit_2, loc=RANDOM_MISALIGNMENT_MEAN_um, scale=RANDOM_MISALIGNMENT_STD_um))
-        currnt_die_corner_yield_3 = np.mean(norm.cdf(upper_limit_3, loc=RANDOM_MISALIGNMENT_MEAN_um, scale=RANDOM_MISALIGNMENT_STD_um) - norm.cdf(lower_limit_3, loc=RANDOM_MISALIGNMENT_MEAN_um, scale=RANDOM_MISALIGNMENT_STD_um))
+        current_die_corner_yield_0 = np.mean(norm.cdf(upper_limit_0, loc=RANDOM_MISALIGNMENT_MEAN_um, scale=RANDOM_MISALIGNMENT_STD_um) - norm.cdf(lower_limit_0, loc=RANDOM_MISALIGNMENT_MEAN_um, scale=RANDOM_MISALIGNMENT_STD_um))
+        current_die_corner_yield_1 = np.mean(norm.cdf(upper_limit_1, loc=RANDOM_MISALIGNMENT_MEAN_um, scale=RANDOM_MISALIGNMENT_STD_um) - norm.cdf(lower_limit_1, loc=RANDOM_MISALIGNMENT_MEAN_um, scale=RANDOM_MISALIGNMENT_STD_um))
+        current_die_corner_yield_2 = np.mean(norm.cdf(upper_limit_2, loc=RANDOM_MISALIGNMENT_MEAN_um, scale=RANDOM_MISALIGNMENT_STD_um) - norm.cdf(lower_limit_2, loc=RANDOM_MISALIGNMENT_MEAN_um, scale=RANDOM_MISALIGNMENT_STD_um))
+        current_die_corner_yield_3 = np.mean(norm.cdf(upper_limit_3, loc=RANDOM_MISALIGNMENT_MEAN_um, scale=RANDOM_MISALIGNMENT_STD_um) - norm.cdf(lower_limit_3, loc=RANDOM_MISALIGNMENT_MEAN_um, scale=RANDOM_MISALIGNMENT_STD_um))
 
-        current_die_yield = min(currnt_die_corner_yield_0, currnt_die_corner_yield_1, currnt_die_corner_yield_2, currnt_die_corner_yield_3)
+        current_die_yield = min(current_die_corner_yield_0, current_die_corner_yield_1, current_die_corner_yield_2, current_die_corner_yield_3)
         overlay_die_yield_list.append(current_die_yield)
         
+        current_die_pad_array = wafer.base_pad_coords + die.die_center # Get the absolute coordinates of the pad array for the current die (to save memory, use a temporary variable)
         if pad_yield_flag == True:
-            overlay_pad_yield_map = np.zeros(die.num_pads)
-            for i in range(die.num_pads):
-                dx_array_samples_i = (system_translation_x_samples_um - system_rotation_samples_rad * die.pad_array_box[i, 1] + system_magnification_samples * die.pad_array_box[i, 0])
-                dy_array_samples_i = (system_translation_y_samples_um + system_rotation_samples_rad * die.pad_array_box[i, 0] + system_magnification_samples * die.pad_array_box[i, 1])
-                pad_misalignment_samples_i = np.sqrt(dx_array_samples_i**2 + dy_array_samples_i**2)
-                upper_limit_i = MAX_ALLOWED_MISALIGNMENT - pad_misalignment_samples_i
-                lower_limit_i = -MAX_ALLOWED_MISALIGNMENT - pad_misalignment_samples_i
-                overlay_pad_yield_map[i] = np.mean(
-                                                    norm.cdf(upper_limit_i, loc=RANDOM_MISALIGNMENT_MEAN_um, scale=RANDOM_MISALIGNMENT_STD_um) \
-                                                    - norm.cdf(lower_limit_i, loc=RANDOM_MISALIGNMENT_MEAN_um, scale=RANDOM_MISALIGNMENT_STD_um)
-                                                  )
-            die.pad_yield_map['Y_ovl'] = overlay_pad_yield_map
+            pass
+            # overlay_pad_yield_map = np.zeros(die.num_pads)
+            # for i in range(die.num_pads):
+            #     dx_array_samples_i = (system_translation_x_samples_um - system_rotation_samples_rad * current_die_pad_array[i, 1] + system_magnification_samples * current_die_pad_array[i, 0])
+            #     dy_array_samples_i = (system_translation_y_samples_um + system_rotation_samples_rad * current_die_pad_array[i, 0] + system_magnification_samples * current_die_pad_array[i, 1])
+            #     pad_misalignment_samples_i = np.sqrt(dx_array_samples_i**2 + dy_array_samples_i**2)
+            #     upper_limit_i = MAX_ALLOWED_MISALIGNMENT - pad_misalignment_samples_i
+            #     lower_limit_i = -MAX_ALLOWED_MISALIGNMENT - pad_misalignment_samples_i
+            #     overlay_pad_yield_map[i] = np.mean(
+            #                                         norm.cdf(upper_limit_i, loc=RANDOM_MISALIGNMENT_MEAN_um, scale=RANDOM_MISALIGNMENT_STD_um) \
+            #                                         - norm.cdf(lower_limit_i, loc=RANDOM_MISALIGNMENT_MEAN_um, scale=RANDOM_MISALIGNMENT_STD_um)
+            #                                       )
+            # print("Processing die {}".format(die_id))
+            # die.pad_yield_map['Y_ovl'] = overlay_pad_yield_map
         else:
             overlay_pad_yield_map = None
-
-    # TODO: Draw the pad yield map for each die on the wafer
 
     overlay_die_yield = np.mean(overlay_die_yield_list)
     # end_time = time.time()

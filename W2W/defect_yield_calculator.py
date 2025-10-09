@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
-# Wafers and Dies intialization for the yield model for hybrid bonding
 #### Author: Zhichao Chen
-#### Date: Sep 26, 2024
+#### Date: Oct 8, 2025
+
+"""
+Defect yield calculator for the W2W hybrid bonding process.
+- Calculate the critical area of the voids and the defects regarding the die and the pad.
+- Calculate the defect yield of on die-level and pad-level.
+"""
 
 import numpy as np
 import sympy as sp
@@ -36,6 +40,7 @@ def get_bitmap_bounds(*,
 
 def defect_yield_calculator(
     cfg,
+    wafer,
     WAF_R_um: float,
     D0: float,
     t_0: float,
@@ -64,12 +69,12 @@ def defect_yield_calculator(
     CRITICAL_PAD_BLOCK_BITMAP = pad_bitmap_collection["CRITICAL_PAD_BLOCK_BITMAP"]
     REDUNDANT_MAIN_PAD_BLOCK_BITMAP = pad_bitmap_collection["REDUNDANT_MAIN_PAD_BLOCK_BITMAP"]
     is_redundant_copy_same_block = pad_bitmap_collection["is_redundant_copy_same_block"]
-    CRITICAL_PAD_ARR_W_um_IND, CRITICAL_PAD_ARR_L_um_IND = get_bitmap_bounds(CRITICAL_PAD_BLOCK_BITMAP, pad_block_size)
-    REDUNDANT_MAIN_PAD_ARR_W_um_IND, REDUNDANT_MAIN_PAD_ARR_L_um_IND = get_bitmap_bounds(REDUNDANT_MAIN_PAD_BLOCK_BITMAP, pad_block_size)
-    REDUNDANT_MAIN_PAD_ARR_W_um = REDUNDANT_MAIN_PAD_ARR_W_um_IND * PITCH_um
-    REDUNDANT_MAIN_PAD_ARR_L_um = REDUNDANT_MAIN_PAD_ARR_L_um_IND * PITCH_um
-    CRITICAL_PAD_ARR_W_um = CRITICAL_PAD_ARR_W_um_IND * PITCH_um
-    CRITICAL_PAD_ARR_L_um = CRITICAL_PAD_ARR_L_um_IND * PITCH_um
+    CRITICAL_PAD_ARR_W_IND, CRITICAL_PAD_ARR_L_IND = get_bitmap_bounds(bitmap=CRITICAL_PAD_BLOCK_BITMAP, pad_block_size=pad_block_size)
+    REDUNDANT_MAIN_PAD_ARR_W_IND, REDUNDANT_MAIN_PAD_ARR_L_IND = get_bitmap_bounds(bitmap=REDUNDANT_MAIN_PAD_BLOCK_BITMAP, pad_block_size=pad_block_size)
+    REDUNDANT_MAIN_PAD_ARR_W_um = REDUNDANT_MAIN_PAD_ARR_W_IND * PITCH_um
+    REDUNDANT_MAIN_PAD_ARR_L_um = REDUNDANT_MAIN_PAD_ARR_L_IND * PITCH_um
+    CRITICAL_PAD_ARR_W_um = CRITICAL_PAD_ARR_W_IND * PITCH_um
+    CRITICAL_PAD_ARR_L_um = CRITICAL_PAD_ARR_L_IND * PITCH_um
     if is_redundant_copy_same_block:
         EFF_PAD_ARR_W_um = max(CRITICAL_PAD_ARR_W_um, REDUNDANT_MAIN_PAD_ARR_W_um)
         EFF_PAD_ARR_L_um = max(CRITICAL_PAD_ARR_L_um, REDUNDANT_MAIN_PAD_ARR_L_um)
@@ -207,16 +212,57 @@ def defect_yield_calculator(
         else:
             avg_num_defects = np.load('pad_bitmap/avg_num_defects_per_unit_area.npy') * D0
         return avg_num_defects
+    
+    def avg_defects_fail_pad_map(cfg, wafer, die, D0, k_S, k_r, k_r0, t_0, z, PAD_TOP_R_um) -> np.ndarray:
+        '''
+        This function calculate the average number of fatal defects to the pad
+        '''
+        current_die_pad_array = wafer.base_pad_coords + die.die_center
+        pad2waf_center_dist_um = np.sqrt(current_die_pad_array[:, 0]**2 + current_die_pad_array[:, 1]**2)
 
+        term1 = 2 * D0 * (z - 1) * k_S * pad2waf_center_dist_um * t_0 ** 0.5 / (2 * z - 3)
+        term = k_r * pad2waf_center_dist_um + k_r0
+        part1 = PAD_TOP_R_um**2
+        part2 = ((z - 1) / (z - 2)) * (term**2) * t_0
+        part3 = (4 * (z - 1) / (2 * z - 3)) * term * PAD_TOP_R_um * t_0
+        return term1 + np.pi * D0 * (part1 + part2 + part3)
+        
 
     # num_vtl_defects_critical = D0 * PAD_ARR_W_um * PAD_ARR_L_um \
     #     + (8*D0*(z-1)/(3*np.pi*(2*z-3))) * (PAD_ARR_W_um + PAD_ARR_L_um) * k_L * WAF_R_um * t_0**0.5
+    '''
+    Calculate the die-level defect yield
+    '''
     scale_factor = num_die * PAD_ARR_W_um * PAD_ARR_L_um / (np.pi * WAF_R_um**2) \
         / ((PAD_ARR_W_um * PAD_ARR_L_um) / ((PAD_ARR_W_um + dice_width) * (PAD_ARR_L_um + dice_width)))
     if critical_pad_ratio < 0.1:
         num_vtl_defects = scale_factor * avg_defects_fail_die_critical_fine(cfg, D0, k_L, WAF_R_um, t_0, z)
     else:
         num_vtl_defects = scale_factor * avg_defects_fail_die_critical_coarse(cfg, D0, k_L, WAF_R_um, t_0, z)
-    particle_defect_yield = np.exp(-num_vtl_defects)
+    particle_defect_die_yield = np.exp(-num_vtl_defects)
 
-    return particle_defect_yield
+    '''
+    Calculate the pad-level defect yield
+    '''
+    if cfg.pad_yield_flag:
+        glb_defect_pad_yield_min = 1.0  # Initialize to a high value
+        glb_defect_pad_yield_max = 0.0  # Initialize to a low value
+        for i, die in enumerate(wafer.die_list):
+            avg_defects_fail_pad_map_i = avg_defects_fail_pad_map(cfg, wafer, die, D0, k_S, k_r, k_r0, t_0, z, PAD_TOP_R_um)
+            pad_yield_map_i = np.exp(-avg_defects_fail_pad_map_i)
+            glb_defect_pad_yield_min = min(glb_defect_pad_yield_min, np.min(pad_yield_map_i))
+            glb_defect_pad_yield_max = max(glb_defect_pad_yield_max, np.max(pad_yield_map_i))
+            print("Min of the pad-level defect yield for die {}: {}".format(i, np.min(pad_yield_map_i)))
+            die.pad_yield_map['Y_df'] = pad_yield_map_i
+            print("Generated pad-level defect yield map for die {}.".format(i))
+
+            # pad_yield_map_i = pad_yield_map_i.reshape((PAD_ARR_ROW, PAD_ARR_COL))
+            # plt.figure(figsize=(8, 6))
+            # plt.imshow(pad_yield_map_i, cmap='viridis', interpolation='nearest')
+            # plt.colorbar(label='Pad-level Defect Yield')
+            # plt.title('Pad-level Defect Yield Map')
+            # plt.show()
+        wafer.glb_pad_yield_min_max_dict['Y_df'] = (glb_defect_pad_yield_min, glb_defect_pad_yield_max)
+        print("Global min of the pad-level defect yield: {}".format(glb_defect_pad_yield_min))
+
+    return particle_defect_die_yield

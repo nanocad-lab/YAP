@@ -38,6 +38,7 @@ def Assembly_Yield_Calculator(
     )
     
     wafer = waf_list[0]
+    print(len(wafer.die_list), "dies initialized on the wafer.")
     wafer_time = time.time() - start_time
     print("Wafer initialization time: {} seconds.".format(wafer_time))
     # Calculate the overlay yield
@@ -67,6 +68,7 @@ def Assembly_Yield_Calculator(
     # Calculate the defect distribution
     defect_die_yield = defect_yield_calculator(
         cfg                     = cfg,
+        wafer                   = wafer,
         WAF_R_um                = cfg.WAF_R_um,
         D0                      = cfg.D0,
         t_0                     = cfg.t_0,
@@ -89,6 +91,8 @@ def Assembly_Yield_Calculator(
     )
     defect_yield_time = time.time() - start_time - wafer_time - overlay_yield_time
     print("Defect yield calculation time: {} seconds.".format(defect_yield_time))
+    # Draw the die-level defect yield map
+    wafer.draw_wafer_die(fig_size=(30, 30))
 
 
 

@@ -8,6 +8,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+from matplotlib.patches import Polygon
 
 
 class Die:
@@ -31,6 +32,7 @@ class Die:
 
         self.die_yield = {}
         self.pad_yield_map = {}
+        self.pad_yield_flag = pad_yield_flag
 
     def get_vertices_coords(self, die_center, DIE_VERTEX_COORDS):
         vertices_coords = DIE_VERTEX_COORDS + die_center
@@ -42,19 +44,24 @@ class Die:
 class Wafer:
     def __init__(
         self,
-        wafer_radius,
-        DIE_W_um,
-        DIE_L_um,
-        PAD_TOP_R_um,
-        PAD_BOT_R_um,
-        base_pad_coords,
-        dice_width,
-        die_pad_PITCH_um,
+        wafer_radius: float,
+        DIE_W_um: float,
+        DIE_L_um: float,
+        PAD_ARR_ROW: int,
+        PAD_ARR_COL: int,
+        PAD_TOP_R_um: float,
+        PAD_BOT_R_um: float,
+        base_pad_coords: np.ndarray,
+        dice_width: float,
+        die_pad_PITCH_um: float,
+        pad_yield_flag: bool,
         dice_proportion=1.0,
     ):
         self.wafer_radius = wafer_radius
         self.DIE_W_um = DIE_W_um
         self.DIE_L_um = DIE_L_um
+        self.PAD_ARR_ROW = PAD_ARR_ROW
+        self.PAD_ARR_COL = PAD_ARR_COL
         self.PAD_TOP_R_um = PAD_TOP_R_um
         self.PAD_BOT_R_um = PAD_BOT_R_um
         self.die_list = []
@@ -66,6 +73,8 @@ class Wafer:
         self.base_pad_coords = base_pad_coords
         self.dice_width = dice_width
         self.die_pad_PITCH_um = die_pad_PITCH_um
+        self.pad_yield_flag = pad_yield_flag
+        self.glb_pad_yield_min_max_dict = {}
 
     def generate_die(self, NUM_PADS_PER_DIE, DIE_VERTEX_COORDS, PAD_ARR_BOX, pad_boundary_bitmap_coords):
         die_row = 2 * self.wafer_radius // (self.DIE_L_um + self.dice_width) + 1
@@ -98,6 +107,7 @@ class Wafer:
                     DIE_VERTEX_COORDS,
                     PAD_ARR_BOX,
                     pad_boundary_bitmap_coords,
+                    pad_yield_flag=self.pad_yield_flag
                 )
                 for vertex in die.vertices_coords:
                     if (
@@ -119,67 +129,37 @@ class Wafer:
         # draw dies
         for die in self.die_list:
             # Draw the pad array box
-            ax.plot(
-                [die.pad_array_box[0][0], die.pad_array_box[1][0]],
-                [die.pad_array_box[0][1], die.pad_array_box[1][1]],
-                color="blue",
-            )
-            ax.plot(
-                [die.pad_array_box[1][0], die.pad_array_box[3][0]],
-                [die.pad_array_box[1][1], die.pad_array_box[3][1]],
-                color="blue",
-            )
-            ax.plot(
-                [die.pad_array_box[2][0], die.pad_array_box[3][0]],
-                [die.pad_array_box[2][1], die.pad_array_box[3][1]],
-                color="blue",
-            )
-            ax.plot(
-                [die.pad_array_box[2][0], die.pad_array_box[0][0]],
-                [die.pad_array_box[2][1], die.pad_array_box[0][1]],
-                color="blue",
-            )
+            polygon_coords = np.array([
+                die.pad_array_box[0],  # top-left
+                die.pad_array_box[1],  # top-right
+                die.pad_array_box[3],  # bottom-right
+                die.pad_array_box[2],  # bottom-left
+            ])
+            die_box = Polygon(polygon_coords, color="blue", fill=False)
+            ax.add_patch(die_box)
             if die.survival == False:   # Draw a red edge if the die is not survived
-                ax.plot(
-                    [die.vertices_coords[0][0], die.vertices_coords[1][0]],
-                    [die.vertices_coords[0][1], die.vertices_coords[1][1]],
-                    color="red",
-                )
-                ax.plot(
-                    [die.vertices_coords[1][0], die.vertices_coords[3][0]],
-                    [die.vertices_coords[1][1], die.vertices_coords[3][1]],
-                    color="red",
-                )
-                ax.plot(
-                    [die.vertices_coords[2][0], die.vertices_coords[3][0]],
-                    [die.vertices_coords[2][1], die.vertices_coords[3][1]],
-                    color="red",
-                )
-                ax.plot(
-                    [die.vertices_coords[0][0], die.vertices_coords[2][0]],
-                    [die.vertices_coords[0][1], die.vertices_coords[2][1]],
-                    color="red",
-                )
+                die_box = Polygon(polygon_coords, color="red", fill=False)
             elif die.voids_occur == True:
-                ax.plot(
-                    [die.vertices_coords[0][0], die.vertices_coords[1][0]],
-                    [die.vertices_coords[0][1], die.vertices_coords[1][1]],
-                    color="green",
-                )
-                ax.plot(
-                    [die.vertices_coords[1][0], die.vertices_coords[3][0]],
-                    [die.vertices_coords[1][1], die.vertices_coords[3][1]],
-                    color="green",
-                )
-                ax.plot(
-                    [die.vertices_coords[2][0], die.vertices_coords[3][0]],
-                    [die.vertices_coords[2][1], die.vertices_coords[3][1]],
-                    color="green",
-                )
-                ax.plot(
-                    [die.vertices_coords[0][0], die.vertices_coords[2][0]],
-                    [die.vertices_coords[0][1], die.vertices_coords[2][1]],
-                    color="green",
+                die_box = Polygon(polygon_coords, color="green", fill=False)
+            ax.add_patch(die_box)
+
+            # Draw the pad yield map
+            if hasattr(die, 'pad_yield_map') and "Y_df" in die.pad_yield_map:
+                defect_yield_map = die.pad_yield_map['Y_df']
+                defect_yield_map = defect_yield_map.reshape((self.PAD_ARR_ROW, self.PAD_ARR_COL))
+                ax.imshow(
+                    defect_yield_map,
+                    extent=[
+                        die.pad_array_box[0][0], # x_min
+                        die.pad_array_box[1][0], # x_max
+                        die.pad_array_box[2][1], # y_min
+                        die.pad_array_box[0][1]  # y_max
+                    ],
+                    origin='upper',
+                    cmap='viridis',
+                    vmin=self.glb_pad_yield_min_max_dict['Y_df'][0], # global min
+                    vmax=self.glb_pad_yield_min_max_dict['Y_df'][1], # global max
+                    alpha=0.5,
                 )
             # draw pads
             # die_pad_coords = die.center + PAD_COORDS
@@ -278,6 +258,8 @@ def wafer_initialize(
             wafer_radius=WAF_R_um,
             DIE_W_um=DIE_W_um,
             DIE_L_um=DIE_L_um,
+            PAD_ARR_ROW=PAD_ARR_ROW,
+            PAD_ARR_COL=PAD_ARR_COL,
             PAD_TOP_R_um=PAD_TOP_R_um,
             PAD_BOT_R_um=PAD_BOT_R_um,
             base_pad_coords=PAD_COORDS,

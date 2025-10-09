@@ -8,7 +8,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-
+from matplotlib.patches import Polygon
 
 class Die:
     def __init__(
@@ -41,70 +41,20 @@ class Die:
     
     def draw_die(self, ax):
         # Draw the pad array box
-        ax.plot(
-            [self.pad_array_box[0][0], self.pad_array_box[1][0]],
-            [self.pad_array_box[0][1], self.pad_array_box[1][1]],
-            color="blue",
-        )
-        ax.plot(
-            [self.pad_array_box[1][0], self.pad_array_box[3][0]],
-            [self.pad_array_box[1][1], self.pad_array_box[3][1]],
-            color="blue",
-        )
-        ax.plot(
-            [self.pad_array_box[2][0], self.pad_array_box[3][0]],
-            [self.pad_array_box[2][1], self.pad_array_box[3][1]],
-            color="blue",
-        )
-        ax.plot(
-            [self.pad_array_box[2][0], self.pad_array_box[0][0]],
-            [self.pad_array_box[2][1], self.pad_array_box[0][1]],
-            color="blue",
-        )
+        polygon_coords = np.array([
+            self.pad_array_box[0],  # top-left
+            self.pad_array_box[1],  # top-right
+            self.pad_array_box[3],  # bottom-right
+            self.pad_array_box[2],  # bottom-left
+        ])
+        die_box = Polygon(polygon_coords, color="blue", fill=False)
+        ax.add_patch(die_box)
         # draw die outline
         if self.survival == False:
-            ax.plot(
-                [self.vertices_coords[0][0], self.vertices_coords[1][0]],
-                [self.vertices_coords[0][1], self.vertices_coords[1][1]],
-                color="red",
-            )
-            ax.plot(
-                [self.vertices_coords[1][0], self.vertices_coords[3][0]],
-                [self.vertices_coords[1][1], self.vertices_coords[3][1]],
-                color="red",
-            )
-            ax.plot(
-                [self.vertices_coords[2][0], self.vertices_coords[3][0]],
-                [self.vertices_coords[2][1], self.vertices_coords[3][1]],
-                color="red",
-            )
-            ax.plot(
-                [self.vertices_coords[0][0], self.vertices_coords[2][0]],
-                [self.vertices_coords[0][1], self.vertices_coords[2][1]],
-                color="red",
-            )
+            die_box = Polygon(self.vertices_coords, color="red", fill=False)
         elif self.voids_occur == True:
-            ax.plot(
-                [self.vertices_coords[0][0], self.vertices_coords[1][0]],
-                [self.vertices_coords[0][1], self.vertices_coords[1][1]],
-                color="green",
-            )
-            ax.plot(
-                [self.vertices_coords[1][0], self.vertices_coords[3][0]],
-                [self.vertices_coords[1][1], self.vertices_coords[3][1]],
-                color="green",
-            )
-            ax.plot(
-                [self.vertices_coords[2][0], self.vertices_coords[3][0]],
-                [self.vertices_coords[2][1], self.vertices_coords[3][1]],
-                color="green",
-            )
-            ax.plot(
-                [self.vertices_coords[0][0], self.vertices_coords[2][0]],
-                [self.vertices_coords[0][1], self.vertices_coords[2][1]],
-                color="green",
-            )
-
+            die_box = Polygon(self.vertices_coords, color="green", fill=False)
+        ax.add_patch(die_box)
         for v in self.voids:
             ax.add_artist(patches.Circle((v[0], v[1]), v[2], color="red", fill=False))
         ax.set_aspect("equal")
