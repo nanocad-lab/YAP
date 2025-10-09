@@ -19,7 +19,8 @@ from pad_bitmap_generation import A_critical_r_mv
 
 def get_bitmap_bounds(*,
                       bitmap: np.ndarray,
-                      pad_block_size: int):
+                      pad_block_size: int
+    ):
     # Find the bounds of the non-zero pixels in the bitmap
     rows = np.any(bitmap, axis=1)
     cols = np.any(bitmap, axis=0)

@@ -21,8 +21,6 @@ from roughness_parameters import roughness_parameters
 def Cu_expansion_yield_calculator(*,
                                   cfg,
                                   die,
-                                  PAD_ARR_ROW: int,
-                                  PAD_ARR_COL: int,
                                   TOP_DISH_MEAN_nm: float,
                                   TOP_DISH_STD_nm: float,
                                   BOT_DISH_MEAN_nm: float,
@@ -51,6 +49,8 @@ def Cu_expansion_yield_calculator(*,
     zeta_1 = max(zeta_1_, 0)
     upper_limit = - zeta_1
     lower_limit = - zeta_0
+    # TODO: upper_limit_map = Input from Cain
+    # TODO: lower_limit_map = Input from Cain
     # print("upper_limit: ", upper_limit)
     # print("lower_limit: ", lower_limit)
 
@@ -63,9 +63,19 @@ def Cu_expansion_yield_calculator(*,
                                          lower_limit, upper_limit
                     )
 
+    # TODO: When calculate the pad-level yield map, we ignore the pad type difference
+    Cu_expansion_pad_yield_map = None
+    if pad_yield_flag:
+        pass
+        # pos_pad_map, _ = quad(lambda x: norm.pdf(x, loc=TOP_DISH_MEAN_nm + BOT_DISH_MEAN_nm,
+        #                                      scale=np.sqrt(TOP_DISH_STD_nm**2 + BOT_DISH_STD_nm**2)),
+        #                                      lower_limit_map, upper_limit_map
+        #                     )
+        # Cu_expansion_pad_yield_map = pos_pad_map
+
     Cu_expansion_die_yield_critical = pos_pad ** num_critical_pads
     Cu_expansion_die_yield_redundant = (1 - (1 - pos_pad) ** redundant_logical_pad_copy) ** num_redundant_logical_pads
     
     Cu_expansion_die_yield = Cu_expansion_die_yield_critical * Cu_expansion_die_yield_redundant
 
-    return Cu_expansion_die_yield
+    return Cu_expansion_die_yield, Cu_expansion_pad_yield_map

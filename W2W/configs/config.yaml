@@ -13,6 +13,7 @@ w2w_simulation:
   PAD_TOP_R_um_ratio: 0.667                # Ratio of top pad radius to bottom pad radius
   VOID_SHAPE: "circle"                  # Void shape: "circle" or "square"
   dice_width: 1000                      # Width of one die (µm)
+  pad_yield_flag: True
 
   # === Fault-Tolerance Parameters ===
   redundant_flag: True                  # Enable redundant pads
@@ -96,6 +97,7 @@ w2w_modeling:
   PAD_TOP_R_um_ratio: 0.667                # Ratio of top pad radius to bottom pad radius
   VOID_SHAPE: "circle"                  # Shape of void: "circle" or "square"
   dice_width: 1000                      # Dice width to separate dies (µm)
+  pad_yield_flag: True
 
   # === Fault Tolerance Parameters ===
   redundant_flag: True                  # Enable redundant pads

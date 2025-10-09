@@ -70,9 +70,6 @@ def roughness_parameters(
     A_star_b = A_star(s_star_b.root, constant=constant)
     # print("The normalized effective contact area A_star_b is: ", A_star_b)
 
-    # print("Young_modulus_Pa_renorm: ", Young_modulus_Pa_renorm)
-    # print("Adhesion_energy: ", Adhesion_energy)
-    # print("Dielectric_thickness: ", Dielectric_thickness)
     max_acceptable_stress = np.sqrt(2 * Young_modulus_Pa_renorm * Adhesion_energy / Dielectric_thickness)
     # print("The maximum acceptable stress is: ", max_acceptable_stress/1e6, "MPa")
     max_acceptable_stress = max_acceptable_stress * A_star_b

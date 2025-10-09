@@ -73,7 +73,7 @@ def defect_yield_simulator(
     DIE_W_um,
     DIE_L_um,
     NUM_DIES,
-    DIE_L_umist,
+    die_list,
 ):
     def cdf_particle_thickness(t):
         return 1 - (t_0 / t) ** (z - 1)
@@ -128,5 +128,5 @@ def defect_yield_simulator(
         voids_arr = np.zeros([len(voids), 3])
         for i, v in enumerate(voids):
             voids_arr[i] = [v.x, v.y, v.r]
-        DIE_L_umist[die_ind].voids = voids_arr
-        DIE_L_umist[die_ind].safe_voids_mask = np.ones(len(voids))
+        die_list[die_ind].voids = voids_arr
+        die_list[die_ind].safe_voids_mask = np.ones(len(voids))

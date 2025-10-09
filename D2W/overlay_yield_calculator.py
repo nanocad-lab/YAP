@@ -115,8 +115,8 @@ def overlay_yield_calculator(*,
     system_magnification_samples = np.random.normal(SYSTEM_MAGNIFICATION_MEAN_ppm, SYSTEM_MAGNIFICATION_STD_ppm, num_samples)
     print("system_translation_x_samples_um contribution", system_translation_x_samples_um.mean()*1e3, " nm")
     print("system_translation_y_samples_um contribution", system_translation_y_samples_um.mean()*1e3, " nm")
-    print("system_rotation_samples_rad contribution", system_rotation_samples_rad.mean() * np.sqrt(die.DIE_W_umidth**2 + die.DIE_L_umength**2) * 1e3, " nm")
-    print("system_magnification_samples contribution", system_magnification_samples.mean() * np.sqrt(die.DIE_W_umidth**2 + die.DIE_L_umength**2) * 1e3, " nm")
+    print("system_rotation_samples_rad contribution", system_rotation_samples_rad.mean() * np.sqrt(die.DIE_W_um**2 + die.DIE_L_um**2) * 1e3, " nm")
+    print("system_magnification_samples contribution", system_magnification_samples.mean() * np.sqrt(die.DIE_W_um**2 + die.DIE_L_um**2) * 1e3, " nm")
 
     # Sample the systematic misalignment for corner pads based on the systematic translation, rotation, and magnification
     # Calculate the die yield based on the worst-case pad misalignment
@@ -163,16 +163,13 @@ def overlay_yield_calculator(*,
     overlay_die_yield = min(overlay_die_yield_0, overlay_die_yield_1, overlay_die_yield_2, overlay_die_yield_3)
     
 
-    if pad_yield_flag == False:
-        print ("The overall overlay yield for the die is {:.6f}.".format(overlay_die_yield))
-        overlay_pad_yield_map = None
-    else:
+    if pad_yield_flag == True:
         # Sample the systematic misalignment for every pad based on the systematic translation, rotation, and magnification
         # Calculate the pad yield for each pad and return the pad yield map
         # When calculate the pad yield, we ignore the whether the pad is critical or not.
         # TODO: This will be a very large matrix, need to optimize the memory usage.
-        overlay_pad_yield_map = np.zeros(die.num_pad)
-        for i in range(die.num_pad):
+        overlay_pad_yield_map = np.zeros(die.num_pads)
+        for i in range(die.num_pads):
             dx_array_samples_i = (system_translation_x_samples_um - system_rotation_samples_rad * die.pad_array[i, 1] + system_magnification_samples * die.pad_array[i, 0])
             dy_array_samples_i = (system_translation_y_samples_um + system_rotation_samples_rad * die.pad_array[i, 0] + system_magnification_samples * die.pad_array[i, 1])
             pad_misalignment_samples_i = np.sqrt(dx_array_samples_i**2 + dy_array_samples_i**2)
@@ -194,4 +191,8 @@ def overlay_yield_calculator(*,
         plt.show()
         print ("The overall overlay yield for the die is {:.6f}.".format(overlay_die_yield))
         print ("The overlay pad yield minimum is {:.6f}.".format(overlay_pad_yield_map.min()))
+    else:
+        print ("The overall overlay yield for the die is {:.6f}.".format(overlay_die_yield))
+        overlay_pad_yield_map = None
+        
     return overlay_die_yield, overlay_pad_yield_map

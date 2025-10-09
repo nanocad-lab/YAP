@@ -44,7 +44,7 @@ def Assembly_Yield_Simulator(
             print("Processing batch {}/{}...".format(i + 1, cfg.simulation_times))
 
         # Initialize the die list
-        DIE_L_umist, base_pad_coords = die_initialize(
+        die_list, base_pad_coords = die_initialize(
             NUM_DIES                =       cfg.NUM_DIES,
             DIE_W_um                   =       cfg.DIE_W_um,
             DIE_L_um                   =       cfg.DIE_L_um,
@@ -90,13 +90,13 @@ def Assembly_Yield_Simulator(
             DIE_W_um           =       cfg.DIE_W_um,
             DIE_L_um           =       cfg.DIE_L_um,
             NUM_DIES        =       cfg.NUM_DIES,
-            DIE_L_umist        =       DIE_L_umist,
+            die_list        =       die_list,
         )
 
        
         # Calculate the overall yield
         yield_list = overall_yield_simulator(
-            DIE_L_umist                    =       DIE_L_umist,
+            die_list                    =       die_list,
             NUM_DIES                    =       cfg.NUM_DIES,
             DIE_W_um                       =       cfg.DIE_W_um,
             DIE_L_um                       =       cfg.DIE_L_um,
@@ -127,7 +127,7 @@ def Assembly_Yield_Simulator(
         )
         single_config_yield_list.append(yield_list)
         
-        del DIE_L_umist
+        del die_list
     if cfg.simulation_times > 1:
         print("The batch yield list is: ", single_config_yield_list)
     assembly_yield = np.mean(single_config_yield_list)
