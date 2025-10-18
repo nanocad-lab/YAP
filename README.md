@@ -1,6 +1,6 @@
 # YAP
 - YAP is a python-based yield modeling and simulation tool for advanced packaging. Currently, the model is specifically designed for wafer-to-wafer (W2W) and die-to-wafer (D2W) hybrid bonding.
-- A [GUI of YAP](http://nanocad.ee.ucla.edu:8081/yap_gui/) is available.
+- A [GUI of YAP](http://nanocad.ee.ucla.edu:8081/yap_gui/) and the [user guide video](https://youtu.be/8hiKIQ6C7ng) is available.
 # File Structure
 ```
 .
