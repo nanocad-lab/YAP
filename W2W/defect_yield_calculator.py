@@ -60,6 +60,8 @@ def defect_yield_calculator(
     num_die: int,
     dice_width: float,
     pad_bitmap_collection: dict,
+    pad_yield_flag: bool = False,
+    pad_yield_map_sub_factor: int = 1,
 ):
     # Read the bitmap collection info
     r_mv = sp.symbols("r_mv")
@@ -219,6 +221,7 @@ def defect_yield_calculator(
         '''
         current_die_pad_array = wafer.base_pad_coords + die.die_center
         pad2waf_center_dist_um = np.sqrt(current_die_pad_array[:, 0]**2 + current_die_pad_array[:, 1]**2)
+        
 
         term1 = 2 * D0 * (z - 1) * k_S * pad2waf_center_dist_um * t_0 ** 0.5 / (2 * z - 3)
         term = k_r * pad2waf_center_dist_um + k_r0
@@ -244,25 +247,25 @@ def defect_yield_calculator(
     '''
     Calculate the pad-level defect yield
     '''
-    if cfg.pad_yield_flag:
+    if pad_yield_flag == True:
         glb_defect_pad_yield_min = 1.0  # Initialize to a high value
         glb_defect_pad_yield_max = 0.0  # Initialize to a low value
+        # Subsampling the pad yield map to save memory and speed up the calculation
+        nr = int(math.ceil(PAD_ARR_ROW / pad_yield_map_sub_factor))
+        nc = int(math.ceil(PAD_ARR_COL / pad_yield_map_sub_factor))
+        r_idx = np.round(np.linspace(0, PAD_ARR_ROW - 1, nr)).astype(int)
+        c_idx = np.round(np.linspace(0, PAD_ARR_COL - 1, nc)).astype(int)
+        RR, CC = np.meshgrid(r_idx, c_idx, indexing='ij')   # shape (nr, nc)
+        I = RR * PAD_ARR_COL + CC  # linear indices. shape (nr, nc)
         for i, die in enumerate(wafer.die_list):
             avg_defects_fail_pad_map_i = avg_defects_fail_pad_map(cfg, wafer, die, D0, k_S, k_r, k_r0, t_0, z, PAD_TOP_R_um)
             pad_yield_map_i = np.exp(-avg_defects_fail_pad_map_i)
+            pad_yield_map_i_sub = pad_yield_map_i.ravel()[I]
             glb_defect_pad_yield_min = min(glb_defect_pad_yield_min, np.min(pad_yield_map_i))
             glb_defect_pad_yield_max = max(glb_defect_pad_yield_max, np.max(pad_yield_map_i))
-            print("Min of the pad-level defect yield for die {}: {}".format(i, np.min(pad_yield_map_i)))
-            die.pad_yield_map['Y_df'] = pad_yield_map_i
+            die.pad_yield_map['Y_df'] = pad_yield_map_i_sub
             print("Generated pad-level defect yield map for die {}.".format(i))
-
-            # pad_yield_map_i = pad_yield_map_i.reshape((PAD_ARR_ROW, PAD_ARR_COL))
-            # plt.figure(figsize=(8, 6))
-            # plt.imshow(pad_yield_map_i, cmap='viridis', interpolation='nearest')
-            # plt.colorbar(label='Pad-level Defect Yield')
-            # plt.title('Pad-level Defect Yield Map')
-            # plt.show()
         wafer.glb_pad_yield_min_max_dict['Y_df'] = (glb_defect_pad_yield_min, glb_defect_pad_yield_max)
         print("Global min of the pad-level defect yield: {}".format(glb_defect_pad_yield_min))
-
+        print("Global max of the pad-level defect yield: {}".format(glb_defect_pad_yield_max))
     return particle_defect_die_yield

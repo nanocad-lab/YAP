@@ -34,6 +34,7 @@ class Die:
 
         self.die_yield = {}
         self.pad_yield_map = {}
+        self.glb_pad_yield_min_max_dict = {}
 
     def get_vertices_coords(self, die_center, DIE_VERTEX_COORDS):
         vertices_coords = DIE_VERTEX_COORDS + die_center

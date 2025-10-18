@@ -120,7 +120,7 @@ class Wafer:
                     continue
                 self.die_list.append(die)
 
-    def draw_wafer_die(self, fig_size=(30, 30)):
+    def draw_wafer_die(self, fig_size=(30, 30), draw_pad_yield_map_option=None):
         fig, ax = plt.subplots(figsize=fig_size, dpi=900)
         wafer_circle = plt.Circle((0, 0), self.wafer_radius, color="black", fill=False)
         ax.add_artist(wafer_circle)
@@ -143,24 +143,42 @@ class Wafer:
                 die_box = Polygon(polygon_coords, color="green", fill=False)
             ax.add_patch(die_box)
 
-            # Draw the pad yield map
-            if hasattr(die, 'pad_yield_map') and "Y_df" in die.pad_yield_map:
-                defect_yield_map = die.pad_yield_map['Y_df']
-                defect_yield_map = defect_yield_map.reshape((self.PAD_ARR_ROW, self.PAD_ARR_COL))
-                ax.imshow(
-                    defect_yield_map,
-                    extent=[
-                        die.pad_array_box[0][0], # x_min
-                        die.pad_array_box[1][0], # x_max
-                        die.pad_array_box[2][1], # y_min
-                        die.pad_array_box[0][1]  # y_max
-                    ],
-                    origin='upper',
-                    cmap='viridis',
-                    vmin=self.glb_pad_yield_min_max_dict['Y_df'][0], # global min
-                    vmax=self.glb_pad_yield_min_max_dict['Y_df'][1], # global max
-                    alpha=0.5,
-                )
+            # Draw the overlay pad yield map
+            if draw_pad_yield_map_option == 'Y_ovl':  # Draw the overlay yield map
+                if hasattr(die, 'pad_yield_map') and "Y_ovl" in die.pad_yield_map:
+                    overlay_yield_map = die.pad_yield_map['Y_ovl']
+                    ax.imshow(
+                        overlay_yield_map,
+                        extent=[
+                            die.pad_array_box[0][0], # x_min
+                            die.pad_array_box[1][0], # x_max
+                            die.pad_array_box[2][1], # y_min
+                            die.pad_array_box[0][1]  # y_max
+                        ],
+                        origin='upper',
+                        cmap='viridis',
+                        vmin=self.glb_pad_yield_min_max_dict['Y_ovl'][0], # global min
+                        vmax=self.glb_pad_yield_min_max_dict['Y_ovl'][1], # global max
+                        alpha=0.5,
+                    )
+            # Draw the defect pad yield map
+            if draw_pad_yield_map_option == 'Y_df':  # Draw the defect yield map
+                if hasattr(die, 'pad_yield_map') and "Y_df" in die.pad_yield_map:
+                    defect_yield_map = die.pad_yield_map['Y_df']
+                    ax.imshow(
+                        defect_yield_map,
+                        extent=[
+                            die.pad_array_box[0][0], # x_min
+                            die.pad_array_box[1][0], # x_max
+                            die.pad_array_box[2][1], # y_min
+                            die.pad_array_box[0][1]  # y_max
+                        ],
+                        origin='upper',
+                        cmap='viridis',
+                        vmin=self.glb_pad_yield_min_max_dict['Y_df'][0], # global min
+                        vmax=self.glb_pad_yield_min_max_dict['Y_df'][1], # global max
+                        alpha=0.5,
+                    )
             # draw pads
             # die_pad_coords = die.center + PAD_COORDS
             # for pad in die_pad_coords:
