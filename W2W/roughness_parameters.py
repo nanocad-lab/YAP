@@ -44,17 +44,17 @@ def P_star(s_star, constant, theta):
 
 
 def roughness_parameters(
-    Asperity_R_m,
-    Roughness_sigma_m,
-    eta_s,
-    Roughness_constant,
-    Adhesion_energy,
-    Young_modulus_Pa,
-    Dielectric_thickness,
-    PITCH_um,
-    PAD_BOT_R_um,
-    DISH_0_m,
-    k_peel,
+    Asperity_R_m: float,
+    Roughness_sigma_m: float,
+    eta_s: float,
+    Roughness_constant: float,
+    Adhesion_energy: float,
+    Young_modulus_Pa: float,
+    Dielectric_thickness: float,
+    PITCH_um: float,
+    PAD_BOT_R_um: float,
+    DISH_0_m: float,
+    k_peel: float
 ):
     Roughness_sigma_m_renorm = Roughness_sigma_m * np.sqrt(2)
     Young_modulus_Pa_renorm = Young_modulus_Pa * 0.5
@@ -70,6 +70,7 @@ def roughness_parameters(
     A_star_b = A_star(s_star_b.root, constant=constant)
     # print("The normalized effective contact area A_star_b is: ", A_star_b)
 
+    # TODO: we should update this with Cain's model
     max_acceptable_stress = np.sqrt(2 * Young_modulus_Pa_renorm * Adhesion_energy / Dielectric_thickness)
     # print("The maximum acceptable stress is: ", max_acceptable_stress/1e6, "MPa")
     max_acceptable_stress = max_acceptable_stress * A_star_b
