@@ -51,7 +51,8 @@ def roughness_parameters(
     Adhesion_energy: float,
     Young_modulus_Pa: float,
     Dielectric_thickness: float,
-    PITCH_um: float,
+    PITCH_r_um: float,
+    PITCH_c_um: float,
     PAD_BOT_R_um: float,
     DISH_0_m: float,
     k_peel: float
@@ -77,7 +78,7 @@ def roughness_parameters(
     # print("The effective maximum acceptable stress is: ", max_acceptable_stress/1e6, "MPa")
 
     # Calculate the Cu pattern density
-    D_cu = np.pi * PAD_BOT_R_um ** 2 / PITCH_um ** 2
+    D_cu = np.pi * PAD_BOT_R_um ** 2 / PITCH_r_um ** 2
     # print("The Cu pattern density D_cu is: ", D_cu)
 
     # The equilibirum condition for dielectric layer delamination is max_acceptable_stress = peak_annealing_stress

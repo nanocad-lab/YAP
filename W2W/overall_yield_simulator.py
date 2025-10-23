@@ -12,10 +12,9 @@ import time
 import matplotlib.pyplot as plt
 from collections import defaultdict
 
-from wafer_die_initialization import Die, Wafer, wafer_initialize
 from overlay_yield_simulator import overlay_term_simulator, die_pad_misalignment
 from Cu_gap_simulator import Cu_gap_simulator
-from Cu_expansion_yield_calculator import Cu_expansion_yield_calculator
+from roughness_parameters import roughness_parameters
 
 
 def total_memory_mb(obj):
@@ -32,15 +31,14 @@ def total_memory_mb(obj):
 
 
 def overall_yield_simulator(
+    cfg,
     waf_list,
     WAF_R_um,
     system_translation_x_um,
     system_translation_y_um,
     system_rotation_rad,
     system_magnification_ppm,
-    MAX_ALLOWED_MISALIGNMENT,
-    zeta_0,
-    zeta_1,
+    MAX_ALLOWED_MISALIGNMENT_um: float,
     PAD_ARR_W_um,
     PAD_ARR_L_um,
     PAD_ARR_ROW,
@@ -53,11 +51,11 @@ def overall_yield_simulator(
     k_eb,
     T_R,
     T_anl,
-    PITCH_um,
+    PITCH_r_um,
+    PITCH_c_um,
     PAD_TOP_R_um,
     RANDOM_MISALIGNMENT_MEAN_um,
     RANDOM_MISALIGNMENT_STD_um,
-    redundant_survival_ratio,
     approximate_set,
     redundant_flag,
     pad_bitmap_collection,
@@ -73,10 +71,8 @@ def overall_yield_simulator(
         die_critical_pad_bitmap = pad_bitmap_collection["CRITICAL_PAD_BITMAP"]
         # Read the redundant critical pad bitmap
         die_redundant_pad_bitmap = pad_bitmap_collection["REDUNDANT_PAD_BITMAP"]
-        # The mapping of the redundant logical pads to the physical pads
-        redundant_logical_to_physical_arr = pad_bitmap_collection["redundant_logical_to_physical_arr"]
-        # The mapping of the redundant physical pads to the logical pads
-        redundant_physical_to_logical_arr = pad_bitmap_collection["redundant_physical_to_logical_arr"]
+        # Read the redundant net to bump ids mapping
+        redundant_net_to_bumpids = pad_bitmap_collection["redundant_net_to_bumpids"]
 
         num_redundant_pads = np.sum(die_redundant_pad_bitmap)
         critical_fail = 0
@@ -90,8 +86,6 @@ def overall_yield_simulator(
                 print("Time taken for every 10 dies: {:.2f} seconds".format((time.time() - start_time) / die_count * 10))
                 # start_time = time.time()
             redundant_pad_fail_map = np.zeros((PAD_ARR_ROW, PAD_ARR_COL))
-            # Update the scoreboard for the redundant pads
-            redundant_logical_scoreboard = np.ones(redundant_logical_to_physical_arr.shape[0], dtype=int) * redundant_logical_to_physical_arr.shape[1]
             
             '''
             Check the overlay errors
@@ -99,21 +93,21 @@ def overall_yield_simulator(
             # # Check the pad misalignment
             die.pad_misalignment = die_pad_misalignment(die=die, 
                                                         base_pad_coords=wafer.base_pad_coords,
-                                                        system_translation_x=system_translation_x_um[waf_ind],
-                                                        system_translation_y=system_translation_y_um[waf_ind],
-                                                        system_rotation=system_rotation_rad[waf_ind],
-                                                        system_magnification=system_magnification_ppm[waf_ind],
+                                                        system_translation_x_um=system_translation_x_um[waf_ind],
+                                                        system_translation_y_um=system_translation_y_um[waf_ind],
+                                                        system_rotation_rad=system_rotation_rad[waf_ind],
+                                                        system_magnification_ppm=system_magnification_ppm[waf_ind],
                                                         RANDOM_MISALIGNMENT_MEAN_um=RANDOM_MISALIGNMENT_MEAN_um,
                                                         RANDOM_MISALIGNMENT_STD_um=RANDOM_MISALIGNMENT_STD_um,
                                                         approximate_set=approximate_set,
                                                         redundant_flag=redundant_flag,
                                                         )
             if approximate_set == 1:
-                # pad fail criteria: pad_misalignment >= MAX_ALLOWED_MISALIGNMENT
+                # pad fail criteria: pad_misalignment >= MAX_ALLOWED_MISALIGNMENT_um
                 die.pad_misalignment = die.pad_misalignment.reshape(die_critical_pad_bitmap.shape)
                 critical_pad_misalignment = die.pad_misalignment * die_critical_pad_bitmap
                 # Check if any critical pad misalignment is greater than the maximum allowed misalignment
-                if np.any(critical_pad_misalignment >= MAX_ALLOWED_MISALIGNMENT):
+                if np.any(critical_pad_misalignment >= MAX_ALLOWED_MISALIGNMENT_um):
                     wafer.survival_die -= 1
                     die.survival = False
                     critical_fail += 1
@@ -121,46 +115,24 @@ def overall_yield_simulator(
                     continue
                 # Check if too many redundant pad misalignment is greater than the maximum allowed misalignment
                 redundant_pad_misalignment = die.pad_misalignment * die_redundant_pad_bitmap
-                num_redundant_pad_over_misalignment = np.sum(redundant_pad_misalignment > MAX_ALLOWED_MISALIGNMENT)
-                redundant_pad_fail_map[redundant_pad_misalignment > MAX_ALLOWED_MISALIGNMENT] = 1 # 1: redundant pad fails
+                redundant_pad_fail_map[redundant_pad_misalignment > MAX_ALLOWED_MISALIGNMENT_um] = 1 # 1: redundant pad fails
                 # Get those failing pad indices
-                failing_pad_ind = np.argwhere(redundant_pad_misalignment > MAX_ALLOWED_MISALIGNMENT)
-                # Get the physical pad indices
-                failing_physical_pad_inds = failing_pad_ind[:, 0] * PAD_ARR_COL + failing_pad_ind[:, 1]
-                # Use the physical -> logical mapping to get the reduce the logical score
-                failing_logical_pad_inds = redundant_physical_to_logical_arr[failing_physical_pad_inds]
-                # Extract those pads with a logical id that is not -1 (not PG pads)
-                failing_logical_pad_inds = failing_logical_pad_inds[failing_logical_pad_inds >= 0] # Those PG pads logical ids are -1
-                # Update the scoreboard
-                fail_counts = np.bincount(failing_logical_pad_inds, minlength=redundant_logical_scoreboard.shape[0])
-                redundant_logical_scoreboard -= fail_counts
-            else:
-                max_pad_misalignment = die.pad_misalignment
-                # Check if any critical pad misalignment is greater than the maximum allowed misalignment
-                if np.any(max_pad_misalignment >= MAX_ALLOWED_MISALIGNMENT):
-                    wafer.survival_die -= 1
-                    die.survival = False
-                    continue
-            
-            
+                failing_redundant_pad_ind = np.argwhere(redundant_pad_misalignment > MAX_ALLOWED_MISALIGNMENT_um)
+                # Get the physical pad indices (specifically for UCIe mapping)
+                fail_bump_id_set = set((failing_redundant_pad_ind[:, 0] * PAD_ARR_COL / 2 + failing_redundant_pad_ind[:, 1] // 2).astype(int))
 
             # Delete the die.pad_misalignment to save memory
             del die.pad_misalignment
         
             
-            # If all the redundant pad replicas fail, then the die fails
-            if np.any(redundant_logical_scoreboard == 0):
-                wafer.survival_die -= 1
-                die.survival = False
-                redundant_fail += 1
-                # print("Fail due to all copies failing.")
-                continue
-            # Check if the number of redundant pads with misalignment is greater than the survival ratio
-            if np.sum(redundant_pad_fail_map) > (1 - redundant_survival_ratio) * num_redundant_pads:
-                wafer.survival_die -= 1
-                die.survival = False
-                redundant_fail += 1
-                # print("Fail due to too many redundant pads with misalignment.")
+            # Check every net connecting redundant pads, if all the redundant pad replicas fail, then the die fails
+            for net, redundant_bumpid_set in redundant_net_to_bumpids.items():
+                if redundant_bumpid_set.issubset(fail_bump_id_set):
+                    wafer.survival_die -= 1
+                    die.survival = False
+                    redundant_fail += 1
+                    break
+            if not die.survival:
                 continue
             
             '''
@@ -188,7 +160,6 @@ def overall_yield_simulator(
 
                 # Use critical pad bitmap and grid search to find if any void overlaps with the die
                 if np.any(overlap_void_die_mask):
-                    num_overlap_redundant_pads = 0
                     # Calculate the pad range we need to consider (critical, near the void)
                     # The i, j here are the indices of the pad array bitmap. The origin is the bottom left corner of the pad array box. 
                     # It is noticed that the origin of the bitmap is the top left corner of the pad array box. Switching is needed.
@@ -197,13 +168,13 @@ def overall_yield_simulator(
                     i_coord_max = max(in_die_voids[:, 0] + in_die_voids[:, 2] + PAD_TOP_R_um - pad_array_box_x)
                     j_coord_min = min(in_die_voids[:, 1] - in_die_voids[:, 2] - PAD_TOP_R_um - pad_array_box_y)
                     j_coord_max = max(in_die_voids[:, 1] + in_die_voids[:, 2] + PAD_TOP_R_um - pad_array_box_y)
-                    i_min = max(0, int(np.floor(i_coord_min / PITCH_um)))  # (col_start)
-                    i_max = min(PAD_ARR_ROW-1, int(np.ceil(i_coord_max / PITCH_um)))   # H = i_max - i_min + 1 (col_end)
-                    j_min = max(0, int(np.floor(j_coord_min / PITCH_um)))  # (row_start)
-                    j_max = min(PAD_ARR_COL-1, int(np.ceil(j_coord_max / PITCH_um)))   # W = j_max - j_min + 1 (row_end)
+                    i_min = max(0, int(np.floor(i_coord_min / PITCH_c_um)))  # (col_start)
+                    i_max = min(PAD_ARR_ROW-1, int(np.ceil(i_coord_max / PITCH_c_um)))   # H = i_max - i_min + 1 (col_end)
+                    j_min = max(0, int(np.floor(j_coord_min / PITCH_r_um)))  # (row_start)
+                    j_max = min(PAD_ARR_COL-1, int(np.ceil(j_coord_max / PITCH_r_um)))   # W = j_max - j_min + 1 (row_end)
 
-                    check_pad_x_coords = pad_array_box_x + np.arange(i_min, i_max+1) * PITCH_um
-                    check_pad_y_coords = pad_array_box_y + np.arange(j_min, j_max+1) * PITCH_um
+                    check_pad_x_coords = pad_array_box_x + np.arange(i_min, i_max+1) * PITCH_c_um
+                    check_pad_y_coords = pad_array_box_y + np.arange(j_min, j_max+1) * PITCH_r_um
                     check_pad_x_mesh, check_pad_y_mesh = np.meshgrid(check_pad_x_coords, check_pad_y_coords, indexing='xy')
 
                     # Calculate the distance from each void to the closest point on the critical pads
@@ -241,39 +212,27 @@ def overall_yield_simulator(
                     # Check if any void overlaps with the critical pads
                     overlap_critical = overlap_void_pad_mask & check_critical_pad_bitmap.astype(bool)
                     if np.any(overlap_critical):
-                        # print("Overlapping with the critical pads.")
                         wafer.survival_die -= 1
                         die.survival = False
-                    else:
-                        # print("Overlapping with the redundant pads.")
+                    else:   # Voids overlapping with the redundant pads.
                         # Check if any void overlaps with the redundant critical pads
                         overlap_redundant = overlap_void_pad_mask & check_redundant_pad_bitmap.astype(bool)
                         # if overlap #pads is greater than a percentage of the total pads, then the die fails
-                        num_overlap_redundant_pads += np.sum(overlap_redundant)
                         redundant_pad_fail_map[PAD_ARR_ROW-j_max-1:PAD_ARR_ROW-j_min, i_min:i_max+1][overlap_redundant] = 1
                         # Get those failing pad indices
-                        failing_pad_ind = np.argwhere(overlap_redundant)
+                        failing_redundant_pad_ind = np.argwhere(overlap_redundant)
                         # make the coords global
-                        failing_pad_ind += np.array([PAD_ARR_ROW-j_max-1, i_min])
-                        # Get the physical pad indices
-                        failing_physical_pad_inds = failing_pad_ind[:, 0] * PAD_ARR_COL + failing_pad_ind[:, 1] 
-                        # Use the physical -> logical mapping to get the reduce the logical score
-                        failing_logical_pad_inds = redundant_physical_to_logical_arr[failing_physical_pad_inds]
-                        # Extract those pads with a logical id that is not -1 (not PG pads)
-                        failing_logical_pad_inds = failing_logical_pad_inds[failing_logical_pad_inds >= 0] # Those PG pads logical ids are -1
-                        # Update the scoreboard
-                        fail_counts = np.bincount(failing_logical_pad_inds, minlength=redundant_logical_scoreboard.shape[0])
-                        redundant_logical_scoreboard -= fail_counts
+                        failing_redundant_pad_ind += np.array([PAD_ARR_ROW-j_max-1, i_min])
+                        # Get the physical pad indices (specifically for UCIe mapping)
+                        fail_bump_id_set = set((failing_redundant_pad_ind[:, 0] * PAD_ARR_COL / 2 + failing_redundant_pad_ind[:, 1] // 2).astype(int))
 
-                        # If all the copied redundant pads fail, then the die fails
-                        if np.any(redundant_logical_scoreboard == 0):
-                            # print("Here is the pad failing due to all copies failing.")
-                            wafer.survival_die -= 1
-                            die.survival = False
-                        if np.sum(redundant_pad_fail_map) > (1 - redundant_survival_ratio) * num_redundant_pads:
-                            # print("The number of redundant pads overlapping with the void is {}.".format(num_overlap_redundant_pads))
-                            wafer.survival_die -= 1
-                            die.survival = False
+                        # Check every net connecting redundant pads, if all the redundant pad replicas fail due to voids, then the die fails
+                        for net, redundant_bumpid_set in redundant_net_to_bumpids.items():
+                            if redundant_bumpid_set.issubset(fail_bump_id_set):
+                                wafer.survival_die -= 1
+                                die.survival = False
+                                redundant_fail += 1
+                                break
 
             # Proceed if die still survives
             if not die.survival:
@@ -282,41 +241,58 @@ def overall_yield_simulator(
             '''
             Check the Cu gap, a true Monte Carlo simulator
             '''
-            # # Check the Cu expansion
-            # Cu_gap = Cu_gap_simulator(TOP_DISH_MEAN_nm, TOP_DISH_STD_nm, BOT_DISH_MEAN_nm, BOT_DISH_STD_nm, int(die.num_pads))
-            # Cu_gap = Cu_gap.reshape(die_critical_pad_bitmap.shape)
-            # # Check critical pad Cu gap
-            # critical_pad_Cu_gap = Cu_gap * die_critical_pad_bitmap
-            # if critical_pad_Cu_gap.min() < -zeta_0 or critical_pad_Cu_gap.max() > -zeta_1:
-            #     wafer.survival_die -= 1
-            #     die.survival = False
-            #     continue
-            # # Check redundant pad Cu gap
-            # redundant_pad_Cu_gap = Cu_gap * die_redundant_pad_bitmap
-            # num_redundant_pad_over_Cu_gap = np.sum(redundant_pad_Cu_gap > -zeta_1) + np.sum(redundant_pad_Cu_gap < -zeta_0)
-            # redundant_pad_fail_map[redundant_pad_Cu_gap > -zeta_1] = 1
-            # redundant_pad_fail_map[redundant_pad_Cu_gap < -zeta_0] = 1
-            # # Get those failing pad indices
-            # failing_pad_ind = np.concatenate((np.argwhere(redundant_pad_Cu_gap > -zeta_1), np.argwhere(redundant_pad_Cu_gap < -zeta_0)), axis=0)
-            # # Get the physical pad indices
-            # failing_physical_pad_inds = failing_pad_ind[:, 0] * PAD_ARR_COL + failing_pad_ind[:, 1]
-            # # Use the physical -> logical mapping to get the reduce the logical score
-            # failing_logical_pad_inds = redundant_physical_to_logical_arr[failing_physical_pad_inds]
-            # # Extract those pads with a logical id that is not -1 (not PG pads)
-            # failing_logical_pad_inds = failing_logical_pad_inds[failing_logical_pad_inds >= 0] # Those PG pads logical ids are -1
-            # # Update the scoreboard
-            # fail_counts = np.bincount(failing_logical_pad_inds, minlength=redundant_logical_scoreboard.shape[0])
-            # redundant_logical_scoreboard -= fail_counts
+            # Check the Cu expansion
+            Cu_gap = Cu_gap_simulator(TOP_DISH_MEAN_nm, TOP_DISH_STD_nm, BOT_DISH_MEAN_nm, BOT_DISH_STD_nm, int(die.num_pads))
+            Cu_gap = Cu_gap.reshape(die_critical_pad_bitmap.shape)
 
-            # # If all the copied redundant pads fail, then the die fails
-            # if np.any(redundant_logical_scoreboard == 0) or np.sum(redundant_pad_fail_map) > (1 - redundant_survival_ratio) * num_redundant_pads:
-            #     wafer.survival_die -= 1
-            #     die.survival = False
-            #     continue
+            # Calculate the safe range for Cu recess
+            zeta_0 = cfg.k_et * (cfg.T_anl - cfg.T_R) + cfg.k_eb * (cfg.T_anl - cfg.T_R)    # The total expansion of the Cu pad after annealing (nm)
+            zeta_1_ = roughness_parameters(
+                Asperity_R_m            = cfg.Asperity_R_m,
+                Roughness_sigma_m       = cfg.Roughness_sigma_m,
+                eta_s                   = cfg.eta_s,
+                Roughness_constant      = cfg.Roughness_constant,
+                Adhesion_energy         = cfg.Adhesion_energy,
+                Young_modulus_Pa        = cfg.Young_modulus_Pa,
+                Dielectric_thickness    = cfg.Dielectric_thickness,
+                PITCH_r_um              = cfg.PITCH_r_um,
+                PITCH_c_um              = cfg.PITCH_c_um,
+                PAD_BOT_R_um            = cfg.PAD_BOT_R_um,
+                DISH_0_m                = cfg.DISH_0_m,
+                k_peel                  = cfg.k_peel,
+            )
+            zeta_1 = max(zeta_1_, 0)
 
-            # #check time for 10 dies
-            # if die_count % 10 == 9:
-            #     print("The time for checking ten dies is {} seconds.".format(time.time() - start_time))
+            # Check critical pad Cu gap
+            critical_pad_Cu_gap = Cu_gap * die_critical_pad_bitmap
+            if critical_pad_Cu_gap.min() < -zeta_0 or critical_pad_Cu_gap.max() > -zeta_1:
+                wafer.survival_die -= 1
+                die.survival = False
+                continue
+
+
+            
+            # Check redundant pad Cu gap
+            redundant_pad_Cu_gap = Cu_gap * die_redundant_pad_bitmap
+            num_redundant_pad_over_Cu_gap = np.sum(redundant_pad_Cu_gap > -zeta_1) + np.sum(redundant_pad_Cu_gap < -zeta_0)
+            redundant_pad_fail_map[redundant_pad_Cu_gap > -zeta_1] = 1
+            redundant_pad_fail_map[redundant_pad_Cu_gap < -zeta_0] = 1
+            # Get those failing pad indices
+            failing_redundant_pad_ind = np.concatenate((np.argwhere(redundant_pad_Cu_gap > -zeta_1), np.argwhere(redundant_pad_Cu_gap < -zeta_0)), axis=0)
+            # Get the physical pad indices
+            fail_bump_id_set = set((failing_redundant_pad_ind[:, 0] * PAD_ARR_COL / 2 + failing_redundant_pad_ind[:, 1] // 2).astype(int))
+
+            # Check every net connecting redundant pads, if all the redundant pad replicas fail due to voids, then the die fails
+            for net, redundant_bumpid_set in redundant_net_to_bumpids.items():
+                if redundant_bumpid_set.issubset(fail_bump_id_set):
+                    wafer.survival_die -= 1
+                    die.survival = False
+                    redundant_fail += 1
+                    break
+
+            #check time for 10 dies
+            if die_count % 10 == 9:
+                print("The time for checking ten dies is {} seconds.".format(time.time() - start_time))
 
         # Record the time
         # print("The time for checking wafer {} is {} seconds.".format(waf_ind, time.time() - start_time))
@@ -326,24 +302,7 @@ def overall_yield_simulator(
         # raise ValueError("Stop here")
         # print("Critical pad fail: {}, Redundant pad fail: {}".format(critical_fail, redundant_fail))
         die_yield = wafer.survival_die / len(wafer.die_list)
-        # Because there are too many pads! Cu pad recess height simulation will be very slow!
-        # Hence, we will not consider the Cu pad recess height simulation here.
-        # We use Cu yield model to calculate the yield.
-        Cu_expansion_yield = Cu_expansion_yield_calculator(
-            TOP_DISH_MEAN_nm=TOP_DISH_MEAN_nm,
-            TOP_DISH_STD_nm=TOP_DISH_STD_nm,
-            BOT_DISH_MEAN_nm=BOT_DISH_MEAN_nm,
-            BOT_DISH_STD_nm=BOT_DISH_STD_nm,
-            k_et=k_et,
-            k_eb=k_eb,
-            T_R=T_R,
-            T_anl=T_anl,
-            zeta_1=zeta_1,
-            num_critical_pads      = pad_bitmap_collection["num_critical_pads"],
-            num_redundant_logical_pads = pad_bitmap_collection["num_redundant_logical_pads"],
-            redundant_logical_pad_copy = pad_bitmap_collection["redundant_logical_pad_copy"],
-        )
-        die_yield *= Cu_expansion_yield
+
         # print("The die yield of the wafer is {:.2f}%.".format(die_yield * 100))
         yield_list.append(die_yield)
         if (waf_ind + 1) % 1 == 0:

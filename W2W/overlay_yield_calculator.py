@@ -44,7 +44,8 @@ def overlay_yield_calculator(
     PAD_ARR_COL: int,
     PAD_TOP_R_um: float,
     PAD_BOT_R_um: float,
-    PITCH_um: float,
+    PITCH_r_um: float,
+    PITCH_c_um: float,
     num_samples: int,
     CONTACT_AREA_CONSTRAINT: float,
     CRITICAL_DIST_CONSTRAINT: float,
@@ -64,7 +65,7 @@ def overlay_yield_calculator(
     pad_yield_map_sub_factor: int = 1,
 ):
     def max_allowed_misalignment_calculator(
-        PAD_TOP_R_um, PAD_BOT_R_um, PITCH_um, CONTACT_AREA_CONSTRAINT, CRITICAL_DIST_CONSTRAINT
+        PAD_TOP_R_um, PAD_BOT_R_um, PITCH_r_um, PITCH_c_um, CONTACT_AREA_CONSTRAINT, CRITICAL_DIST_CONSTRAINT
     ):
         # Calculate the overlay misalignment that will fail the contact area constraint
         system_misalignment = sp.symbols("system_misalignment")
@@ -88,7 +89,7 @@ def overlay_yield_calculator(
         # plt.show()
 
         # Calculate the overlay misalignment that will fail the critical distance constraint
-        max_allowed_misalignment_for_cd = (1 - CRITICAL_DIST_CONSTRAINT) * PITCH_um - 0.5 * (2 * PAD_TOP_R_um) + (CRITICAL_DIST_CONSTRAINT - 0.5) * (2 * PAD_BOT_R_um)
+        max_allowed_misalignment_for_cd = (1 - CRITICAL_DIST_CONSTRAINT) * min(PITCH_r_um, PITCH_c_um) - 0.5 * (2 * PAD_TOP_R_um) + (CRITICAL_DIST_CONSTRAINT - 0.5) * (2 * PAD_BOT_R_um)
         
         # print("The overlay misalignment that will fail the critical distance constraint is {} um.".format(max_allowed_misalignment_for_cd))
 
@@ -100,7 +101,8 @@ def overlay_yield_calculator(
     MAX_ALLOWED_MISALIGNMENT = max_allowed_misalignment_calculator(
         PAD_TOP_R_um,
         PAD_BOT_R_um,
-        PITCH_um,
+        PITCH_r_um,
+        PITCH_c_um,
         CONTACT_AREA_CONSTRAINT,
         CRITICAL_DIST_CONSTRAINT,
     )

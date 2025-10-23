@@ -27,17 +27,18 @@ def Cu_expansion_yield_calculator(*,
     ):
     zeta_0 = k_et * (T_anl - T_R) + k_eb * (T_anl - T_R)
     zeta_1_ = roughness_parameters(
-        Asperity_R_m          =   cfg.Asperity_R_m,
-        Roughness_sigma_m     =   cfg.Roughness_sigma_m,
-        eta_s               =   cfg.eta_s,
-        Roughness_constant  =   cfg.Roughness_constant,
-        Adhesion_energy     =   cfg.Adhesion_energy,
-        Young_modulus_Pa       =   cfg.Young_modulus_Pa,
-        Dielectric_thickness=   cfg.Dielectric_thickness,
-        PITCH_um               =   cfg.PITCH_um,
-        PAD_BOT_R_um           =   cfg.PAD_BOT_R_um,
-        DISH_0_m              =   cfg.DISH_0_m,
-        k_peel              =   cfg.k_peel,
+        Asperity_R_m            =   cfg.Asperity_R_m,
+        Roughness_sigma_m       =   cfg.Roughness_sigma_m,
+        eta_s                   =   cfg.eta_s,
+        Roughness_constant      =   cfg.Roughness_constant,
+        Adhesion_energy         =   cfg.Adhesion_energy,
+        Young_modulus_Pa        =   cfg.Young_modulus_Pa,
+        Dielectric_thickness    =   cfg.Dielectric_thickness,
+        PITCH_r_um              =   cfg.PITCH_r_um,
+        PITCH_c_um              =   cfg.PITCH_c_um,
+        PAD_BOT_R_um            =   cfg.PAD_BOT_R_um,
+        DISH_0_m                =   cfg.DISH_0_m,
+        k_peel                  =   cfg.k_peel,
     )
     zeta_1 = max(zeta_1_, 0)
     upper_limit = - zeta_1

@@ -168,7 +168,7 @@ def draw_pad_bitmap(bitmap_collection):
     PAD_BITMAP[REDUNDANT_PAD_BITMAP == 1] = 2  # blue
     PAD_BITMAP[DUMMY_PAD_BITMAP == 1] = 3  # gray
 
-    plt.figure(figsize=(8, 8))
+    plt.figure(figsize=(6, 6))
     cmap = ListedColormap([
         (1.0, 0.5, 0.5),    # 1 - critical (medium red)
         (0.4, 0.4, 0.9),    # 2 - redundant (medium blue)
@@ -195,7 +195,12 @@ def draw_pad_bitmap(bitmap_collection):
 
     return
 
-def convert_3dblox_to_pad_bitmap(cfg, blox_bmap_path='pad_bitmap/UCIe_standard.bmap'):
+def convert_3dblox_to_pad_bitmap(cfg, 
+                                 blox_bmap_path='pad_bitmap/UCIe_standard.bmap', 
+                                 pad_arrange_pattern='checkerboard'):
+    '''
+    pad_arrange_pattern: 'checkerboard' for UCIe standard
+    '''
     # Extract configuration parameters
     pad_block_size = cfg.pad_block_size     # In UCIe standard, pad block size is 1 (no downsampling)
     critical_pad_ratio = cfg.critical_pad_ratio
@@ -205,39 +210,53 @@ def convert_3dblox_to_pad_bitmap(cfg, blox_bmap_path='pad_bitmap/UCIe_standard.b
 
     # Read the bump data from the .bmap file
     bump_data = []
+    # Initialize the pad array boundaries
+    [pad_array_left, pad_array_right, pad_array_top, pad_array_bottom] = [float('inf'), float('-inf'), float('-inf'), float('inf')]
     with open(blox_bmap_path, 'r') as f:
         for line in f:
             parts = line.strip().split()
             if len(parts) == 6:
                 instance, bump_type, x, y, port, net = parts
+                bumpid = int(instance.split("_")[1])
                 bump_data.append({      # From the top-left corner to the bottom-right corner
-                    "bumpid": int(instance.split("_")[1]),
+                    "bumpid": bumpid,
                     "x": int(x),
                     "y": int(y),
                     "port": port,
                     "net": net
                 })
+                if float(x) < pad_array_left:
+                    pad_array_left = float(x)
+                if float(x) > pad_array_right:
+                    pad_array_right = float(x)
+                if float(y) < pad_array_bottom:
+                    pad_array_bottom = float(y)
+                if float(y) > pad_array_top:
+                    pad_array_top = float(y)
     # Convert the bump data to pad bitmap
-    port_set = set([bump['port'] for bump in bump_data])
-    redundant_port_to_bumpid = dict()
+    redundant_net_to_bumpids = dict()
     for bump in bump_data:
-        if bump['port'] not in redundant_port_to_bumpid:
-            redundant_port_to_bumpid[bump['port']] = []
-        redundant_port_to_bumpid[bump['port']].append(bump['bumpid'])
+        if bump['net'] not in redundant_net_to_bumpids:
+            redundant_net_to_bumpids[bump['net']] = set()
+        redundant_net_to_bumpids[bump['net']].add(bump['bumpid'])
     # Initialize the pad bitmap
-    pad_arrange_pattern = 'checkerboard'   # Currently only support checkerboard pattern
     # TODO: You need to modify the simulator to support different pad arrangement patterns
     CRITICAL_PAD_BITMAP = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL), dtype=bool)
     CRITICAL_PAD_BLOCK_BITMAP = downsample_bitmap(CRITICAL_PAD_BITMAP, pad_block_size)
     REDUNDANT_PAD_BITMAP = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL), dtype=bool)
     REDUNDANT_PAD_BLOCK_BITMAP = downsample_bitmap(REDUNDANT_PAD_BITMAP, pad_block_size)
+    pad_coords = np.full((cfg.PAD_ARR_ROW * cfg.PAD_ARR_COL, 2), np.nan, dtype=np.float32)  # x, y coordinates of each bump
+
     if pad_arrange_pattern == 'checkerboard': # This case is for UCIe standard
         for row in range(cfg.PAD_ARR_ROW):
             for col in range(cfg.PAD_ARR_COL):
                 if (row + col) % 2 == 1:    # There is a bump (but not necessarily a critical pad)
-                    bump_id = int(row // 2 * cfg.PAD_ARR_COL / 2 + col // 2)
+                    bump_id = int(row * cfg.PAD_ARR_COL / 2 + col // 2)
                     current_bump_dict = bump_data[bump_id]
-                    if len(redundant_port_to_bumpid[current_bump_dict['port']]) == 1:
+                    current_bump_net = current_bump_dict['net']
+                    pad_coords[row * cfg.PAD_ARR_COL + col, 0] = current_bump_dict['x'] - (pad_array_left + pad_array_right) / 2
+                    pad_coords[row * cfg.PAD_ARR_COL + col, 1] = current_bump_dict['y'] - (pad_array_top + pad_array_bottom) / 2
+                    if len(redundant_net_to_bumpids[current_bump_net]) == 1:
                         CRITICAL_PAD_BITMAP[row, col] = 1
                     else:
                         REDUNDANT_PAD_BITMAP[row, col] = 1
@@ -245,91 +264,36 @@ def convert_3dblox_to_pad_bitmap(cfg, blox_bmap_path='pad_bitmap/UCIe_standard.b
                     continue
     else:
         raise NotImplementedError("Currently only support checkerboard pad arrangement pattern.")
-    DUMMY_PAD_BITMAP = None # This case is for UCIe standard, so there is no dummy pads
-    REDUNDANT_MAIN_PAD_BLOCK_BITMAP = np.zeros_like(REDUNDANT_PAD_BLOCK_BITMAP, dtype=bool)
-    REDUNDANT_COPY_PAD_BLOCK_BITMAP = np.zeros_like(REDUNDANT_PAD_BLOCK_BITMAP, dtype=bool)
-    # We define that the first redundant pad in the redundant pads is the main pad, others are copy pads
-    for row in range(cfg.PAD_ARR_ROW):
-        for col in range(cfg.PAD_ARR_COL):
-            if REDUNDANT_PAD_BITMAP[row, col]:
-                bump_id = int(row // 2 * cfg.PAD_ARR_COL / 2 + col // 2)
-                current_bump_dict = bump_data[bump_id]
-                port = current_bump_dict['port']
-                replica_bumpid_list = redundant_port_to_bumpid[port]
-                REDUNDANT_MAIN_PAD_BLOCK_BITMAP[row, col] = True if replica_bumpid_list[0] == current_bump_dict['bumpid'] else False
-                REDUNDANT_COPY_PAD_BLOCK_BITMAP[row, col] = True if replica_bumpid_list[0] != current_bump_dict['bumpid'] else False
-
-
+    DUMMY_PAD_BITMAP = ~(CRITICAL_PAD_BITMAP | REDUNDANT_PAD_BITMAP)
     # Count the number of pads
     num_critical_pads = np.sum(CRITICAL_PAD_BITMAP)
     num_redundant_pads = np.sum(REDUNDANT_PAD_BITMAP)
     num_dummy_pads = 0 if DUMMY_PAD_BITMAP is None else np.sum(DUMMY_PAD_BITMAP)
     
-    # Count the number of logical pads in redundant pads
-    num_redundant_logical_pads = 0
-    for port in redundant_port_to_bumpid:
-        if len(redundant_port_to_bumpid[port]) > 1 and ('vcc' not in port.lower()) and ('vss' not in port.lower()):
-            num_redundant_logical_pads += 1
-    # Initialize the redundant port alive count dict
-    redundant_port_alive_count_dict = dict()
-    for port in redundant_port_to_bumpid:
-        redundant_port_alive_count_dict[port] = len(redundant_port_to_bumpid[port])
-    redundant_logical_pad_ratio = num_redundant_logical_pads / num_redundant_pads if num_redundant_pads > 0 else 0.0
-
-    # Calculate the outmost critical pad coordinates for overlay simulation (4 totally)
-    critical_pad_boundary_bitmap_row_col_block_ind = np.zeros((4, 2), dtype=int)
-    row_col_ind = np.argwhere(CRITICAL_PAD_BITMAP == 1)
-    top_left_ind = row_col_ind[np.argmin(row_col_ind[:, 0] + row_col_ind[:, 1])]
-    top_right_ind = row_col_ind[np.argmin(row_col_ind[:, 0] - row_col_ind[:, 1])]
-    bottom_left_ind = row_col_ind[np.argmax(row_col_ind[:, 0] - row_col_ind[:, 1])]
-    bottom_right_ind = row_col_ind[np.argmax(row_col_ind[:, 0] + row_col_ind[:, 1])]
-    critical_pad_boundary_bitmap_row_col_block_ind[0] = top_left_ind / pad_block_size
-    critical_pad_boundary_bitmap_row_col_block_ind[1] = top_right_ind / pad_block_size
-    critical_pad_boundary_bitmap_row_col_block_ind[2] = bottom_left_ind / pad_block_size 
-    critical_pad_boundary_bitmap_row_col_block_ind[3] = bottom_right_ind / pad_block_size
-    critical_pad_boundary_bitmap_row_col_block_ind_non_zero_mask = (critical_pad_boundary_bitmap_row_col_block_ind != 0)
-    critical_pad_boundary_bitmap_row_col_block_ind = critical_pad_boundary_bitmap_row_col_block_ind + critical_pad_boundary_bitmap_row_col_block_ind_non_zero_mask
-
-    # Calculate the outmost redundant copy pad coordinates for overlay simulation (4 totally)
-    redundant_copy_pad_boundary_bitmap_row_col_block_ind = None
-    if len(redundant_port_alive_count_dict) != 0:
-        redundant_copy_pad_boundary_bitmap_row_col_block_ind = np.zeros((4, 2), dtype=int)
-        row_col_ind = np.argwhere(np.any(REDUNDANT_COPY_PAD_BLOCK_BITMAP, axis=0) == 1)
-        top_left_ind = row_col_ind[np.argmin(row_col_ind[:, 0] + row_col_ind[:, 1])]
-        top_right_ind = row_col_ind[np.argmin(row_col_ind[:, 0] - row_col_ind[:, 1])]
-        bottom_left_ind = row_col_ind[np.argmax(row_col_ind[:, 0] - row_col_ind[:, 1])]
-        bottom_right_ind = row_col_ind[np.argmax(row_col_ind[:, 0] + row_col_ind[:, 1])]
-        redundant_copy_pad_boundary_bitmap_row_col_block_ind[0] = top_left_ind
-        redundant_copy_pad_boundary_bitmap_row_col_block_ind[1] = top_right_ind
-        redundant_copy_pad_boundary_bitmap_row_col_block_ind[2] = bottom_left_ind
-        redundant_copy_pad_boundary_bitmap_row_col_block_ind[3] = bottom_right_ind
+    # Count the number of logical pads in redundant pads & Initialize the redundant net alive count dict
+    print("redundant_net_to_bumpids:", redundant_net_to_bumpids)
 
 
     bitmap_collection = {}
+    bitmap_collection["bump_data"] = bump_data
     bitmap_collection["CRITICAL_PAD_BITMAP"] = CRITICAL_PAD_BITMAP
     bitmap_collection["CRITICAL_PAD_BLOCK_BITMAP"] = CRITICAL_PAD_BLOCK_BITMAP
-    bitmap_collection["critical_pad_boundary_bitmap_row_col_block_ind"] = critical_pad_boundary_bitmap_row_col_block_ind
-    bitmap_collection["redundant_copy_pad_boundary_bitmap_row_col_block_ind"] = redundant_copy_pad_boundary_bitmap_row_col_block_ind
     bitmap_collection["REDUNDANT_PAD_BITMAP"] = REDUNDANT_PAD_BITMAP
+    bitmap_collection["REDUNDANT_PAD_BLOCK_BITMAP"] = REDUNDANT_PAD_BLOCK_BITMAP
     bitmap_collection["DUMMY_PAD_BITMAP"] = DUMMY_PAD_BITMAP
-    bitmap_collection["REDUNDANT_MAIN_PAD_BLOCK_BITMAP"] = REDUNDANT_MAIN_PAD_BLOCK_BITMAP
-    bitmap_collection["REDUNDANT_COPY_PAD_BLOCK_BITMAP"] = REDUNDANT_COPY_PAD_BLOCK_BITMAP
-
     bitmap_collection["is_redundant_copy_same_block"] = False
     bitmap_collection["num_critical_pads"] = num_critical_pads
     bitmap_collection["num_redundant_pads"] = num_redundant_pads
-    bitmap_collection["num_redundant_logical_pads"] = num_redundant_logical_pads
+    bitmap_collection["num_dummy_pads"] = num_dummy_pads
 
     bitmap_collection["critical_pad_ratio"] = critical_pad_ratio
     bitmap_collection["redundant_pad_ratio"] = redundant_pad_ratio
-    bitmap_collection["redundant_logical_pad_ratio"] = redundant_logical_pad_ratio
     bitmap_collection["redundant_logical_pad_copy"] = redundant_logical_pad_copy
     bitmap_collection["redundant_logical_pad_dist"] = redundant_logical_pad_dist
     bitmap_collection["pad_block_size"] = pad_block_size
-    bitmap_collection["redundant_logical_to_physical_arr"] = None
-    bitmap_collection["redundant_physical_to_logical_arr"] = None
-    bitmap_collection["redundant_pad_block_pair_dict"] = None
-    bitmap_collection["redundant_port_alive_count_dict"] = redundant_port_alive_count_dict
+    bitmap_collection["redundant_net_to_bumpids"] = redundant_net_to_bumpids
+    bitmap_collection["pad_coords"] = pad_coords
+    
     
     # Save the bitmap collection as npy file and mat file
     np.save("pad_bitmap/bitmap_collection.npy", bitmap_collection)
@@ -337,8 +301,6 @@ def convert_3dblox_to_pad_bitmap(cfg, blox_bmap_path='pad_bitmap/UCIe_standard.b
 
     # # Draw the critical and redundant pad bitmaps in one figure (critical light red, redundant light blue, dummy light gray)
     draw_pad_bitmap(bitmap_collection)
-
-    # raise ValueError("Pad bitmap generation finished. Please check the pad_bitmap folder.")
 
     return bitmap_collection
 

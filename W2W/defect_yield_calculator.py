@@ -51,7 +51,8 @@ def defect_yield_calculator(
     k_S: float,
     k_L: float,
     PAD_TOP_R_um: float,
-    PITCH_um: float,
+    PITCH_r_um: float,
+    PITCH_c_um: float,
     PAD_ARR_ROW: int,
     PAD_ARR_COL: int,
     PAD_ARR_W_um: float,
@@ -73,10 +74,10 @@ def defect_yield_calculator(
     is_redundant_copy_same_block = pad_bitmap_collection["is_redundant_copy_same_block"]
     CRITICAL_PAD_ARR_W_IND, CRITICAL_PAD_ARR_L_IND = get_bitmap_bounds(bitmap=CRITICAL_PAD_BLOCK_BITMAP, pad_block_size=pad_block_size)
     REDUNDANT_MAIN_PAD_ARR_W_IND, REDUNDANT_MAIN_PAD_ARR_L_IND = get_bitmap_bounds(bitmap=REDUNDANT_MAIN_PAD_BLOCK_BITMAP, pad_block_size=pad_block_size)
-    REDUNDANT_MAIN_PAD_ARR_W_um = REDUNDANT_MAIN_PAD_ARR_W_IND * PITCH_um
-    REDUNDANT_MAIN_PAD_ARR_L_um = REDUNDANT_MAIN_PAD_ARR_L_IND * PITCH_um
-    CRITICAL_PAD_ARR_W_um = CRITICAL_PAD_ARR_W_IND * PITCH_um
-    CRITICAL_PAD_ARR_L_um = CRITICAL_PAD_ARR_L_IND * PITCH_um
+    REDUNDANT_MAIN_PAD_ARR_W_um = REDUNDANT_MAIN_PAD_ARR_W_IND * PITCH_c_um
+    REDUNDANT_MAIN_PAD_ARR_L_um = REDUNDANT_MAIN_PAD_ARR_L_IND * PITCH_r_um
+    CRITICAL_PAD_ARR_W_um = CRITICAL_PAD_ARR_W_IND * PITCH_c_um
+    CRITICAL_PAD_ARR_L_um = CRITICAL_PAD_ARR_L_IND * PITCH_r_um
     if is_redundant_copy_same_block:
         EFF_PAD_ARR_W_um = max(CRITICAL_PAD_ARR_W_um, REDUNDANT_MAIN_PAD_ARR_W_um)
         EFF_PAD_ARR_L_um = max(CRITICAL_PAD_ARR_L_um, REDUNDANT_MAIN_PAD_ARR_L_um)
@@ -86,8 +87,8 @@ def defect_yield_calculator(
     # print("EFF_PAD_ARR_W_um: ", EFF_PAD_ARR_W_um, "EFF_PAD_ARR_L_um: ", EFF_PAD_ARR_L_um)
 
 
-    
-    def void_critical_area_per_die(PAD_TOP_R_um, r_v, PITCH_um, PAD_ARR_ROW, PAD_ARR_COL, PAD_ARR_W_um, PAD_ARR_L_um, VOID_SHAPE):
+    # TODO: Modify the PITCH_um to PITCH_r_um and PITCH_c_um throughout the codebase and correct all formulas
+    def void_critical_area_per_die(PAD_TOP_R_um, r_v, PITCH_c_um, PITCH_r_um, PAD_ARR_ROW, PAD_ARR_COL, PAD_ARR_W_um, PAD_ARR_L_um, VOID_SHAPE):
         N = PAD_ARR_ROW * PAD_ARR_COL
         r_p = PAD_TOP_R_um
         a = PAD_ARR_ROW
