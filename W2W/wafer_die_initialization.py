@@ -228,27 +228,32 @@ def wafer_initialize(
             [-PAD_ARR_W_um / 2, -PAD_ARR_L_um / 2], 
             [PAD_ARR_W_um / 2, -PAD_ARR_L_um / 2]])
     
-    NUM_PADS_PER_DIE = PAD_ARR_ROW * PAD_ARR_COL  # number of pads in a die
+    # Calculate the total number of pads per die
+    NUM_PADS_PER_DIE = pad_bitmap_collection['num_critical_pads'] + pad_bitmap_collection['num_redundant_pads'] + pad_bitmap_collection['num_dummy_pads']
     
-    # Calculate the top-left pad coordinates of the pad array
-    if PITCH_r_um >= 1.0 and PITCH_c_um >= 1.0:
-        PAD_COORDS = np.zeros([PAD_ARR_ROW * PAD_ARR_COL, 2], dtype=np.float32)  # pad coordinates: [x, y]
-    
-        # Create grid of row and column indices
-        col_indices = np.arange(PAD_ARR_COL)
-        row_indices = np.arange(PAD_ARR_ROW)
-        col_grid, row_grid = np.meshgrid(col_indices, row_indices)
 
-        # Calculate x and y coordinates
-        x_coords = (-PAD_ARR_W_um / 2 + col_grid * PITCH_c_um).astype(np.float32)
-        y_coords = (PAD_ARR_L_um / 2 - row_grid * PITCH_r_um).astype(np.float32)
-
-        # Combine x and y coordinates
-        PAD_COORDS = np.stack((x_coords, y_coords), axis=-1).reshape(-1, 2)
+    if pad_bitmap_collection['pad_coords'] is not None:
+        PAD_COORDS = pad_bitmap_collection['pad_coords']
     else:
-        print("Too many Cu pads... Will not generate the pad coordinates.")
-        PAD_COORDS = None
-    PAD_COORDS = pad_bitmap_collection['pad_coords']
+        if PITCH_r_um >= 1.0 and PITCH_c_um >= 1.0:
+            # Specify the pad coordinates based on pitch and array size
+            PAD_COORDS = np.zeros([PAD_ARR_ROW * PAD_ARR_COL, 2], dtype=np.float32)  # pad coordinates: [x, y]
+        
+            # Create grid of row and column indices
+            col_indices = np.arange(PAD_ARR_COL)
+            row_indices = np.arange(PAD_ARR_ROW)
+            col_grid, row_grid = np.meshgrid(col_indices, row_indices)
+
+            # Calculate x and y coordinates
+            x_coords = (-PAD_ARR_W_um / 2 + col_grid * PITCH_c_um).astype(np.float32)
+            y_coords = (PAD_ARR_L_um / 2 - row_grid * PITCH_r_um).astype(np.float32)
+
+            # Combine x and y coordinates
+            PAD_COORDS = np.stack((x_coords, y_coords), axis=-1).reshape(-1, 2)
+        else:
+            print("Too many Cu pads... Will not generate the pad coordinates.")
+            PAD_COORDS = None
+    
     # Initialize the wafer
     for i in range(NUM_WAFERS):
         wafer = Wafer(

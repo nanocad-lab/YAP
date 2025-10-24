@@ -74,7 +74,6 @@ def overall_yield_simulator(
         # Read the redundant net to bump ids mapping
         redundant_net_to_bumpids = pad_bitmap_collection["redundant_net_to_bumpids"]
 
-        num_redundant_pads = np.sum(die_redundant_pad_bitmap)
         critical_fail = 0
         redundant_fail = 0
 
@@ -118,7 +117,7 @@ def overall_yield_simulator(
                 redundant_pad_fail_map[redundant_pad_misalignment > MAX_ALLOWED_MISALIGNMENT_um] = 1 # 1: redundant pad fails
                 # Get those failing pad indices
                 failing_redundant_pad_ind = np.argwhere(redundant_pad_misalignment > MAX_ALLOWED_MISALIGNMENT_um)
-                # Get the physical pad indices (specifically for UCIe mapping)
+                # Get the fail bump indices (specifically for UCIe mapping)
                 fail_bump_id_set = set((failing_redundant_pad_ind[:, 0] * PAD_ARR_COL / 2 + failing_redundant_pad_ind[:, 1] // 2).astype(int))
 
             # Delete the die.pad_misalignment to save memory
@@ -168,10 +167,10 @@ def overall_yield_simulator(
                     i_coord_max = max(in_die_voids[:, 0] + in_die_voids[:, 2] + PAD_TOP_R_um - pad_array_box_x)
                     j_coord_min = min(in_die_voids[:, 1] - in_die_voids[:, 2] - PAD_TOP_R_um - pad_array_box_y)
                     j_coord_max = max(in_die_voids[:, 1] + in_die_voids[:, 2] + PAD_TOP_R_um - pad_array_box_y)
-                    i_min = max(0, int(np.floor(i_coord_min / PITCH_c_um)))  # (col_start)
-                    i_max = min(PAD_ARR_ROW-1, int(np.ceil(i_coord_max / PITCH_c_um)))   # H = i_max - i_min + 1 (col_end)
-                    j_min = max(0, int(np.floor(j_coord_min / PITCH_r_um)))  # (row_start)
-                    j_max = min(PAD_ARR_COL-1, int(np.ceil(j_coord_max / PITCH_r_um)))   # W = j_max - j_min + 1 (row_end)
+                    i_min = max(0,              int(np.floor(i_coord_min / PITCH_c_um)))    # (col_start)
+                    i_max = min(PAD_ARR_COL-1,  int(np.ceil (i_coord_max / PITCH_c_um)))    # H = i_max - i_min + 1 (col_end)
+                    j_min = max(0,              int(np.floor(j_coord_min / PITCH_r_um)))    # (row_start)
+                    j_max = min(PAD_ARR_ROW-1,  int(np.ceil (j_coord_max / PITCH_r_um)))    # W = j_max - j_min + 1 (row_end)
 
                     check_pad_x_coords = pad_array_box_x + np.arange(i_min, i_max+1) * PITCH_c_um
                     check_pad_y_coords = pad_array_box_y + np.arange(j_min, j_max+1) * PITCH_r_um
@@ -223,7 +222,7 @@ def overall_yield_simulator(
                         failing_redundant_pad_ind = np.argwhere(overlap_redundant)
                         # make the coords global
                         failing_redundant_pad_ind += np.array([PAD_ARR_ROW-j_max-1, i_min])
-                        # Get the physical pad indices (specifically for UCIe mapping)
+                        # Get the fail bump indices (specifically for UCIe mapping)
                         fail_bump_id_set = set((failing_redundant_pad_ind[:, 0] * PAD_ARR_COL / 2 + failing_redundant_pad_ind[:, 1] // 2).astype(int))
 
                         # Check every net connecting redundant pads, if all the redundant pad replicas fail due to voids, then the die fails
@@ -279,7 +278,7 @@ def overall_yield_simulator(
             redundant_pad_fail_map[redundant_pad_Cu_gap < -zeta_0] = 1
             # Get those failing pad indices
             failing_redundant_pad_ind = np.concatenate((np.argwhere(redundant_pad_Cu_gap > -zeta_1), np.argwhere(redundant_pad_Cu_gap < -zeta_0)), axis=0)
-            # Get the physical pad indices
+            # Get the fail bump indices (specifically for UCIe mapping)
             fail_bump_id_set = set((failing_redundant_pad_ind[:, 0] * PAD_ARR_COL / 2 + failing_redundant_pad_ind[:, 1] // 2).astype(int))
 
             # Check every net connecting redundant pads, if all the redundant pad replicas fail due to voids, then the die fails

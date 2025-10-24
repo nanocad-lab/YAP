@@ -192,10 +192,119 @@ def draw_pad_bitmap(bitmap_collection):
 
     return
 
-
-def pad_bitmap_generate_random(cfg, pad_layout_pattern):
+def convert_3dblox_to_pad_bitmap(cfg, 
+                                 blox_bmap_path='pad_bitmap/UCIe_standard.bmap', 
+                                 pad_arrange_pattern='checkerboard'):
     '''
-    This function generates the random pad bitmaps for the die.
+    pad_arrange_pattern: 'checkerboard' for UCIe standard
+    '''
+    # Extract configuration parameters
+    pad_block_size = cfg.pad_block_size     # In UCIe standard, pad block size is 1 (no downsampling)
+    critical_pad_ratio = cfg.critical_pad_ratio
+    redundant_pad_ratio = cfg.redundant_pad_ratio
+    redundant_logical_pad_copy = cfg.redundant_logical_pad_copy
+    redundant_logical_pad_dist = cfg.redundant_logical_pad_dist
+
+    # Read the bump data from the .bmap file
+    bump_data = []
+    # Initialize the pad array boundaries
+    [pad_array_left, pad_array_right, pad_array_top, pad_array_bottom] = [float('inf'), float('-inf'), float('-inf'), float('inf')]
+    with open(blox_bmap_path, 'r') as f:
+        for line in f:
+            parts = line.strip().split()
+            if len(parts) == 6:
+                instance, bump_type, x, y, port, net = parts
+                bumpid = int(instance.split("_")[1])
+                bump_data.append({      # From the top-left corner to the bottom-right corner
+                    "bumpid": bumpid,
+                    "x": int(x),
+                    "y": int(y),
+                    "port": port,
+                    "net": net
+                })
+                if float(x) < pad_array_left:
+                    pad_array_left = float(x)
+                if float(x) > pad_array_right:
+                    pad_array_right = float(x)
+                if float(y) < pad_array_bottom:
+                    pad_array_bottom = float(y)
+                if float(y) > pad_array_top:
+                    pad_array_top = float(y)
+    # Convert the bump data to pad bitmap
+    redundant_net_to_bumpids = dict()
+    for bump in bump_data:
+        if bump['net'] not in redundant_net_to_bumpids:
+            redundant_net_to_bumpids[bump['net']] = set()
+        redundant_net_to_bumpids[bump['net']].add(bump['bumpid'])
+    # Initialize the pad bitmap
+    # TODO: You need to modify the simulator to support different pad arrangement patterns
+    CRITICAL_PAD_BITMAP = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL), dtype=bool)
+    CRITICAL_PAD_BLOCK_BITMAP = downsample_bitmap(CRITICAL_PAD_BITMAP, pad_block_size)
+    REDUNDANT_PAD_BITMAP = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL), dtype=bool)
+    REDUNDANT_PAD_BLOCK_BITMAP = downsample_bitmap(REDUNDANT_PAD_BITMAP, pad_block_size)
+    pad_coords = np.full((cfg.PAD_ARR_ROW * cfg.PAD_ARR_COL, 2), np.nan, dtype=np.float32)  # x, y coordinates of each bump
+
+    if pad_arrange_pattern == 'checkerboard': # This case is for UCIe standard
+        for row in range(cfg.PAD_ARR_ROW):
+            for col in range(cfg.PAD_ARR_COL):
+                if (row + col) % 2 == 1:    # There is a bump (but not necessarily a critical pad)
+                    bump_id = int(row * cfg.PAD_ARR_COL / 2 + col // 2)
+                    current_bump_dict = bump_data[bump_id]
+                    current_bump_net = current_bump_dict['net']
+                    pad_coords[row * cfg.PAD_ARR_COL + col, 0] = current_bump_dict['x'] - (pad_array_left + pad_array_right) / 2
+                    pad_coords[row * cfg.PAD_ARR_COL + col, 1] = current_bump_dict['y'] - (pad_array_top + pad_array_bottom) / 2
+                    if len(redundant_net_to_bumpids[current_bump_net]) == 1:
+                        CRITICAL_PAD_BITMAP[row, col] = 1
+                    else:
+                        REDUNDANT_PAD_BITMAP[row, col] = 1
+                else:
+                    continue
+    else:
+        raise NotImplementedError("Currently only support checkerboard pad arrangement pattern.")
+    DUMMY_PAD_BITMAP = ~(CRITICAL_PAD_BITMAP | REDUNDANT_PAD_BITMAP)
+    # Count the number of pads
+    num_critical_pads = np.sum(CRITICAL_PAD_BITMAP)
+    num_redundant_pads = np.sum(REDUNDANT_PAD_BITMAP)
+    num_dummy_pads = 0 if DUMMY_PAD_BITMAP is None else np.sum(DUMMY_PAD_BITMAP)
+    
+    # Count the number of logical pads in redundant pads & Initialize the redundant net alive count dict
+    print("redundant_net_to_bumpids:", redundant_net_to_bumpids)
+
+
+    bitmap_collection = {}
+    bitmap_collection["bump_data"] = bump_data
+    bitmap_collection["CRITICAL_PAD_BITMAP"] = CRITICAL_PAD_BITMAP
+    bitmap_collection["CRITICAL_PAD_BLOCK_BITMAP"] = CRITICAL_PAD_BLOCK_BITMAP
+    bitmap_collection["REDUNDANT_PAD_BITMAP"] = REDUNDANT_PAD_BITMAP
+    bitmap_collection["REDUNDANT_PAD_BLOCK_BITMAP"] = REDUNDANT_PAD_BLOCK_BITMAP
+    bitmap_collection["DUMMY_PAD_BITMAP"] = DUMMY_PAD_BITMAP
+    bitmap_collection["is_redundant_copy_same_block"] = False
+    bitmap_collection["num_critical_pads"] = num_critical_pads
+    bitmap_collection["num_redundant_pads"] = num_redundant_pads
+    bitmap_collection["num_dummy_pads"] = num_dummy_pads
+
+    bitmap_collection["critical_pad_ratio"] = critical_pad_ratio
+    bitmap_collection["redundant_pad_ratio"] = redundant_pad_ratio
+    bitmap_collection["redundant_logical_pad_copy"] = redundant_logical_pad_copy
+    bitmap_collection["redundant_logical_pad_dist"] = redundant_logical_pad_dist
+    bitmap_collection["pad_block_size"] = pad_block_size
+    bitmap_collection["redundant_net_to_bumpids"] = redundant_net_to_bumpids
+    bitmap_collection["pad_coords"] = pad_coords
+    
+    
+    # Save the bitmap collection as npy file and mat file
+    np.save("pad_bitmap/bitmap_collection.npy", bitmap_collection)
+    # sio.savemat("pad_bitmap/bitmap_collection.mat", bitmap_collection)
+
+    # # Draw the critical and redundant pad bitmaps in one figure (critical light red, redundant light blue, dummy light gray)
+    draw_pad_bitmap(bitmap_collection)
+
+    return bitmap_collection
+
+
+def pad_bitmap_generate(cfg, pad_layout_pattern):
+    '''
+    This function generates the pad bitmaps for the die.
     '''
     # Read parameters from the configuration
     PAD_ARR_ROW = cfg.PAD_ARR_ROW

@@ -9,9 +9,11 @@ w2w_simulation:
   PITCH_c_um: 115                            # Column pad pitch (µm)
   DIE_W_um: 1400                          # Die width (µm)
   DIE_L_um: 1630                          # Die length (µm)
-  WAF_R_um: 15000                         # Wafer radius (µm)
+  WAF_R_um: 150000                         # Wafer radius (µm)
   PAD_ARR_ROW: 14
   PAD_ARR_COL: 12
+  PAD_BOT_R_um: 50                      # Bottom Cu pad radius (um)
+  PAD_TOP_R_um: 50                      # Top Cu pad radius (um)
   PAD_BOT_R_um_ratio: 0.5                  # Ratio of bottom pad dimension to the PITCH_um
   PAD_TOP_R_um_ratio: 0.667                # Ratio of top pad radius to bottom pad radius
   VOID_SHAPE: "circle"                  # Void shape: "circle" or "square"
@@ -99,6 +101,8 @@ w2w_modeling:
   DIE_W_um: 10000                          # Die width (µm)
   DIE_L_um: 10000                          # Die length (µm)
   WAF_R_um: 150000                         # Wafer radius (µm)
+  PAD_BOT_R_um: None                      # Bottom Cu pad radius (um)
+  PAD_TOP_R_um: None                      # Top Cu pad radius (um)
   PAD_BOT_R_um_ratio: 0.5                  # Ratio of bottom pad dimension to the PITCH_um
   PAD_TOP_R_um_ratio: 0.667                # Ratio of top pad radius to bottom pad radius
   VOID_SHAPE: "circle"                  # Shape of void: "circle" or "square"

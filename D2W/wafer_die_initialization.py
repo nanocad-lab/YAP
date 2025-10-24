@@ -13,8 +13,9 @@ from matplotlib.patches import Polygon
 class Die:
     def __init__(
         self, DIE_W_um, DIE_L_um, die_center, 
-        DIE_VERTEX_COORDS, num_pads, PAD_ARR_BOX,
-        pad_boundary_bitmap_coords,
+        DIE_VERTEX_COORDS, num_pads, 
+        PAD_TOP_R_um, PAD_BOT_R_um,
+        PAD_ARR_BOX,
         pad_yield_flag: bool,
         BASE_PAD_COORDS: np.ndarray = None,
     ):
@@ -22,10 +23,11 @@ class Die:
         self.DIE_L_um = DIE_L_um
         self.die_center = die_center
         self.num_pads = num_pads
+        self.PAD_TOP_R_um = PAD_TOP_R_um
+        self.PAD_BOT_R_um = PAD_BOT_R_um
         self.vertices_coords = self.get_vertices_coords(die_center, DIE_VERTEX_COORDS)
         self.pad_array_box = PAD_ARR_BOX + die_center
-        self.ovl_critical_pad_boundary_coords = pad_boundary_bitmap_coords + die_center
-        self.pad_array = BASE_PAD_COORDS + die_center if pad_yield_flag == True else None
+        self.pad_coords = BASE_PAD_COORDS + die_center if pad_yield_flag == True else None
 
         self.survival = True
         self.safe_voids_mask = []
@@ -40,13 +42,14 @@ class Die:
         vertices_coords = DIE_VERTEX_COORDS + die_center
         return vertices_coords
     
-    def draw_die(self, ax):
+    def draw_die(self, fig_size=(30, 30)):
+        fig, ax = plt.subplots(figsize=fig_size)
         # Draw the pad array box
         polygon_coords = np.array([
-            self.pad_array_box[0],  # top-left
-            self.pad_array_box[1],  # top-right
-            self.pad_array_box[3],  # bottom-right
-            self.pad_array_box[2],  # bottom-left
+            self.vertices_coords[0],  # top-left
+            self.vertices_coords[1],  # top-right
+            self.vertices_coords[3],  # bottom-right
+            self.vertices_coords[2],  # bottom-left
         ])
         die_box = Polygon(polygon_coords, color="blue", fill=False)
         ax.add_patch(die_box)
@@ -62,12 +65,12 @@ class Die:
         # set x and y axis limits
         ax.set_xlim(-self.DIE_W_um*0.6, self.DIE_W_um*0.6)
         ax.set_ylim(-self.DIE_L_um*0.6, self.DIE_L_um*0.6)
+        # draw pads
+        for pad in self.pad_coords:
+            if pad[0] != np.nan and pad[1] != np.nan:   # There is a pad/bump
+                ax.add_artist(patches.Circle((pad[0], pad[1]), self.PAD_BOT_R_um, color='darkorange', fill=True, alpha=1.0))
+                ax.add_artist(patches.Circle((pad[0], pad[1]), self.PAD_TOP_R_um, color='lightgreen', fill=True, alpha=1.0))
         plt.show()
-
-        # # draw pads
-        # for pad in die.pad_coords:
-        #     ax.add_artist(patches.Circle((pad[0], pad[1]), self.PAD_TOP_R_um, color='blue', fill=False))
-        #     ax.add_artist(patches.Circle((pad[0], pad[1]), self.PAD_BOT_R_um, color='orange', fill=False))    
 
 
 class Wafer:
@@ -146,84 +149,23 @@ class Wafer:
         ax.set_ylim(-self.wafer_radius * 1.1, self.wafer_radius * 1.1)
         # draw dies
         for die in self.die_list:
+            polygon_coords = np.array([
+                    die.vertices_coords[0],  # top-left
+                    die.vertices_coords[1],  # top-right
+                    die.vertices_coords[3],  # bottom-right
+                    die.vertices_coords[2],  # bottom-left
+                ])
             if die.survival == True:
-                ax.plot(
-                    [die.vertices_coords[0][0], die.vertices_coords[1][0]],
-                    [die.vertices_coords[0][1], die.vertices_coords[1][1]],
-                    color="black",
-                )
-                ax.plot(
-                    [die.vertices_coords[1][0], die.vertices_coords[3][0]],
-                    [die.vertices_coords[1][1], die.vertices_coords[3][1]],
-                    color="black",
-                )
-                ax.plot(
-                    [die.vertices_coords[2][0], die.vertices_coords[3][0]],
-                    [die.vertices_coords[2][1], die.vertices_coords[3][1]],
-                    color="black",
-                )
-                ax.plot(
-                    [die.vertices_coords[2][0], die.vertices_coords[0][0]],
-                    [die.vertices_coords[2][1], die.vertices_coords[0][1]],
-                    color="black",
-                )
-            else:   # Draw a red cross if the die is not survived
-                ax.plot(
-                    [die.vertices_coords[0][0], die.vertices_coords[3][0]],
-                    [die.vertices_coords[0][1], die.vertices_coords[3][1]],
-                    color="red",
-                )
-                ax.plot(
-                    [die.vertices_coords[1][0], die.vertices_coords[2][0]],
-                    [die.vertices_coords[1][1], die.vertices_coords[2][1]],
-                    color="red",
-                )
-                ax.plot(
-                    [die.vertices_coords[0][0], die.vertices_coords[1][0]],
-                    [die.vertices_coords[0][1], die.vertices_coords[1][1]],
-                    color="black",
-                )
-                ax.plot(
-                    [die.vertices_coords[1][0], die.vertices_coords[3][0]],
-                    [die.vertices_coords[1][1], die.vertices_coords[3][1]],
-                    color="black",
-                )
-                ax.plot(
-                    [die.vertices_coords[2][0], die.vertices_coords[3][0]],
-                    [die.vertices_coords[2][1], die.vertices_coords[3][1]],
-                    color="black",
-                )
-                ax.plot(
-                    [die.vertices_coords[2][0], die.vertices_coords[0][0]],
-                    [die.vertices_coords[2][1], die.vertices_coords[0][1]],
-                    color="black",
-                )
-            # Draw the pad array box
-            ax.plot(
-                [die.pad_array_box[0][0], die.pad_array_box[1][0]],
-                [die.pad_array_box[0][1], die.pad_array_box[1][1]],
-                color="blue",
-            )
-            ax.plot(
-                [die.pad_array_box[1][0], die.pad_array_box[3][0]],
-                [die.pad_array_box[1][1], die.pad_array_box[3][1]],
-                color="blue",
-            )
-            ax.plot(
-                [die.pad_array_box[2][0], die.pad_array_box[3][0]],
-                [die.pad_array_box[2][1], die.pad_array_box[3][1]],
-                color="blue",
-            )
-            ax.plot(
-                [die.pad_array_box[2][0], die.pad_array_box[0][0]],
-                [die.pad_array_box[2][1], die.pad_array_box[0][1]],
-                color="blue",
-            )
+                die_box = Polygon(polygon_coords, color="green", fill=False)
+                ax.add_patch(die_box)
+            else:   # Draw a red edge for failed die
+                die_box = Polygon(polygon_coords, color="red", fill=False)
+                ax.add_patch(die_box)
             # draw pads
-            # die_pad_coords = die.center + PAD_COORDS
-            # for pad in die_pad_coords:
-            #     ax.add_artist(patches.Circle((pad[0], pad[1]), self.PAD_TOP_R_um, color='blue', fill=False))
-            #     ax.add_artist(patches.Circle((pad[0], pad[1]), self.PAD_BOT_R_um, color='orange', fill=False))
+            for pad in die.pad_coords:
+                if pad[0] != np.nan and pad[1] != np.nan:   # There is a pad/bump
+                    ax.add_artist(patches.Circle((pad[0], pad[1]), self.PAD_BOT_R_um, color='darkorange', fill=True, alpha=1.0))
+                    ax.add_artist(patches.Circle((pad[0], pad[1]), self.PAD_TOP_R_um, color='lightgreen', fill=True, alpha=1.0))
 
         # Draw voids
         for v in self.voids:
@@ -242,7 +184,10 @@ def die_initialize(
     PAD_ARR_L_um,
     PAD_ARR_ROW,
     PAD_ARR_COL,
-    PITCH_um,
+    PITCH_r_um,
+    PITCH_c_um,
+    PAD_TOP_R_um,
+    PAD_BOT_R_um,
     pad_bitmap_collection,
     pad_yield_flag: bool = False,
 ):
@@ -263,44 +208,30 @@ def die_initialize(
             [-PAD_ARR_W_um / 2, -PAD_ARR_L_um / 2], 
             [PAD_ARR_W_um / 2, -PAD_ARR_L_um / 2]])
 
-    num_pads = PAD_ARR_ROW * PAD_ARR_COL  # Total number of pads in the pad array
+    num_pads = pad_bitmap_collection['num_critical_pads'] + pad_bitmap_collection['num_redundant_pads'] + pad_bitmap_collection['num_dummy_pads']
 
-    if PITCH_um >= 1.0:
-    # Calculate the top-left pad coordinates of the pad array
-        PAD_COORDS = np.zeros([PAD_ARR_ROW * PAD_ARR_COL, 2], dtype=np.float32)  # pad coordinates: [x, y]
-
-        # Create grid of row and column indices
-        col_indices = np.arange(PAD_ARR_COL)
-        row_indices = np.arange(PAD_ARR_ROW)
-        col_grid, row_grid = np.meshgrid(col_indices, row_indices)
-
-        # Calculate x and y coordinates
-        x_coords = (-PAD_ARR_W_um / 2 + col_grid * PITCH_um).astype(np.float32)
-        y_coords = (PAD_ARR_L_um / 2 - row_grid * PITCH_um).astype(np.float32)
-
-        # Combine x and y coordinates
-        PAD_COORDS = np.stack((x_coords, y_coords), axis=-1).reshape(-1, 2)
+    if pad_bitmap_collection['pad_coords'] is not None:
+        PAD_COORDS = pad_bitmap_collection['pad_coords']
     else:
-        print("Too many Cu pads... Will not generate the pad coordinates.")
-        PAD_COORDS = None
+        if PITCH_r_um >= 1.0 and PITCH_c_um >= 1.0:
+            # Specify the pad coordinates
+            PAD_COORDS = np.zeros([PAD_ARR_ROW * PAD_ARR_COL, 2], dtype=np.float32)  # pad coordinates: [x, y]
 
-    # Get the outer coordinates of the critical pads
-    # (row, col) of the critical pads, top left corner, top right corner, bottom left corner, bottom right corner
-    pad_block_size = pad_bitmap_collection["pad_block_size"]
-    critical_pad_boundary_bitmap_row_col_block_ind = pad_bitmap_collection["critical_pad_boundary_bitmap_row_col_block_ind"] 
-    critical_pad_boundary_bitmap_row_col_block_ind_non_zero_mask = (critical_pad_boundary_bitmap_row_col_block_ind != 0).astype(int)
-    # We did some fine tuning here to make sure the coordinates are correct
-    origin = [-PAD_ARR_W_um / 2, -PAD_ARR_L_um / 2]
-    bias = critical_pad_boundary_bitmap_row_col_block_ind * pad_block_size * PITCH_um - critical_pad_boundary_bitmap_row_col_block_ind_non_zero_mask * [(DIE_W_um - PAD_ARR_W_um), (DIE_L_um - PAD_ARR_L_um)]
-    critical_pad_boundary_bitmap_coords = bias + origin
-    redundant_copy_pad_boundary_bitmap_row_col_block_ind = pad_bitmap_collection["redundant_copy_pad_boundary_bitmap_row_col_block_ind"]
-    # If there are redundant pads, concatenate their coordinates and critical pad coordinates as the pad boundary coordinates (considered in the overlahy error)
-    if redundant_copy_pad_boundary_bitmap_row_col_block_ind is not None:
-        redundant_pad_boundary_bitmap_coords = redundant_copy_pad_boundary_bitmap_row_col_block_ind * pad_block_size * PITCH_um + [-PAD_ARR_W_um / 2, -PAD_ARR_L_um / 2]
-        pad_boundary_bitmap_coords = np.concatenate((critical_pad_boundary_bitmap_coords, redundant_pad_boundary_bitmap_coords), axis=0)
-    else:
-        pad_boundary_bitmap_coords = critical_pad_boundary_bitmap_coords
-        
+            # Create grid of row and column indices
+            col_indices = np.arange(PAD_ARR_COL)
+            row_indices = np.arange(PAD_ARR_ROW)
+            col_grid, row_grid = np.meshgrid(col_indices, row_indices)
+
+            # Calculate x and y coordinates
+            x_coords = (-PAD_ARR_W_um / 2 + col_grid * PITCH_c_um).astype(np.float32)
+            y_coords = (PAD_ARR_L_um / 2 - row_grid * PITCH_r_um).astype(np.float32)
+
+            # Combine x and y coordinates
+            PAD_COORDS = np.stack((x_coords, y_coords), axis=-1).reshape(-1, 2)
+        else:
+            print("Too many Cu pads... Will not generate the pad coordinates.")
+            PAD_COORDS = None
+    
     for i in range(NUM_DIES):
         die = Die(
             DIE_W_um=DIE_W_um,
@@ -308,8 +239,9 @@ def die_initialize(
             die_center=np.array([0, 0]),
             DIE_VERTEX_COORDS=DIE_VERTEX_COORDS,
             num_pads=num_pads,
+            PAD_TOP_R_um = PAD_TOP_R_um,
+            PAD_BOT_R_um = PAD_BOT_R_um,
             PAD_ARR_BOX=PAD_ARR_BOX,
-            pad_boundary_bitmap_coords=pad_boundary_bitmap_coords,
             pad_yield_flag=pad_yield_flag,
             BASE_PAD_COORDS=PAD_COORDS,
         )
