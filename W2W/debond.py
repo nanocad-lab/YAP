@@ -31,49 +31,49 @@ COORDS_UM: List[Tuple[float, float]] = [
 # =============================================================================
 
 # ---------- (A) Pad-scale: Geometry & Temps ----------
-PITCH_UM      = 1.0      # pad pitch p [µm]
-DIAM_UM       = 0.5      # pad diameter d [µm]
-T_ANNEAL_C    = 350.0    # anneal temperature [°C]
-T_REF_C       = 25.0     # reference temperature [°C]
-DISHING_NM    = 20.0     # recess/dishing depth [nm] (runtime default; inversion overrides)
+PITCH_UM      = cfg.PITCH_r_um**2       # pad pitch p [µm]
+DIAM_UM       = cfg.PAD_TOP_R_um        # pad diameter d [µm]
+T_ANNEAL_C    = cfg.T_anl               # anneal temperature [°C]
+T_REF_C       = cfg.T_R                 # reference temperature [°C]
+DISHING_NM    = cfg.DISH_0_m * 1e9           # recess/dishing depth [nm] (runtime default; inversion overrides)
 
 # ---------- (B) Pad-scale: Material constants ----------
 # Copper
-CU_E_GPA      = 91.8
-CU_NU         = 0.34
-CU_ALPHA_PPM  = 17.6
+CU_E_GPA      = cfg.CU_E_GPA
+CU_NU         = cfg.CU_NU
+CU_ALPHA_PPM  = cfg.CU_ALPHA_PPM
 # SiO2
-OX_E_GPA      = 73.0
-OX_NU         = 0.17
-OX_ALPHA_PPM  = 0.5
+OX_E_GPA      = cfg.OX_E_GPA
+OX_NU         = cfg.OX_NU
+OX_ALPHA_PPM  = cfg.OX_ALPHA_PPM
 
 # ---------- (C) Pad-scale: Modeling constants (9) ----------
-SIGMA_Y_MPA   = 321.0
-R_P           = 60.0
-R_C           = 20.0
-CREEP_FACTOR  = 0.01
+SIGMA_Y_MPA   = cfg.SIGMA_Y_MPA
+R_P           = cfg.R_P
+R_C           = cfg.R_C
+CREEP_FACTOR  = cfg.CREEP_FACTO
 
-TCU_BASE_UM   = 0.036
-TCU_K_PER_C   = 0.0031
-PHI_CU0       = 0.000001
-ETA_GROWTH    = 0.122019
-T_INT_NM      = 13000.0
+TCU_BASE_UM   = cfg.TCU_BASE_UM
+TCU_K_PER_C   = cfg.TCU_K_PER_C
+PHI_CU0       = cfg.PHI_CU0
+ETA_GROWTH    = cfg.ETA_GROWTH
+T_INT_NM      = cfg.T_INT_NM
 
 # ---------- (D) Pad-scale: Cool-down (Cu–Cu) ----------
-COOL_BAUSINGER_REDUCTION = 0.70
-COOL_A_HARD_MPA          = 80.0
-COOL_K_HARD_PER_MPA      = 0.032380
-KN_COOL_GAIN             = 3.0
-VISC_LAMBDA = 0.836626
-VISC_EXP    = 0.5
-TCU_CONST_UM_COOL       = 0.122074
-KDISH_TCU_GAIN_PER_NM   = 0.010466
+COOL_BAUSINGER_REDUCTION = cfg.COOL_BAUSINGER_REDUCTION
+COOL_A_HARD_MPA          = cfg.COOL_A_HARD_MPA
+COOL_K_HARD_PER_MPA      = cfg.COOL_K_HARD_PER_MPA
+KN_COOL_GAIN             = cfg.KN_COOL_GAIN
+VISC_LAMBDA = cfg.VISC_LAMBDA
+VISC_EXP    = cfg.VISC_EXP
+TCU_CONST_UM_COOL       = cfg.CU_CONST_UM_COO
+KDISH_TCU_GAIN_PER_NM   = cfg.KDISH_TCU_GAIN_PER_NM
 
 # ---------- (E) Critical peeling stress ----------
-CRIT_aY2_UM: float = 1.90
-GC_SIO2_JPM2: float = 2.0
-GC_CU_JPM2:   float = 25.0
-Effective_Contact_Area: float = 1.0
+CRIT_aY2_UM: float = cfg.CRIT_aY2_UM
+GC_SIO2_JPM2: float = cfg.GC_SIO2_JPM2
+GC_CU_JPM2:   float = cfg.GC_CU_JPM2
+Effective_Contact_Area: float = cfg.Effective_Contact_Area
 
 # ---------- (F) Wafer-layer materials ----------
 @dataclass(frozen=True)
@@ -83,9 +83,9 @@ class Material:
     alpha_perC: float
     nu: float
 
-MAT_CU   = Material("Cu",   E_Pa=91.8e9, alpha_perC=17.6e-6, nu=0.34)
-MAT_SiO2 = Material("SiO2", E_Pa=73.0e9, alpha_perC=0.5e-6,  nu=0.17)
-MAT_Si   = Material("Si",   E_Pa=131.0e9, alpha_perC=2.6e-6, nu=0.28)
+MAT_CU   = Material("Cu",   E_Pa=cfg.CU_E_GPA*1e9, alpha_perC=cfg.CU_ALPHA_PPM*1e-6, nu=cfg.CU_NU)
+MAT_SiO2 = Material("SiO2", E_Pa=cfg.OX_E_GPA*1e9, alpha_perC=cfg.OX_ALPHA_PPM*1e-6,  nu=cfg.OX_NU)
+MAT_Si   = Material("Si",   E_Pa=cfg.SI_E_GPA*1e9, alpha_perC=cfg.SI_ALPHA_PPM*1e-6, nu=cfg.SI_NU)
 
 # ---------- (G) Wafer configs ----------
 @dataclass
@@ -111,19 +111,19 @@ class WaferConfig:
     T0_C: float
 
 WAFER_A = WaferConfig(
-    top=LayerMix3(MAT_CU,0.40,MAT_SiO2,0.60,MAT_Si,0.00,3.2e-6),
-    bottom=LayerMix3(MAT_Si,0.90,MAT_SiO2,0.00,MAT_CU,0.10,775e-6),
-    L_m=150e-3, T_C=350.0, T0_C=25.0
+    top=LayerMix3(MAT_CU,cfg.B_Chip_Cu_V,MAT_SiO2,cfg.B_Chip_Sio2_V,MAT_Si,cfg.B_Chip_Si_V,cfg.B_Chip_T),
+    bottom=LayerMix3(MAT_Si,cfg.B_Sub_Si_V,MAT_SiO2,cfg.B_Sub_Sio2_V,MAT_CU,cfg.B_Sub_Cu_V0,cfg.B_Sub_T),
+    L_m= cfg.WAF_R_um*1e-6, T_C= cfg.T_anl, T0_C= cfg.T_R
 )
 WAFER_B = WaferConfig(
-    top=LayerMix3(MAT_CU,0.30,MAT_SiO2,0.70,MAT_Si,0.00,3.2e-6),
-    bottom=LayerMix3(MAT_Si,0.90,MAT_SiO2,0.00,MAT_CU,0.10,775e-6),
-    L_m=150e-3, T_C=350.0, T0_C=25.0
+    top=LayerMix3(MAT_CU,cfg.T_Chip_Cu_V,MAT_SiO2,cfg.T_Chip_Sio2_V,MAT_Si,cfg.T_Chip_Si_V,cfg.T_Chip_T),
+    bottom=LayerMix3(MAT_Si,cfg.T_Sub_Si_V,MAT_SiO2,cfg.T_Sub_Sio2_V,MAT_CU,cfg.T_Sub_Cu_V,cfg.T_Sub_T),
+    L_m= cfg.WAF_R_um*1e-6, T_C= cfg.T_anl, T0_C= cfg.T_R
 )
 
 # ---------- (H) Pre-anneal warpages ----------
-S_INIT_A_M = 10.0e-6
-S_INIT_B_M = 0.0e-6
+S_INIT_A_M = cfg.S_INIT_A_M
+S_INIT_B_M = cfg.S_INIT_B_M
 
 # ---------- (J) Optional plotting ----------
 USE_PLOT = False

@@ -22,6 +22,29 @@ w2w_simulation:
   pad_yield_flag: True
   pad_yield_map_sub_factor: 1          # Subsampling factor for pad yield map (1: no subsampling, 10: rows/10 and cols/10)
                                         # The pad yield map will be of size (ceil(PAD_ARR_ROW/sub_factor), ceil(PAD_ARR_COL/sub_factor))
+  
+  # === Wafer Warpage Peeling Stress Mdodel ===
+  # === Bottom Wafer Settings ===
+  B_Chip_Cu_V: 0.40                     # Efficient chip layer Cu volume density
+  B_Chip_Sio2_V: 0.60                   # Efficient chip layer Sio2 volume density
+  B_Chip_Si_V: 0.00                     # Efficient chip layer Si volume density
+  B_Chip_T: 3.2e-6                      # Efficient chip layer thickness (m)
+  B_Sub_Cu_V: 0.10                      # Efficient substrate layer Cu volume density
+  B_Sub_Sio2_V: 0.00                    # Efficient substrate layer Sio2 volume density
+  B_Sub_Si_V: 0.90                      # Efficient substrate layer si volume density
+  B_Sub_T: 775e-6                       # Efficient substrate layer thickness (m)
+  S_INIT_A_M: 10.0e-6                   # Pre-anneal warpages (m)
+  # === Top Wafer Settings ===
+  T_Chip_Cu_V: 0.30                     # Efficient chip layer Cu volume density
+  T_Chip_Sio2_V: 0.70                   # Efficient chip layer Sio2 volume density
+  T_Chip_Si_V: 0.00                     # Efficient chip layer Si volume density
+  T_Chip_T: 3.2e-6                      # Efficient chip layer thickness (m)
+  T_Sub_Cu_V: 0.10                      # Efficient substrate layer Cu volume density
+  T_Sub_Sio2_V: 0.00                    # Efficient substrate layer Sio2 volume density
+  T_Sub_Si_V: 0.90                      # Efficient substrate layer si volume density
+  T_Sub_T: 775e-6                       # Efficient substrate layer thickness (m)
+  S_INIT_B_M: 0.0e-6                    # Pre-anneal warpages (m)
+
 
   # === Fault-Tolerance Parameters ===
   redundant_flag: True                  # Enable redundant pads
@@ -74,6 +97,53 @@ w2w_simulation:
   k_eb: 0.053                           # Bottom Cu expansion coefficient (nm/K)
   T_R: 25                               # Room temperature (°C)
   T_anl: 300                            # Annealing temperature (°C)
+  CU_E_GPA: 91.8                        # Cu Young’s modulus (GPa)
+  CU_NU: 0.34                           # Cu Poisson’s ratio 
+  CU_ALPHA_PPM: 17.6                    # Cu coefficient of thermal expansion (CTE) (ppm/°C)
+  OX_E_GPA: 73.0                        # Sio2 Young’s modulus (GPa)
+  OX_NU: 0.17                           # Sio2 Poisson’s ratio
+  OX_ALPHA_PPM: 0.5                     # Sio2 coefficient of thermal expansion (CTE) (ppm/°C)
+  SI_E_GPA: 131.0                        # Si Young’s modulus (GPa)
+  SI_NU: 0.28                           # Si Poisson’s ratio
+  SI_ALPHA_PPM: 2.6                     # Si coefficient of thermal expansion (CTE) (ppm/°C)
+
+  # === Cu & Sio2 peeling stress model Parameters ===
+  # === heat up and dwell stage ===
+  # σ_m = σ_e + R_P * σ_p + R_C * σ_c
+  # σ_e = {σ_t, SIGMA_Y_MPA}_min 
+  # σ_p = {0, σ_t-SIGMA_Y_MPA}_max
+  # σ_d = CREEP_FACTOR * σ_m
+  SIGMA_Y_MPA: 321.0                    # Elastic yield point (MPa)
+  R_P: 60.0                             # Weight of plastic part in the normal-approach driver
+  R_C: 20.0                             # Weight of creep-equivalent part in the normal-approach driver
+  CREEP_FACTOR: 0.01                    # Weight of creep-equivalent part for dwell stage
+  
+  # t_cu(T) = TCU_BASE_UM * exp(TCU_K_PER_C * (T - T_R))
+  TCU_BASE_UM: 0.036                    # Base thickness for heat-stage Cu participation thickness (µm)
+  TCU_K_PER_C: 0.0031                   # Exponential temperature rate (1/°C)
+ 
+  # ϕ = PHI_CU0 + (1 - PHI_CU0)*((δ-2*Dishing)/2*Dishing)^ETA_GROWTH
+  PHI_CU0: 0.000001                     # Baseline Cu–Cu contact fraction once the threshold is exceeded
+  ETA_GROWTH: 0.122019                  # Power exponent in the (uncapped) contact growth law
+  
+  # k_n = M_cu/T_INT_NM
+  T_INT_NM: 13000.0                     # Interface normal compliance thickness (nm)
+
+  # === heat up and dwell stage ===
+  # σy_cool = {SIGMA_Y_MPA, (1-COOL_BAUSINGER_REDUCTION) * SIGMA_Y_MPA + COOL_A_HARD_MPA * (1 - exp(-COOL_K_HARD_PER_MPA * {0,σ_p_heat}_max)) }_min
+  COOL_BAUSINGER_REDUCTION: 0.70        # Cool-down effective yield reduction factor
+  COOL_A_HARD_MPA: 80.0                 # Isotropic hardening Amplitude (MPa)
+  COOL_K_HARD_PER_MPA: 0.032380         # Isotropic hardening rate (1/MPa)
+
+  # kn_cool = k_n * KN_COOL_GAIN * (1- VISC_LAMBDA*(Acu/Acell)^VISC_EXP)
+  KN_COOL_GAIN: 3.0                     # Gain of interface normal stiffness at cool-down
+  VISC_LAMBDA: 0.836626                 # Coefficient of viscous attenuation applied to the Cu–Cu peel stress during cool-down
+  VISC_EXP: 0.5                         # Sensitivity of stress reduction to fill fraction
+  
+  # ke_cool = TCU_CONST_UM_COOL* (1 + KDISH_TCU_GAIN_PER_NM * Dishing)
+  TCU_CONST_UM_COOL: 0.122074           # Constant Cu participation thickness during the cool-down stage (µm)
+  KDISH_TCU_GAIN_PER_NM: 0.010466       # Coefficient for the linear dishing gain applied to Cu participation thickness (1/nm)
+
 
   # === Roughness Parameters ===
   Asperity_R_m: 2e-6                      # Asperity curvature radius (m)
@@ -85,6 +155,13 @@ w2w_simulation:
   Dielectric_thickness: 1.5e-6          # Dielectric thickness (m)
   DISH_0_m: 75e-9                         # Reference dish depth (m)
   k_peel: 6.66e12                       # Peel force constant (N/m⁴/K)
+
+  # === Adhesion_energy to Critical Peeling Stress Model Parameters ===
+  # σ = Effective_Contact_Area * ((Gc_Jpm2 * E_GPa) / (CRIT_aY2_UM * (1.0 - NU**2)))^(1/2)
+  CRIT_aY2_UM:: 1.90                    # Geometric/Compliance factor (µm)
+  GC_SIO2_JPM2: 2.0                     # Sio2 Adhesion energy (J/m²)
+  GC_CU_JPM2: 25.0                      # Cu Adhesion energy (J/m²)
+  Effective_Contact_Area: 1.0           # Fraction of pad area effectively bearing normal load
 
   # === Simulation Control ===
   simulation_times: 1                  # Number of simulation iterations
