@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-# Wafers and Dies intialization for the yield model for hybrid bonding
 #### Author: Zhichao Chen
-#### Date: Sep 26, 2024
+#### Date: Oct 23, 2025
 
 import numpy as np
 import time
@@ -21,6 +20,9 @@ def Pad_Yield_Map_Generator(
     cfg,
     pad_bitmap_collection: dict,
 ):  
+    '''
+    This function calculates the pad-level yield map for a single die
+    '''
     # Initialize the die list
     die_list, _ = die_initialize(
         NUM_DIES            =       1,

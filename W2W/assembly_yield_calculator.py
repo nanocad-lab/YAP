@@ -107,7 +107,7 @@ def Pad_Yield_Map_Generator(
 
 
     # Calculate the Cu expansion yield
-    Cu_expansion_die_yield = Cu_expansion_yield_calculator(
+    pad_Cu_expansion_yield_map_generator(
         cfg                     = cfg,
         wafer                   = wafer,
         TOP_DISH_MEAN_nm        = cfg.TOP_DISH_MEAN_nm,
@@ -124,5 +124,8 @@ def Pad_Yield_Map_Generator(
 
     Cu_expansion_yield_time = time.time() - start_time - wafer_init_time - overlay_yield_time - defect_yield_time
     print("Cu expansion yield calculation time: {} seconds.".format(Cu_expansion_yield_time))
+
+    for die in wafer.die_list:
+        die.pad_yield_map['Y_bond'] = die.pad_yield_map['Y_ovl'] * die.pad_yield_map['Y_df'] * die.pad_yield_map['Y_ce']
 
     del wafer

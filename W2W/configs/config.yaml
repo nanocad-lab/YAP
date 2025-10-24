@@ -2,6 +2,7 @@
 w2w_simulation:
   # === General Settings ===
   MODE: "W2W_Hybrid_Bonding_Simulation"  # Name of the simulation
+  OUTPUT_DIR: "pad_bitmap/"          # Output directory for simulation results
   DEBUG: false                                      # Enable debug mode
   # === Wafer and Die Settings ===
   NUM_WAFERS: 1                        # Number of wafers used in simulation

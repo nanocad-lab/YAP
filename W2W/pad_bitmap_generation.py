@@ -12,43 +12,12 @@ import scipy.io as sio
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import math
-from matplotlib.colors import ListedColormap
 import time
 from matplotlib.colors import ListedColormap, BoundaryNorm
 import cv2
 from scipy.spatial import KDTree
+from utils.util import downsample_bitmap, draw_pad_bitmap
 
-def downsample_bitmap(bitmap, block_size):
-    """
-    Downsamples a binary bitmap by taking max value in each block.
-    For binary image, this is equivalent to OR pooling.
-    """
-    if bitmap.ndim == 2:
-        h, w = bitmap.shape
-        h_new = h // block_size
-        w_new = w // block_size
-
-        # Trim to divisible shape
-        bitmap = bitmap[:h_new * block_size, :w_new * block_size]
-
-        # Reshape and apply max pooling
-        bitmap_down = bitmap.reshape(h_new, block_size, w_new, block_size)
-        bitmap_down = bitmap_down.max(axis=(1, 3))
-    elif bitmap.ndim == 3:
-        n, h, w = bitmap.shape
-        h_new = h // block_size
-        w_new = w // block_size
-
-        # Trim to divisible shape
-        bitmap = bitmap[:, :h_new * block_size, :w_new * block_size]
-
-        # Reshape and apply max pooling
-        bitmap_down = bitmap.reshape(n, h_new, block_size, w_new, block_size)
-        bitmap_down = bitmap_down.max(axis=(2, 4))
-    else:
-        raise ValueError("Bitmap must be 2D or 3D.")
-
-    return bitmap_down
 
 
 def assign_pad_blocks(mode, num_pads_blocks, num_pads_block_row, num_pads_block_col,
@@ -156,153 +125,6 @@ def assign_pad_blocks(mode, num_pads_blocks, num_pads_block_row, num_pads_block_
 
 
 
-def draw_pad_bitmap(bitmap_collection):
-    # Draw the critical and redundant pad bitmaps in one figure (critical light red, redundant light blue, dummy light gray)
-    CRITICAL_PAD_BITMAP = bitmap_collection["CRITICAL_PAD_BITMAP"]
-    REDUNDANT_PAD_BITMAP = bitmap_collection["REDUNDANT_PAD_BITMAP"]
-    DUMMY_PAD_BITMAP = bitmap_collection["DUMMY_PAD_BITMAP"]
-    ## Use legend to show the color
-    PAD_BITMAP = np.zeros_like(CRITICAL_PAD_BITMAP, dtype=int)
-
-    PAD_BITMAP[CRITICAL_PAD_BITMAP == 1] = 1  # red
-    PAD_BITMAP[REDUNDANT_PAD_BITMAP == 1] = 2  # blue
-    PAD_BITMAP[DUMMY_PAD_BITMAP == 1] = 3  # gray
-
-    plt.figure(figsize=(6, 6))
-    cmap = ListedColormap([
-        (1.0, 0.5, 0.5),    # 1 - critical (medium red)
-        (0.4, 0.4, 0.9),    # 2 - redundant (medium blue)
-        (0.8, 0.8, 0.8),    # 3 - dummy (light gray)
-    ])
-    red_patch = patches.Patch(color=(1.0, 0.7, 0.7), label='Critical Pads')
-    blue_patch = patches.Patch(color=(0.7, 0.7, 1.0), label='Redundant Pads')
-    gray_patch = patches.Patch(color=(0.8, 0.8, 0.8), label='Dummy Pads')
-    plt.legend(
-        handles=[red_patch, blue_patch, gray_patch],
-        loc='upper center',
-        bbox_to_anchor=(0.5, -0.07),
-        ncol=3,
-        frameon=False
-    )
-    norm = BoundaryNorm([0.5, 1.5, 2.5, 3.5], cmap.N)
-    plt.imshow(PAD_BITMAP, cmap=cmap, norm=norm)
-    plt.title("Pad Block Bitmap")
-
-
-    # Save the pad bitmaps
-    plt.savefig("pad_bitmap/pad_bitmap.png")
-    print("Pad bitmap collections info saved.")
-
-    return
-
-def convert_3dblox_to_pad_bitmap(cfg, 
-                                 blox_bmap_path='pad_bitmap/UCIe_standard.bmap', 
-                                 pad_arrange_pattern='checkerboard'):
-    '''
-    pad_arrange_pattern: 'checkerboard' for UCIe standard
-    '''
-    # Extract configuration parameters
-    pad_block_size = cfg.pad_block_size     # In UCIe standard, pad block size is 1 (no downsampling)
-    critical_pad_ratio = cfg.critical_pad_ratio
-    redundant_pad_ratio = cfg.redundant_pad_ratio
-    redundant_logical_pad_copy = cfg.redundant_logical_pad_copy
-    redundant_logical_pad_dist = cfg.redundant_logical_pad_dist
-
-    # Read the bump data from the .bmap file
-    bump_data = []
-    # Initialize the pad array boundaries
-    [pad_array_left, pad_array_right, pad_array_top, pad_array_bottom] = [float('inf'), float('-inf'), float('-inf'), float('inf')]
-    with open(blox_bmap_path, 'r') as f:
-        for line in f:
-            parts = line.strip().split()
-            if len(parts) == 6:
-                instance, bump_type, x, y, port, net = parts
-                bumpid = int(instance.split("_")[1])
-                bump_data.append({      # From the top-left corner to the bottom-right corner
-                    "bumpid": bumpid,
-                    "x": int(x),
-                    "y": int(y),
-                    "port": port,
-                    "net": net
-                })
-                if float(x) < pad_array_left:
-                    pad_array_left = float(x)
-                if float(x) > pad_array_right:
-                    pad_array_right = float(x)
-                if float(y) < pad_array_bottom:
-                    pad_array_bottom = float(y)
-                if float(y) > pad_array_top:
-                    pad_array_top = float(y)
-    # Convert the bump data to pad bitmap
-    redundant_net_to_bumpids = dict()
-    for bump in bump_data:
-        if bump['net'] not in redundant_net_to_bumpids:
-            redundant_net_to_bumpids[bump['net']] = set()
-        redundant_net_to_bumpids[bump['net']].add(bump['bumpid'])
-    # Initialize the pad bitmap
-    # TODO: You need to modify the simulator to support different pad arrangement patterns
-    CRITICAL_PAD_BITMAP = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL), dtype=bool)
-    CRITICAL_PAD_BLOCK_BITMAP = downsample_bitmap(CRITICAL_PAD_BITMAP, pad_block_size)
-    REDUNDANT_PAD_BITMAP = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL), dtype=bool)
-    REDUNDANT_PAD_BLOCK_BITMAP = downsample_bitmap(REDUNDANT_PAD_BITMAP, pad_block_size)
-    pad_coords = np.full((cfg.PAD_ARR_ROW * cfg.PAD_ARR_COL, 2), np.nan, dtype=np.float32)  # x, y coordinates of each bump
-
-    if pad_arrange_pattern == 'checkerboard': # This case is for UCIe standard
-        for row in range(cfg.PAD_ARR_ROW):
-            for col in range(cfg.PAD_ARR_COL):
-                if (row + col) % 2 == 1:    # There is a bump (but not necessarily a critical pad)
-                    bump_id = int(row * cfg.PAD_ARR_COL / 2 + col // 2)
-                    current_bump_dict = bump_data[bump_id]
-                    current_bump_net = current_bump_dict['net']
-                    pad_coords[row * cfg.PAD_ARR_COL + col, 0] = current_bump_dict['x'] - (pad_array_left + pad_array_right) / 2
-                    pad_coords[row * cfg.PAD_ARR_COL + col, 1] = current_bump_dict['y'] - (pad_array_top + pad_array_bottom) / 2
-                    if len(redundant_net_to_bumpids[current_bump_net]) == 1:
-                        CRITICAL_PAD_BITMAP[row, col] = 1
-                    else:
-                        REDUNDANT_PAD_BITMAP[row, col] = 1
-                else:
-                    continue
-    else:
-        raise NotImplementedError("Currently only support checkerboard pad arrangement pattern.")
-    DUMMY_PAD_BITMAP = ~(CRITICAL_PAD_BITMAP | REDUNDANT_PAD_BITMAP)
-    # Count the number of pads
-    num_critical_pads = np.sum(CRITICAL_PAD_BITMAP)
-    num_redundant_pads = np.sum(REDUNDANT_PAD_BITMAP)
-    num_dummy_pads = 0 if DUMMY_PAD_BITMAP is None else np.sum(DUMMY_PAD_BITMAP)
-    
-    # Count the number of logical pads in redundant pads & Initialize the redundant net alive count dict
-    print("redundant_net_to_bumpids:", redundant_net_to_bumpids)
-
-
-    bitmap_collection = {}
-    bitmap_collection["bump_data"] = bump_data
-    bitmap_collection["CRITICAL_PAD_BITMAP"] = CRITICAL_PAD_BITMAP
-    bitmap_collection["CRITICAL_PAD_BLOCK_BITMAP"] = CRITICAL_PAD_BLOCK_BITMAP
-    bitmap_collection["REDUNDANT_PAD_BITMAP"] = REDUNDANT_PAD_BITMAP
-    bitmap_collection["REDUNDANT_PAD_BLOCK_BITMAP"] = REDUNDANT_PAD_BLOCK_BITMAP
-    bitmap_collection["DUMMY_PAD_BITMAP"] = DUMMY_PAD_BITMAP
-    bitmap_collection["is_redundant_copy_same_block"] = False
-    bitmap_collection["num_critical_pads"] = num_critical_pads
-    bitmap_collection["num_redundant_pads"] = num_redundant_pads
-    bitmap_collection["num_dummy_pads"] = num_dummy_pads
-
-    bitmap_collection["critical_pad_ratio"] = critical_pad_ratio
-    bitmap_collection["redundant_pad_ratio"] = redundant_pad_ratio
-    bitmap_collection["redundant_logical_pad_copy"] = redundant_logical_pad_copy
-    bitmap_collection["redundant_logical_pad_dist"] = redundant_logical_pad_dist
-    bitmap_collection["pad_block_size"] = pad_block_size
-    bitmap_collection["redundant_net_to_bumpids"] = redundant_net_to_bumpids
-    bitmap_collection["pad_coords"] = pad_coords
-    
-    
-    # Save the bitmap collection as npy file and mat file
-    np.save("pad_bitmap/bitmap_collection.npy", bitmap_collection)
-    # sio.savemat("pad_bitmap/bitmap_collection.mat", bitmap_collection)
-
-    # # Draw the critical and redundant pad bitmaps in one figure (critical light red, redundant light blue, dummy light gray)
-    draw_pad_bitmap(bitmap_collection)
-
-    return bitmap_collection
 
 
 def pad_bitmap_generate(cfg, pad_layout_pattern):
@@ -364,8 +186,8 @@ def pad_bitmap_generate(cfg, pad_layout_pattern):
                                                                                     redundant_mesh_spacing=3)
 
     # Save the pad block indices
-    np.save("pad_bitmap/critical_pad_blocks.npy", critical_pad_blocks)
-    np.save("pad_bitmap/redundant_pad_blocks.npy", redundant_pad_blocks)
+    np.save(cfg.OUTPUT_DIR + "critical_pad_blocks.npy", critical_pad_blocks)
+    np.save(cfg.OUTPUT_DIR + "redundant_pad_blocks.npy", redundant_pad_blocks)
 
     # Initialize the pad indices for the redundant pads
     redundant_available_physical_ids = []
@@ -802,8 +624,8 @@ def pad_bitmap_generate(cfg, pad_layout_pattern):
     redundant_physical_to_logical_arr[physical_ids] = logical_ids_repeated
 
     # Save the redundant logical pad -> physical pad mapping and the physical pad -> logical pad mapping
-    # np.save("pad_bitmap/redundant_logical_to_physical_arr.npy", redundant_logical_to_physical_arr)
-    # np.save("pad_bitmap/redundant_physical_to_logical_arr.npy", redundant_physical_to_logical_arr)
+    # np.save(cfg.OUTPUT_DIR + "redundant_logical_to_physical_arr.npy", redundant_logical_to_physical_arr)
+    # np.save(cfg.OUTPUT_DIR + "redundant_physical_to_logical_arr.npy", redundant_physical_to_logical_arr)
 
     CRITICAL_PAD_BLOCK_BITMAP = downsample_bitmap(CRITICAL_PAD_BITMAP, pad_block_size)
                 
@@ -837,11 +659,11 @@ def pad_bitmap_generate(cfg, pad_layout_pattern):
     bitmap_collection["redundant_pad_block_pair_dict"] = redundant_pad_block_pair_dict
     
     # Save the bitmap collection as npy file and mat file
-    np.save("pad_bitmap/bitmap_collection.npy", bitmap_collection)
-    # sio.savemat("pad_bitmap/bitmap_collection.mat", bitmap_collection)
+    np.save(cfg.OUTPUT_DIR + "bitmap_collection.npy", bitmap_collection)
+    # sio.savemat(cfg.OUTPUT_DIR + "bitmap_collection.mat", bitmap_collection)
 
     # # Draw the critical and redundant pad bitmaps in one figure (critical light red, redundant light blue, dummy light gray)
-    draw_pad_bitmap(bitmap_collection)
+    draw_pad_bitmap(cfg, bitmap_collection)
 
     # raise ValueError("Pad bitmap generation finished. Please check the pad_bitmap folder.")
 
@@ -871,7 +693,7 @@ def pad_bitmap_generate_read(cfg, bitmap_collection_path):
     print("Number of dummy pad blocks:", round(np.sum(DUMMY_PAD_BITMAP / (pad_block_size ** 2))))
 
     # Draw the critical and redundant pad bitmaps in one figure (critical light red, redundant light blue, dummy light gray)
-    draw_pad_bitmap(bitmap_collection)
+    draw_pad_bitmap(cfg, bitmap_collection)
 
     return bitmap_collection
 
@@ -987,19 +809,19 @@ def A_critical_l_across_theta(cfg,
         plt.imshow(CRITICAL_PAD_BLOCK_BITMAP, cmap='gray')
         plt.title("CRITICAL_PAD_BITMAP")
         plt.show()
-        sio.savemat("pad_bitmap/CRITICAL_PAD_BLOCK_BITMAP.mat", {"CRITICAL_PAD_BLOCK_BITMAP": CRITICAL_PAD_BLOCK_BITMAP})
+        sio.savemat(cfg.OUTPUT_DIR + "CRITICAL_PAD_BLOCK_BITMAP.mat", {"CRITICAL_PAD_BLOCK_BITMAP": CRITICAL_PAD_BLOCK_BITMAP})
         ind=0
         # Draw the redundant pad block bitmaps
         plt.figure(figsize=(8, 8))
         plt.imshow(REDUNDANT_MAIN_PAD_BLOCK_BITMAP[ind], cmap='gray')
         plt.title("REDUNDANT_MAIN_PAD_BLOCK_BITMAP")
         plt.show()
-        sio.savemat("pad_bitmap/REDUNDANT_MAIN_PAD_BLOCK_BITMAP.mat", {"REDUNDANT_MAIN_PAD_BLOCK_BITMAP": REDUNDANT_MAIN_PAD_BLOCK_BITMAP[ind]})
+        sio.savemat(cfg.OUTPUT_DIR + "REDUNDANT_MAIN_PAD_BLOCK_BITMAP.mat", {"REDUNDANT_MAIN_PAD_BLOCK_BITMAP": REDUNDANT_MAIN_PAD_BLOCK_BITMAP[ind]})
         plt.figure(figsize=(8, 8))
         plt.imshow(REDUNDANT_COPY_PAD_BLOCK_BITMAP[ind], cmap='gray')
         plt.title("REDUNDANT_COPY_PAD_BLOCK_BITMAP")
         plt.show()
-        sio.savemat("pad_bitmap/REDUNDANT_COPY_PAD_BLOCK_BITMAP.mat", {"REDUNDANT_COPY_PAD_BLOCK_BITMAP": REDUNDANT_COPY_PAD_BLOCK_BITMAP[ind]})
+        sio.savemat(cfg.OUTPUT_DIR + "REDUNDANT_COPY_PAD_BLOCK_BITMAP.mat", {"REDUNDANT_COPY_PAD_BLOCK_BITMAP": REDUNDANT_COPY_PAD_BLOCK_BITMAP[ind]})
     
     CRITICAL_PAD_BLOCK_BITMAP_EXPAND = np.pad(
         CRITICAL_PAD_BLOCK_BITMAP,
@@ -1091,19 +913,19 @@ def A_critical_l_across_theta(cfg,
             plt.imshow(CRITICAL_PAD_BLOCK_BITMAP, cmap='gray')
             plt.title("CRITICAL_PAD_BLOCK_BITMAP")
             plt.show()
-            sio.savemat("pad_bitmap/CRITICAL_PAD_BLOCK_BITMAP.mat", {"CRITICAL_PAD_BLOCK_BITMAP": CRITICAL_PAD_BLOCK_BITMAP})
+            sio.savemat(cfg.OUTPUT_DIR + "CRITICAL_PAD_BLOCK_BITMAP.mat", {"CRITICAL_PAD_BLOCK_BITMAP": CRITICAL_PAD_BLOCK_BITMAP})
             # Draw the line structure
             plt.figure(figsize=(8, 8))
             plt.imshow(line_defect, cmap='gray')
             plt.title("Line Structure")
             plt.show()
-            sio.savemat("pad_bitmap/line_defect.mat", {"line_defect": line_defect})
+            sio.savemat(cfg.OUTPUT_DIR + "line_defect.mat", {"line_defect": line_defect})
             # Draw CRITICAL_PAD_BITMAP_DILATED
             plt.figure(figsize=(8, 8))
             plt.imshow(CRITICAL_PAD_BITMAP_DILATED, cmap='gray')
             plt.title("CRITICAL_PAD_BITMAP_DILATED")
             plt.show()
-            sio.savemat("pad_bitmap/CRITICAL_PAD_BITMAP_DILATED.mat", {"CRITICAL_PAD_BITMAP_DILATED": CRITICAL_PAD_BITMAP_DILATED})
+            sio.savemat(cfg.OUTPUT_DIR + "CRITICAL_PAD_BITMAP_DILATED.mat", {"CRITICAL_PAD_BITMAP_DILATED": CRITICAL_PAD_BITMAP_DILATED})
             if REDUNDANT_MAIN_PAD_BLOCK_BITMAP.sum() != 0 and REDUNDANT_COPY_PAD_BLOCK_BITMAP.sum() != 0:
                 # Draw the redundant pad block pair dilated bitmap
                 REDUNDANT_MAIN_PAD_BLOCK_BITMAP_EXPAND_original = REDUNDANT_MAIN_PAD_BLOCK_BITMAP_EXPAND.reshape(N, H, W)[ind]
@@ -1122,12 +944,12 @@ def A_critical_l_across_theta(cfg,
                 plt.imshow(REDUNDANT_MAIN_PAD_BLOCK_BITMAP_EXPAND_original_ind_dilated, cmap='gray')
                 plt.title("Redundant Pad Block Pair Dilated")
                 plt.show()
-                sio.savemat("pad_bitmap/REDUNDANT_MAIN_PAD_BLOCK_BITMAP_DILATED.mat", {"REDUNDANT_MAIN_PAD_BLOCK_BITMAP_DILATED": REDUNDANT_MAIN_PAD_BLOCK_BITMAP_EXPAND_original_ind_dilated})
+                sio.savemat(cfg.OUTPUT_DIR + "REDUNDANT_MAIN_PAD_BLOCK_BITMAP_DILATED.mat", {"REDUNDANT_MAIN_PAD_BLOCK_BITMAP_DILATED": REDUNDANT_MAIN_PAD_BLOCK_BITMAP_EXPAND_original_ind_dilated})
                 plt.figure(figsize=(8, 8))
                 plt.imshow(REDUNDANT_COPY_PAD_BLOCK_BITMAP_EXPAND_original_ind_dilated, cmap='gray')
                 plt.title("Redundant Pad Block Pair Dilated")
                 plt.show()
-                sio.savemat("pad_bitmap/REDUNDANT_COPY_PAD_BLOCK_BITMAP_DILATED.mat", {"REDUNDANT_COPY_PAD_BLOCK_BITMAP_DILATED": REDUNDANT_COPY_PAD_BLOCK_BITMAP_EXPAND_original_ind_dilated})
+                sio.savemat(cfg.OUTPUT_DIR + "REDUNDANT_COPY_PAD_BLOCK_BITMAP_DILATED.mat", {"REDUNDANT_COPY_PAD_BLOCK_BITMAP_DILATED": REDUNDANT_COPY_PAD_BLOCK_BITMAP_EXPAND_original_ind_dilated})
                 cross_bitmap_main_copy = np.logical_and(
                     REDUNDANT_MAIN_PAD_BLOCK_BITMAP_EXPAND_original_ind_dilated,
                     REDUNDANT_COPY_PAD_BLOCK_BITMAP_EXPAND_original_ind_dilated
@@ -1137,16 +959,16 @@ def A_critical_l_across_theta(cfg,
                 plt.imshow(cross_bitmap_main_copy, cmap='gray')
                 plt.title("Cross Bitmap Main Copy")
                 plt.show()
-                sio.savemat("pad_bitmap/cross_bitmap_main_copy.mat", {"cross_bitmap_main_copy": cross_bitmap_main_copy})
+                sio.savemat(cfg.OUTPUT_DIR + "cross_bitmap_main_copy.mat", {"cross_bitmap_main_copy": cross_bitmap_main_copy})
             # Save the total critical area bitmap
-            sio.savemat("pad_bitmap/TOTAL_CRITICAL_AREA_BITMAP.mat", {"TOTAL_CRITICAL_AREA_BITMAP": TOTAL_CRITICAL_AREA_BITMAP})
+            sio.savemat(cfg.OUTPUT_DIR + "TOTAL_CRITICAL_AREA_BITMAP.mat", {"TOTAL_CRITICAL_AREA_BITMAP": TOTAL_CRITICAL_AREA_BITMAP})
             # Draw the cross bitmap
             plt.figure(figsize=(8, 8))
             plt.imshow(TOTAL_CRITICAL_AREA_BITMAP, cmap='gray')
             plt.title("TOATAL CRITICAL AREA BITMAP")
             plt.show()
-            np.save("pad_bitmap/TOTAL_CRITICAL_AREA_BITMAP.npy", TOTAL_CRITICAL_AREA_BITMAP)
-            # sio.savemat("pad_bitmap/TOTAL_CRITICAL_AREA_BITMAP.mat", {"TOTAL_CRITICAL_AREA_BITMAP": TOTAL_CRITICAL_AREA_BITMAP})
+            np.save(cfg.OUTPUT_DIR + "TOTAL_CRITICAL_AREA_BITMAP.npy", TOTAL_CRITICAL_AREA_BITMAP)
+            # sio.savemat(cfg.OUTPUT_DIR + "TOTAL_CRITICAL_AREA_BITMAP.mat", {"TOTAL_CRITICAL_AREA_BITMAP": TOTAL_CRITICAL_AREA_BITMAP})
             raise ValueError("Critical area is not correct.")
         # print("How many total critical area blocks are dilated:", np.sum(TOTAL_CRITICAL_AREA_BITMAP))
         # print("Critical area: {}", np.sum(TOTAL_CRITICAL_AREA_BITMAP) * PITCH_um**2 * pad_block_size**2)
@@ -1190,19 +1012,19 @@ def A_critical_r_mv(cfg,
         plt.imshow(CRITICAL_PAD_BLOCK_BITMAP, cmap='gray')
         plt.title("CRITICAL_PAD_BITMAP")
         plt.show()
-        sio.savemat("pad_bitmap/CRITICAL_PAD_BLOCK_BITMAP.mat", {"CRITICAL_PAD_BLOCK_BITMAP": CRITICAL_PAD_BLOCK_BITMAP})
+        sio.savemat(cfg.OUTPUT_DIR + "CRITICAL_PAD_BLOCK_BITMAP.mat", {"CRITICAL_PAD_BLOCK_BITMAP": CRITICAL_PAD_BLOCK_BITMAP})
         ind=6
         # Draw the redundant pad block bitmaps
         plt.figure(figsize=(8, 8))
         plt.imshow(REDUNDANT_MAIN_PAD_BLOCK_BITMAP[ind], cmap='gray')
         plt.title("REDUNDANT_MAIN_PAD_BLOCK_BITMAP")
         plt.show()
-        sio.savemat("pad_bitmap/REDUNDANT_MAIN_PAD_BLOCK_BITMAP.mat", {"REDUNDANT_MAIN_PAD_BLOCK_BITMAP": REDUNDANT_MAIN_PAD_BLOCK_BITMAP[ind]})
+        sio.savemat(cfg.OUTPUT_DIR + "REDUNDANT_MAIN_PAD_BLOCK_BITMAP.mat", {"REDUNDANT_MAIN_PAD_BLOCK_BITMAP": REDUNDANT_MAIN_PAD_BLOCK_BITMAP[ind]})
         plt.figure(figsize=(8, 8))
         plt.imshow(REDUNDANT_COPY_PAD_BLOCK_BITMAP[ind], cmap='gray')
         plt.title("REDUNDANT_COPY_PAD_BLOCK_BITMAP")
         plt.show()
-        sio.savemat("pad_bitmap/REDUNDANT_COPY_PAD_BLOCK_BITMAP.mat", {"REDUNDANT_COPY_PAD_BLOCK_BITMAP": REDUNDANT_COPY_PAD_BLOCK_BITMAP[ind]})
+        sio.savemat(cfg.OUTPUT_DIR + "REDUNDANT_COPY_PAD_BLOCK_BITMAP.mat", {"REDUNDANT_COPY_PAD_BLOCK_BITMAP": REDUNDANT_COPY_PAD_BLOCK_BITMAP[ind]})
     
     CRITICAL_PAD_BLOCK_BITMAP_EXPAND = np.pad(
         CRITICAL_PAD_BLOCK_BITMAP,
@@ -1285,13 +1107,13 @@ def A_critical_r_mv(cfg,
         plt.imshow(void_defect, cmap='gray')
         plt.title("Line Structure")
         plt.show()
-        sio.savemat("pad_bitmap/void_defect.mat", {"void_defect": void_defect})
+        sio.savemat(cfg.OUTPUT_DIR + "void_defect.mat", {"void_defect": void_defect})
         # Draw CRITICAL_PAD_BITMAP_DILATED
         plt.figure(figsize=(8, 8))
         plt.imshow(CRITICAL_PAD_BITMAP_DILATED, cmap='gray')
         plt.title("CRITICAL_PAD_BITMAP_DILATED")
         plt.show()
-        sio.savemat("pad_bitmap/CRITICAL_PAD_BITMAP_DILATED.mat", {"CRITICAL_PAD_BITMAP_DILATED": CRITICAL_PAD_BITMAP_DILATED})
+        sio.savemat(cfg.OUTPUT_DIR + "CRITICAL_PAD_BITMAP_DILATED.mat", {"CRITICAL_PAD_BITMAP_DILATED": CRITICAL_PAD_BITMAP_DILATED})
         # Draw the redundant pad block pair dilated bitmap
         REDUNDANT_MAIN_PAD_BLOCK_BITMAP_EXPAND_original = REDUNDANT_MAIN_PAD_BLOCK_BITMAP_EXPAND.reshape(N, H, W)[ind]
         REDUNDANT_COPY_PAD_BLOCK_BITMAP_EXPAND_original = REDUNDANT_COPY_PAD_BLOCK_BITMAP_EXPAND.reshape(N, H, W)[ind]
@@ -1309,12 +1131,12 @@ def A_critical_r_mv(cfg,
         plt.imshow(REDUNDANT_MAIN_PAD_BLOCK_BITMAP_EXPAND_original_ind_dilated, cmap='gray')
         plt.title("Redundant Pad Block Pair Dilated")
         plt.show()
-        sio.savemat("pad_bitmap/REDUNDANT_MAIN_PAD_BLOCK_BITMAP_DILATED.mat", {"REDUNDANT_MAIN_PAD_BLOCK_BITMAP_DILATED": REDUNDANT_MAIN_PAD_BLOCK_BITMAP_EXPAND_original_ind_dilated})
+        sio.savemat(cfg.OUTPUT_DIR + "REDUNDANT_MAIN_PAD_BLOCK_BITMAP_DILATED.mat", {"REDUNDANT_MAIN_PAD_BLOCK_BITMAP_DILATED": REDUNDANT_MAIN_PAD_BLOCK_BITMAP_EXPAND_original_ind_dilated})
         plt.figure(figsize=(8, 8))
         plt.imshow(REDUNDANT_COPY_PAD_BLOCK_BITMAP_EXPAND_original_ind_dilated, cmap='gray')
         plt.title("Redundant Pad Block Pair Dilated")
         plt.show()
-        sio.savemat("pad_bitmap/REDUNDANT_COPY_PAD_BLOCK_BITMAP_DILATED.mat", {"REDUNDANT_COPY_PAD_BLOCK_BITMAP_DILATED": REDUNDANT_COPY_PAD_BLOCK_BITMAP_EXPAND_original_ind_dilated})
+        sio.savemat(cfg.OUTPUT_DIR + "REDUNDANT_COPY_PAD_BLOCK_BITMAP_DILATED.mat", {"REDUNDANT_COPY_PAD_BLOCK_BITMAP_DILATED": REDUNDANT_COPY_PAD_BLOCK_BITMAP_EXPAND_original_ind_dilated})
         cross_bitmap_main_copy = np.logical_and(
             REDUNDANT_MAIN_PAD_BLOCK_BITMAP_EXPAND_original_ind_dilated,
             REDUNDANT_COPY_PAD_BLOCK_BITMAP_EXPAND_original_ind_dilated
@@ -1324,16 +1146,16 @@ def A_critical_r_mv(cfg,
         plt.imshow(cross_bitmap_main_copy, cmap='gray')
         plt.title("Cross Bitmap Main Copy")
         plt.show()
-        sio.savemat("pad_bitmap/cross_bitmap_main_copy.mat", {"cross_bitmap_main_copy": cross_bitmap_main_copy})
+        sio.savemat(cfg.OUTPUT_DIR + "cross_bitmap_main_copy.mat", {"cross_bitmap_main_copy": cross_bitmap_main_copy})
         # Save the total critical area bitmap
-        sio.savemat("pad_bitmap/TOTAL_CRITICAL_AREA_BITMAP.mat", {"TOTAL_CRITICAL_AREA_BITMAP": TOTAL_CRITICAL_AREA_BITMAP})
+        sio.savemat(cfg.OUTPUT_DIR + "TOTAL_CRITICAL_AREA_BITMAP.mat", {"TOTAL_CRITICAL_AREA_BITMAP": TOTAL_CRITICAL_AREA_BITMAP})
         # Draw the cross bitmap
         plt.figure(figsize=(8, 8))
         plt.imshow(TOTAL_CRITICAL_AREA_BITMAP, cmap='gray')
         plt.title("TOATAL CRITICAL AREA BITMAP")
         plt.show()
-        np.save("pad_bitmap/TOTAL_CRITICAL_AREA_BITMAP.npy", TOTAL_CRITICAL_AREA_BITMAP)
-        # sio.savemat("pad_bitmap/TOTAL_CRITICAL_AREA_BITMAP.mat", {"TOTAL_CRITICAL_AREA_BITMAP": TOTAL_CRITICAL_AREA_BITMAP})
+        np.save(cfg.OUTPUT_DIR + "TOTAL_CRITICAL_AREA_BITMAP.npy", TOTAL_CRITICAL_AREA_BITMAP)
+        # sio.savemat(cfg.OUTPUT_DIR + "TOTAL_CRITICAL_AREA_BITMAP.mat", {"TOTAL_CRITICAL_AREA_BITMAP": TOTAL_CRITICAL_AREA_BITMAP})
         raise ValueError("Critical area is not correct.")
 
     # print("How many total critical area blocks are dilated:", np.sum(TOTAL_CRITICAL_AREA_BITMAP))
