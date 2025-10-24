@@ -8,7 +8,6 @@
 import numpy as np
 from scipy.integrate import quad
 from scipy.stats import norm
-from roughness_parameters import roughness_parameters
 from debond import debond_dishing_bounds_calculator
 
 

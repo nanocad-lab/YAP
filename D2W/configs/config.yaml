@@ -3,6 +3,7 @@ w2w_simulation:
   # === General Settings ===
   MODE: "W2W_Hybrid_Bonding_Simulation"  # Name of the simulation
   DEBUG: false                                      # Enable debug mode
+  OUTPUT_DIR: "pad_bitmap/"          # Output directory for simulation results
   # === Wafer and Die Settings ===
   NUM_WAFERS: 1                        # Number of wafers used in simulation
   PITCH_r_um: 115                            # Row pad pitch (µm)
@@ -95,6 +96,7 @@ w2w_modeling:
   # === General Settings ===
   MODE: "W2W_Hybrid_Bonding_Modeling"   # Name of the modeling
   DEBUG: false                          # Enable debug mode
+  OUTPUT_DIR: "pad_bitmap/"          # Output directory for simulation results
   # === Per Wafer Parameters ===
   PITCH_r_um: 10                              # Row pad PITCH_um (µm)
   PITCH_c_um: 10                              # Column pad PITCH_um (µm)
@@ -182,6 +184,7 @@ d2w_simulation:
   # === General Settings ===
   MODE: "D2W_Hybrid_Bonding_Simulation" # Name of the simulation
   DEBUG: false                          # Enable debug mode
+  OUTPUT_DIR: "pad_bitmap/"          # Output directory for simulation results
   # === Die Settings ===
   NUM_DIES: 1                            # Number of Dies used in simulation
   PITCH_r_um: 115                            # Row pad pitch (µm)
@@ -274,6 +277,7 @@ d2w_modeling:
   # === General Settings ===
   MODE: "D2W_Hybrid_Bonding_Modeling"   # Name of the modeling
   DEBUG: false                          # Enable debug mode
+  OUTPUT_DIR: "pad_bitmap/"          # Output directory for simulation results
   # === Per Wafer Parameters ===
   PITCH_r_um: 115                            # Row pad pitch (µm)
   PITCH_c_um: 115                            # Column pad pitch (µm)

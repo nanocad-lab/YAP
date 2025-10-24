@@ -13,69 +13,43 @@ based on Cu dish distribution and pad layout.
 import numpy as np
 from scipy.integrate import quad
 from scipy.stats import norm
-from roughness_parameters import roughness_parameters
+import matplotlib.pyplot as plt
+from debond import debond_dishing_bounds_calculator
 
 
 
 
-def Cu_expansion_yield_calculator(*,
+def pad_Cu_expansion_yield_map_generator(*,
                                   cfg,
                                   die,
                                   TOP_DISH_MEAN_nm: float,
                                   TOP_DISH_STD_nm: float,
                                   BOT_DISH_MEAN_nm: float,
                                   BOT_DISH_STD_nm: float,
-                                  k_et: float,
-                                  k_eb: float,
-                                  T_R: float,
-                                  T_anl: float,
                                   pad_bitmap_collection: dict,
                                   pad_yield_flag: bool = False,
                                   ):
-    zeta_0 = k_et * (T_anl - T_R) + k_eb * (T_anl - T_R)
-    zeta_1_ = roughness_parameters(
-        Asperity_R_m            =       cfg.Asperity_R_m,
-        Roughness_sigma_m       =       cfg.Roughness_sigma_m,
-        eta_s                   =       cfg.eta_s,
-        Roughness_constant      =       cfg.Roughness_constant,
-        Adhesion_energy         =       cfg.Adhesion_energy,
-        Young_modulus_Pa        =       cfg.Young_modulus_Pa,
-        Dielectric_thickness    =       cfg.Dielectric_thickness,
-        PITCH_um                =       cfg.PITCH_um,
-        PAD_BOT_R_um            =       cfg.PAD_BOT_R_um,
-        DISH_0_m                =       cfg.DISH_0_m,
-        k_peel                  =       cfg.k_peel,
-    )
-    zeta_1 = max(zeta_1_, 0)
-    upper_limit = - zeta_1
-    lower_limit = - zeta_0
-    # TODO: upper_limit_map = Input from Cain
-    # TODO: lower_limit_map = Input from Cain
-    # print("upper_limit: ", upper_limit)
-    # print("lower_limit: ", lower_limit)
+    dishing_bound_array = debond_dishing_bounds_calculator(cfg, die.pad_coords) # (num_pads, 2) array: (dishing_low_nm, dishing_high_nm)
+    upper_limits = - dishing_bound_array[:, 0]  # - upper Cu height limits
+    lower_limits = - dishing_bound_array[:, 1]  # - lower Cu height limits
+    pos_pads, _ = quad(lambda x: norm.pdf(x, loc=TOP_DISH_MEAN_nm + BOT_DISH_MEAN_nm, scale=np.sqrt(TOP_DISH_STD_nm**2 + BOT_DISH_STD_nm**2)), lower_limits, upper_limits)
+    pad_yield_map = pos_pads.reshape(die.PAD_ARR_ROW, die.PAD_ARR_COL)
+    glb_defect_pad_yield_min = min(glb_defect_pad_yield_min, np.nanmin(pad_yield_map))
+    glb_defect_pad_yield_max = max(glb_defect_pad_yield_max, np.nanmax(pad_yield_map))
+    die.pad_yield_map['Y_ce'] = pad_yield_map
+    die.glb_pad_yield_min_max_dict['Y_ce'] = (glb_defect_pad_yield_min, glb_defect_pad_yield_max)
+    print("Generated pad-level Cu expansion yield map for die {}.".format(i))
 
-    num_critical_pads = pad_bitmap_collection["num_critical_pads"]
-    num_redundant_logical_pads = pad_bitmap_collection["num_redundant_logical_pads"]
-    redundant_logical_pad_copy = pad_bitmap_collection["redundant_logical_pad_copy"]
-
-    pos_pad, _ = quad(lambda x: norm.pdf(x, loc=TOP_DISH_MEAN_nm + BOT_DISH_MEAN_nm, 
-                                         scale=np.sqrt(TOP_DISH_STD_nm**2 + BOT_DISH_STD_nm**2)), 
-                                         lower_limit, upper_limit
-                    )
-
-    # TODO: When calculate the pad-level yield map, we ignore the pad type difference
-    Cu_expansion_pad_yield_map = None
-    if pad_yield_flag:
-        pass
-        # pos_pad_map, _ = quad(lambda x: norm.pdf(x, loc=TOP_DISH_MEAN_nm + BOT_DISH_MEAN_nm,
-        #                                      scale=np.sqrt(TOP_DISH_STD_nm**2 + BOT_DISH_STD_nm**2)),
-        #                                      lower_limit_map, upper_limit_map
-        #                     )
-        # Cu_expansion_pad_yield_map = pos_pad_map
-
-    Cu_expansion_die_yield_critical = pos_pad ** num_critical_pads
-    Cu_expansion_die_yield_redundant = (1 - (1 - pos_pad) ** redundant_logical_pad_copy) ** num_redundant_logical_pads
-    
-    Cu_expansion_die_yield = Cu_expansion_die_yield_critical * Cu_expansion_die_yield_redundant
-
-    return Cu_expansion_die_yield, Cu_expansion_pad_yield_map
+    # Draw the pad yield map
+    plt.figure(figsize=(8, 6))
+    plt.imshow(
+        die.pad_yield_map['Y_ce'],
+        cmap='viridis', 
+        vmin=die.glb_pad_yield_min_max_dict['Y_ce'][0],
+        vmax=die.glb_pad_yield_min_max_dict['Y_ce'][1],
+        interpolation='nearest',
+        )
+    plt.colorbar(label='Pad Cu Expansion Yield')
+    plt.xlabel('Pad Column Index')
+    plt.ylabel('Pad Row Index')
+    plt.show()

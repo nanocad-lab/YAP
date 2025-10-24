@@ -201,10 +201,10 @@ def risk_map_generator(cfg,
             "particle_failure_probability": 1 - pad_df_yield,
             "mechanical_failure_probability": 1 - pad_ce_yield,
         })
-    with open(cfg.OUTPUT_DIR + "die_{}_risk_map.txt".format(die_id), 'w') as f:
+    with open(cfg.OUTPUT_DIR + "UCIe_standard_die_{}_risk_map.map".format(die_id), 'w') as f:
         for pad_risk in risk_map:
             f.write(f"{pad_risk['pad_coords_x']} {pad_risk['pad_coords_y']} {pad_risk['esd_failure_probability']} {pad_risk['overlay_failure_probability']} {pad_risk['particle_failure_probability']} {pad_risk['mechanical_failure_probability']}\n")
-    print("Die {} risk map file saved in ".format(die_id), cfg.OUTPUT_DIR + "die_{}_risk_map.txt".format(die.die_id))
+    print("UCIe standard die {} risk map file saved in ".format(die_id), cfg.OUTPUT_DIR + "UCIe_standard_die_{}_risk_map.map".format(die.die_id))
     return
 
 def convert_3dblox_to_pad_bitmap(cfg, 
