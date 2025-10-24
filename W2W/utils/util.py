@@ -144,17 +144,39 @@ def draw_pad_bitmap(cfg, bitmap_collection):
 
 
 def criticality_generator(cfg, 
-                              bump_data: list,
-                              redundant_net_to_bumpids: dict,
-                              ) -> dict:
+                          bump_data: list,
+                          redundant_net_to_bumpids: dict,
+                        ):
     '''
     Output format:
     port esd_criticality mechanical_criticality
     '''
+    bump_criticality = list()
+    for bump in bump_data:
+        port = bump['port']
+        num_copies = len(redundant_net_to_bumpids[bump['net']])
+        mechanical_criticality = 1.0 / num_copies
+        if num_copies == 1:
+            esd_criticality = 1.0
+        elif num_copies > 1 and ('vss' in port.lower() or 'vcc' in port.lower()):
+            esd_criticality = 1.0 / num_copies
+        elif num_copies > 1 and ('vss' not in port.lower() and 'vcc' not in port.lower()):
+            esd_criticality = 1.0
+
+        bump_criticality.append({
+            "port": port,
+            "esd_criticality": esd_criticality,
+            "mechanical_criticality": mechanical_criticality
+        })
+    with open(cfg.OUTPUT_DIR + "UCIe_standard_criticality.txt", 'w') as f:
+        for bump_crit in bump_criticality:
+            f.write(f"{bump_crit['port']} {bump_crit['esd_criticality']} {bump_crit['mechanical_criticality']}\n")
+    print("UCIe standard criticality file saved in ", cfg.OUTPUT_DIR + "UCIe_standard_criticality.txt")
+    return
 
 
 def convert_3dblox_to_pad_bitmap(cfg, 
-                                 blox_bmap_path='pad_bitmap/UCIe_standard.bmap', 
+                                 blox_bmap_path: str, 
                                  pad_arrange_pattern='checkerboard'):
     '''
     This module converts the 3DBlox .bmap file to pad bitmap for YAP to process.
@@ -200,7 +222,7 @@ def convert_3dblox_to_pad_bitmap(cfg,
         redundant_net_to_bumpids[bump['net']].add(bump['bumpid'])
     
     # Generate the criticality map
-    criticality = criticality_generator(cfg, bump_data, redundant_net_to_bumpids)
+    criticality_generator(cfg, bump_data, redundant_net_to_bumpids)
 
     # Initialize the pad bitmap
     # TODO: You need to modify the simulator to support different pad arrangement patterns
