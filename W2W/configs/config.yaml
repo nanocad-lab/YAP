@@ -19,7 +19,7 @@ w2w_simulation:
   VOID_SHAPE: "circle"                  # Void shape: "circle" or "square"
   dice_width: 100                      # Width of one die (µm)
   pad_yield_flag: True
-  pad_yield_map_sub_factor: 10          # Subsampling factor for pad yield map (1: no subsampling, 10: rows/10 and cols/10)
+  pad_yield_map_sub_factor: 1          # Subsampling factor for pad yield map (1: no subsampling, 10: rows/10 and cols/10)
                                         # The pad yield map will be of size (ceil(PAD_ARR_ROW/sub_factor), ceil(PAD_ARR_COL/sub_factor))
 
   # === Fault-Tolerance Parameters ===
@@ -98,17 +98,19 @@ w2w_modeling:
   # === Per Wafer Parameters ===
   PITCH_r_um: 10                              # Row pad PITCH_um (µm)
   PITCH_c_um: 10                              # Column pad PITCH_um (µm)
-  DIE_W_um: 10000                          # Die width (µm)
-  DIE_L_um: 10000                          # Die length (µm)
-  WAF_R_um: 150000                         # Wafer radius (µm)
-  PAD_BOT_R_um: None                      # Bottom Cu pad radius (um)
-  PAD_TOP_R_um: None                      # Top Cu pad radius (um)
+  DIE_W_um: 1400                          # Die width (µm)
+  DIE_L_um: 1650                          # Die length (µm)
+  WAF_R_um: 3000                         # Wafer radius (µm)
+  PAD_BOT_R_um: 50                      # Bottom Cu pad radius (um)
+  PAD_TOP_R_um: 50                      # Top Cu pad radius (um)
+  PAD_ARR_ROW: 14
+  PAD_ARR_COL: 12
   PAD_BOT_R_um_ratio: 0.5                  # Ratio of bottom pad dimension to the PITCH_um
   PAD_TOP_R_um_ratio: 0.667                # Ratio of top pad radius to bottom pad radius
   VOID_SHAPE: "circle"                  # Shape of void: "circle" or "square"
   dice_width: 1000                      # Dice width to separate dies (µm)
   pad_yield_flag: True
-  pad_yield_map_sub_factor: 50          # Subsampling factor for pad yield map (1: no subsampling, 10: rows/10 and cols/10)
+  pad_yield_map_sub_factor: 1          # Subsampling factor for pad yield map (1: no subsampling, 10: rows/10 and cols/10)
 
   # === Fault Tolerance Parameters ===
   redundant_flag: True                  # Enable redundant pads

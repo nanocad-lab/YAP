@@ -9,15 +9,15 @@ import numpy as np
 import time
 import matplotlib.pyplot as plt
 from wafer_die_initialization import die_initialize
-from overlay_yield_calculator import overlay_yield_calculator
-from defect_yield_calculator import defect_yield_calculator
+from overlay_yield_calculator import pad_overlay_yield_map_generator
+from defect_yield_calculator import pad_defect_yield_map_generator
 from Cu_expansion_yield_calculator import Cu_expansion_yield_calculator
 
 
 
 
 
-def Assembly_Yield_Calculator(
+def Pad_Yield_Map_Generator(
     cfg,
     pad_bitmap_collection: dict,
 ):  
@@ -30,7 +30,10 @@ def Assembly_Yield_Calculator(
         PAD_ARR_L_um        =       cfg.PAD_ARR_L_um,
         PAD_ARR_ROW         =       cfg.PAD_ARR_ROW,
         PAD_ARR_COL         =       cfg.PAD_ARR_COL,
-        PITCH_um            =       cfg.PITCH_um,
+        PITCH_r_um          =       cfg.PITCH_r_um,
+        PITCH_c_um          =       cfg.PITCH_c_um,
+        PAD_TOP_R_um        =       cfg.PAD_TOP_R_um,
+        PAD_BOT_R_um        =       cfg.PAD_BOT_R_um,
         pad_bitmap_collection = pad_bitmap_collection,  
         pad_yield_flag      =       cfg.pad_yield_flag,
     )
@@ -39,12 +42,13 @@ def Assembly_Yield_Calculator(
     # die.draw_die(ax)
 
     # Calculate the overlay yield
-    overlay_die_yield, overlay_pad_yield_map = overlay_yield_calculator(
+    overlay_pad_yield_map = pad_overlay_yield_map_generator(
         PAD_TOP_R_um                    =       cfg.PAD_TOP_R_um,
         PAD_BOT_R_um                    =       cfg.PAD_BOT_R_um,
         PAD_ARR_ROW                     =       cfg.PAD_ARR_ROW,
         PAD_ARR_COL                     =       cfg.PAD_ARR_COL,
-        PITCH_um                        =       cfg.PITCH_um,
+        PITCH_r_um                      =       cfg.PITCH_r_um,
+        PITCH_c_um                      =       cfg.PITCH_c_um,
         num_samples                     =       cfg.num_samples,
         CONTACT_AREA_CONSTRAINT         =       cfg.CONTACT_AREA_CONSTRAINT,
         CRITICAL_DIST_CONSTRAINT        =       cfg.CRITICAL_DIST_CONSTRAINT,
@@ -63,34 +67,26 @@ def Assembly_Yield_Calculator(
         pad_yield_flag                  =       cfg.pad_yield_flag,
         pad_yield_map_sub_factor        =       cfg.pad_yield_map_sub_factor,
     )
-    die.die_yield['Y_ovl'], die.pad_yield_map['Y_ovl'] = overlay_die_yield, overlay_pad_yield_map
+    die.pad_yield_map['Y_ovl'] = overlay_pad_yield_map
+    # raise Exception("Overlay yield calculation done. Stop execution here for debugging.")
 
     # Calculate the defect yield
     start_time = time.time()
-    defect_die_yield, defect_pad_yield_map = defect_yield_calculator(
+    defect_pad_yield_map = pad_defect_yield_map_generator(
         cfg               =       cfg,
-        eff_DIE_R         =       cfg.eff_DIE_R,
         D0                =       cfg.D0,
         t_0               =       cfg.t_0,
         z                 =       cfg.z,
         k_r               =       cfg.k_r,
         k_r0              =       cfg.k_r0,
-        k_n               =       cfg.k_n,
-        k_S               =       cfg.k_S,
-        k_L               =       cfg.k_L,
         PAD_TOP_R_um      =       cfg.PAD_TOP_R_um,
-        PITCH_um          =       cfg.PITCH_um,
         PAD_ARR_ROW       =       cfg.PAD_ARR_ROW,
         PAD_ARR_COL       =       cfg.PAD_ARR_COL,
-        PAD_ARR_W_um      =       cfg.PAD_ARR_W_um,
-        PAD_ARR_L_um      =       cfg.PAD_ARR_L_um,
-        VOID_SHAPE        =       cfg.VOID_SHAPE,
         die               =       die,
-        pad_bitmap_collection  = pad_bitmap_collection,
         pad_yield_flag    =       cfg.pad_yield_flag,
         pad_yield_map_sub_factor = cfg.pad_yield_map_sub_factor,
     )
-    die.die_yield['Y_df'], die.pad_yield_map['Y_df'] = defect_die_yield, defect_pad_yield_map
+    die.pad_yield_map['Y_df'] = defect_pad_yield_map
     print(f"Defect yield calculation took {time.time() - start_time:.2f} seconds")
 
     # Calculate the Cu expansion yield

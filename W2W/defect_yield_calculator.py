@@ -245,6 +245,46 @@ def defect_yield_calculator(
         num_vtl_defects = scale_factor * avg_defects_fail_die_critical_coarse(cfg, D0, k_L, WAF_R_um, t_0, z)
     particle_defect_die_yield = np.exp(-num_vtl_defects)
 
+    return particle_defect_die_yield
+
+
+
+
+
+
+
+
+def pad_defect_yield_map_generator(
+    cfg,
+    wafer,
+    D0: float,
+    t_0: float,
+    z: float,
+    k_r: float,
+    k_r0: float,
+    k_n: float,
+    k_S: float,
+    PAD_TOP_R_um: float,
+    PAD_ARR_ROW: int,
+    PAD_ARR_COL: int,
+    pad_yield_flag: bool = False,
+    pad_yield_map_sub_factor: int = 1,
+):
+    def avg_defects_fail_pad_map(cfg, wafer, die, D0, k_S, k_r, k_r0, t_0, z, PAD_TOP_R_um) -> np.ndarray:
+        '''
+        This function calculate the average number of fatal defects to the pad
+        '''
+        current_die_pad_array = wafer.base_pad_coords + die.die_center
+        pad2waf_center_dist_um = np.sqrt(current_die_pad_array[:, 0]**2 + current_die_pad_array[:, 1]**2)
+        
+
+        term1 = 2 * D0 * (z - 1) * k_S * pad2waf_center_dist_um * t_0 ** 0.5 / (2 * z - 3)
+        term = k_r * pad2waf_center_dist_um + k_r0
+        part1 = PAD_TOP_R_um**2
+        part2 = ((z - 1) / (z - 2)) * (term**2) * t_0
+        part3 = (4 * (z - 1) / (2 * z - 3)) * term * PAD_TOP_R_um * t_0
+        return term1 + np.pi * D0 * (part1 + part2 + part3)
+
     '''
     Calculate the pad-level defect yield
     '''
@@ -262,11 +302,10 @@ def defect_yield_calculator(
             avg_defects_fail_pad_map_i = avg_defects_fail_pad_map(cfg, wafer, die, D0, k_S, k_r, k_r0, t_0, z, PAD_TOP_R_um)
             pad_yield_map_i = np.exp(-avg_defects_fail_pad_map_i)
             pad_yield_map_i_sub = pad_yield_map_i.ravel()[I]
-            glb_defect_pad_yield_min = min(glb_defect_pad_yield_min, np.min(pad_yield_map_i))
-            glb_defect_pad_yield_max = max(glb_defect_pad_yield_max, np.max(pad_yield_map_i))
+            glb_defect_pad_yield_min = min(glb_defect_pad_yield_min, np.nanmin(pad_yield_map_i))
+            glb_defect_pad_yield_max = max(glb_defect_pad_yield_max, np.nanmax(pad_yield_map_i))
             die.pad_yield_map['Y_df'] = pad_yield_map_i_sub
             print("Generated pad-level defect yield map for die {}.".format(i))
         wafer.glb_pad_yield_min_max_dict['Y_df'] = (glb_defect_pad_yield_min, glb_defect_pad_yield_max)
         print("Global min of the pad-level defect yield: {}".format(glb_defect_pad_yield_min))
         print("Global max of the pad-level defect yield: {}".format(glb_defect_pad_yield_max))
-    return particle_defect_die_yield

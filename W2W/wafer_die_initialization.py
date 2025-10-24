@@ -176,11 +176,11 @@ class Wafer:
                         alpha=0.5,
                     )
             # draw pads
-            die_pad_coords = die.die_center + self.base_pad_coords
-            for pad in die_pad_coords:
-                if pad[0] != np.nan and pad[1] != np.nan:   # There is a pad/bump
-                    ax.add_artist(patches.Circle((pad[0], pad[1]), self.PAD_BOT_R_um, color='darkorange', fill=True, alpha=1.0))
-                    ax.add_artist(patches.Circle((pad[0], pad[1]), self.PAD_TOP_R_um, color='lightgreen', fill=True, alpha=1.0))
+            # die_pad_coords = die.die_center + self.base_pad_coords
+            # for pad in die_pad_coords:
+            #     if pad[0] != np.nan and pad[1] != np.nan:   # There is a pad/bump
+            #         ax.add_artist(patches.Circle((pad[0], pad[1]), self.PAD_BOT_R_um, color='darkorange', fill=True, alpha=1.0))
+            #         ax.add_artist(patches.Circle((pad[0], pad[1]), self.PAD_TOP_R_um, color='lightgreen', fill=True, alpha=1.0))
 
         # Draw voids
         for v in self.voids:

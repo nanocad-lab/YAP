@@ -38,33 +38,8 @@ def die_pad_misalignment(
     pad_misalignment = np.sqrt(dx**2 + dy**2)
     return pad_misalignment
 
-def overlay_yield_calculator(
-    cfg,
-    PAD_ARR_ROW: int,
-    PAD_ARR_COL: int,
-    PAD_TOP_R_um: float,
-    PAD_BOT_R_um: float,
-    PITCH_r_um: float,
-    PITCH_c_um: float,
-    num_samples: int,
-    CONTACT_AREA_CONSTRAINT: float,
-    CRITICAL_DIST_CONSTRAINT: float,
-    SYSTEM_MAGNIFICATION_MEAN_ppm: float,
-    SYSTEM_MAGNIFICATION_STD_ppm: float,
-    SYSTEM_ROTATION_MEAN_rad: float,
-    SYSTEM_ROTATION_STD_rad: float,
-    SYSTEM_TRANSLATION_X_MEAN_um: float,    
-    SYSTEM_TRANSLATION_X_STD_um: float,
-    SYSTEM_TRANSLATION_Y_MEAN_um: float,
-    SYSTEM_TRANSLATION_Y_STD_um: float,
-    RANDOM_MISALIGNMENT_MEAN_um: float,
-    RANDOM_MISALIGNMENT_STD_um: float,
-    wafer,    
-    redundant_flag: bool,
-    pad_yield_flag: bool = False,
-    pad_yield_map_sub_factor: int = 1,
-):
-    def max_allowed_misalignment_calculator(
+
+def max_allowed_misalignment_calculator(
         PAD_TOP_R_um, PAD_BOT_R_um, PITCH_r_um, PITCH_c_um, CONTACT_AREA_CONSTRAINT, CRITICAL_DIST_CONSTRAINT
     ):
         # Calculate the overlay misalignment that will fail the contact area constraint
@@ -93,12 +68,38 @@ def overlay_yield_calculator(
         
         # print("The overlay misalignment that will fail the critical distance constraint is {} um.".format(max_allowed_misalignment_for_cd))
 
-        MAX_ALLOWED_MISALIGNMENT = min(max_allowed_misalignment_for_ca[0], max_allowed_misalignment_for_cd)
+        MAX_ALLOWED_MISALIGNMENT_um = min(max_allowed_misalignment_for_ca[0], max_allowed_misalignment_for_cd)
         # print("The overlay misalignment that will fail the both constraints is {} um.".format(MAX_ALLOWED_MISALIGNMENT))
 
-        return MAX_ALLOWED_MISALIGNMENT
-    
-    MAX_ALLOWED_MISALIGNMENT = max_allowed_misalignment_calculator(
+        return MAX_ALLOWED_MISALIGNMENT_um
+
+def overlay_yield_calculator(
+    cfg,
+    PAD_ARR_ROW: int,
+    PAD_ARR_COL: int,
+    PAD_TOP_R_um: float,
+    PAD_BOT_R_um: float,
+    PITCH_r_um: float,
+    PITCH_c_um: float,
+    num_samples: int,
+    CONTACT_AREA_CONSTRAINT: float,
+    CRITICAL_DIST_CONSTRAINT: float,
+    SYSTEM_MAGNIFICATION_MEAN_ppm: float,
+    SYSTEM_MAGNIFICATION_STD_ppm: float,
+    SYSTEM_ROTATION_MEAN_rad: float,
+    SYSTEM_ROTATION_STD_rad: float,
+    SYSTEM_TRANSLATION_X_MEAN_um: float,    
+    SYSTEM_TRANSLATION_X_STD_um: float,
+    SYSTEM_TRANSLATION_Y_MEAN_um: float,
+    SYSTEM_TRANSLATION_Y_STD_um: float,
+    RANDOM_MISALIGNMENT_MEAN_um: float,
+    RANDOM_MISALIGNMENT_STD_um: float,
+    wafer,    
+    redundant_flag: bool,
+    pad_yield_flag: bool = False,
+    pad_yield_map_sub_factor: int = 1,
+):    
+    MAX_ALLOWED_MISALIGNMENT_um = max_allowed_misalignment_calculator(
         PAD_TOP_R_um,
         PAD_BOT_R_um,
         PITCH_r_um,
@@ -106,7 +107,7 @@ def overlay_yield_calculator(
         CONTACT_AREA_CONSTRAINT,
         CRITICAL_DIST_CONSTRAINT,
     )
-    print("The maximum allowed misalignment is {} nm.".format(MAX_ALLOWED_MISALIGNMENT * 1e3))
+    print("The maximum allowed misalignment is {} nm.".format(MAX_ALLOWED_MISALIGNMENT_um * 1e3))
     num_samples = num_samples
     system_translation_x_samples_um = np.random.normal(SYSTEM_TRANSLATION_X_MEAN_um, SYSTEM_TRANSLATION_X_STD_um, num_samples)
     system_translation_y_samples_um = np.random.normal(SYSTEM_TRANSLATION_Y_MEAN_um, SYSTEM_TRANSLATION_Y_STD_um, num_samples)
@@ -145,14 +146,14 @@ def overlay_yield_calculator(
         far_pad_misalignment_samples_2 = np.sqrt(far_dx_samples_2**2 + far_dy_samples_2**2)
         far_pad_misalignment_samples_3 = np.sqrt(far_dx_samples_3**2 + far_dy_samples_3**2)
 
-        upper_limit_0 = MAX_ALLOWED_MISALIGNMENT - far_pad_misalignment_samples_0
-        lower_limit_0 = -MAX_ALLOWED_MISALIGNMENT - far_pad_misalignment_samples_0
-        upper_limit_1 = MAX_ALLOWED_MISALIGNMENT - far_pad_misalignment_samples_1
-        lower_limit_1 = -MAX_ALLOWED_MISALIGNMENT - far_pad_misalignment_samples_1
-        upper_limit_2 = MAX_ALLOWED_MISALIGNMENT - far_pad_misalignment_samples_2
-        lower_limit_2 = -MAX_ALLOWED_MISALIGNMENT - far_pad_misalignment_samples_2
-        upper_limit_3 = MAX_ALLOWED_MISALIGNMENT - far_pad_misalignment_samples_3
-        lower_limit_3 = -MAX_ALLOWED_MISALIGNMENT - far_pad_misalignment_samples_3
+        upper_limit_0 = MAX_ALLOWED_MISALIGNMENT_um - far_pad_misalignment_samples_0
+        lower_limit_0 = -MAX_ALLOWED_MISALIGNMENT_um - far_pad_misalignment_samples_0
+        upper_limit_1 = MAX_ALLOWED_MISALIGNMENT_um - far_pad_misalignment_samples_1
+        lower_limit_1 = -MAX_ALLOWED_MISALIGNMENT_um - far_pad_misalignment_samples_1
+        upper_limit_2 = MAX_ALLOWED_MISALIGNMENT_um - far_pad_misalignment_samples_2
+        lower_limit_2 = -MAX_ALLOWED_MISALIGNMENT_um - far_pad_misalignment_samples_2
+        upper_limit_3 = MAX_ALLOWED_MISALIGNMENT_um - far_pad_misalignment_samples_3
+        lower_limit_3 = -MAX_ALLOWED_MISALIGNMENT_um - far_pad_misalignment_samples_3
         
         current_die_corner_yield_0 = np.mean(norm.cdf(upper_limit_0, loc=RANDOM_MISALIGNMENT_MEAN_um, scale=RANDOM_MISALIGNMENT_STD_um) - norm.cdf(lower_limit_0, loc=RANDOM_MISALIGNMENT_MEAN_um, scale=RANDOM_MISALIGNMENT_STD_um))
         current_die_corner_yield_1 = np.mean(norm.cdf(upper_limit_1, loc=RANDOM_MISALIGNMENT_MEAN_um, scale=RANDOM_MISALIGNMENT_STD_um) - norm.cdf(lower_limit_1, loc=RANDOM_MISALIGNMENT_MEAN_um, scale=RANDOM_MISALIGNMENT_STD_um))
@@ -161,7 +162,64 @@ def overlay_yield_calculator(
 
         current_die_yield = min(current_die_corner_yield_0, current_die_corner_yield_1, current_die_corner_yield_2, current_die_corner_yield_3)
         overlay_die_yield_list.append(current_die_yield)
-        
+    overlay_die_yield = np.mean(overlay_die_yield_list)
+    return overlay_die_yield
+    
+
+
+
+
+
+
+
+
+def pad_overlay_yield_map_generator(
+    cfg,
+    PAD_ARR_ROW: int,
+    PAD_ARR_COL: int,
+    PAD_TOP_R_um: float,
+    PAD_BOT_R_um: float,
+    PITCH_r_um: float,
+    PITCH_c_um: float,
+    num_samples: int,
+    CONTACT_AREA_CONSTRAINT: float,
+    CRITICAL_DIST_CONSTRAINT: float,
+    SYSTEM_MAGNIFICATION_MEAN_ppm: float,
+    SYSTEM_MAGNIFICATION_STD_ppm: float,
+    SYSTEM_ROTATION_MEAN_rad: float,
+    SYSTEM_ROTATION_STD_rad: float,
+    SYSTEM_TRANSLATION_X_MEAN_um: float,    
+    SYSTEM_TRANSLATION_X_STD_um: float,
+    SYSTEM_TRANSLATION_Y_MEAN_um: float,
+    SYSTEM_TRANSLATION_Y_STD_um: float,
+    RANDOM_MISALIGNMENT_MEAN_um: float,
+    RANDOM_MISALIGNMENT_STD_um: float,
+    wafer,    
+    redundant_flag: bool,
+    pad_yield_flag: bool = False,
+    pad_yield_map_sub_factor: int = 1,
+) -> None:
+    MAX_ALLOWED_MISALIGNMENT_um = max_allowed_misalignment_calculator(
+        PAD_TOP_R_um,
+        PAD_BOT_R_um,
+        PITCH_r_um,
+        PITCH_c_um,
+        CONTACT_AREA_CONSTRAINT,
+        CRITICAL_DIST_CONSTRAINT,
+    )
+    print("The maximum allowed misalignment is {} nm.".format(MAX_ALLOWED_MISALIGNMENT_um * 1e3))
+    num_samples = num_samples
+    system_translation_x_samples_um = np.random.normal(SYSTEM_TRANSLATION_X_MEAN_um, SYSTEM_TRANSLATION_X_STD_um, num_samples)
+    system_translation_y_samples_um = np.random.normal(SYSTEM_TRANSLATION_Y_MEAN_um, SYSTEM_TRANSLATION_Y_STD_um, num_samples)
+    system_rotation_samples_rad = np.random.normal(SYSTEM_ROTATION_MEAN_rad, SYSTEM_ROTATION_STD_rad, num_samples)
+    system_magnification_samples_ppm = np.random.normal(SYSTEM_MAGNIFICATION_MEAN_ppm, SYSTEM_MAGNIFICATION_STD_ppm, num_samples)
+
+    print(system_translation_x_samples_um.mean()*1e3, " nm")
+    print(system_translation_y_samples_um.mean()*1e3, " nm")
+    print(system_rotation_samples_rad.mean() * 150e+3 * 1e3, " nm")
+    print(system_magnification_samples_ppm.mean() * 150e+3 * 1e3, " nm")
+    
+    for die_id, die in enumerate(wafer.die_list):
         current_die_pad_array = wafer.base_pad_coords + die.die_center # Get the absolute coordinates of the pad array for the current die (to save memory, use a temporary variable)
         if pad_yield_flag == True:
             glb_defect_pad_yield_min = 1.0  # Initialize to a high value
@@ -180,25 +238,16 @@ def overlay_yield_calculator(
                     dx_array_samples_i = (system_translation_x_samples_um - system_rotation_samples_rad * current_die_pad_array[i, 1] + system_magnification_samples_ppm * current_die_pad_array[i, 0])
                     dy_array_samples_i = (system_translation_y_samples_um + system_rotation_samples_rad * current_die_pad_array[i, 0] + system_magnification_samples_ppm * current_die_pad_array[i, 1])
                     pad_misalignment_samples_i = np.sqrt(dx_array_samples_i**2 + dy_array_samples_i**2)
-                    upper_limit_i = MAX_ALLOWED_MISALIGNMENT - pad_misalignment_samples_i
-                    lower_limit_i = -MAX_ALLOWED_MISALIGNMENT - pad_misalignment_samples_i
+                    upper_limit_i = MAX_ALLOWED_MISALIGNMENT_um - pad_misalignment_samples_i
+                    lower_limit_i = -MAX_ALLOWED_MISALIGNMENT_um - pad_misalignment_samples_i
                     overlay_pad_yield_map[kr, kc] = np.mean(
                                                         norm.cdf(upper_limit_i, loc=RANDOM_MISALIGNMENT_MEAN_um, scale=RANDOM_MISALIGNMENT_STD_um) \
                                                         - norm.cdf(lower_limit_i, loc=RANDOM_MISALIGNMENT_MEAN_um, scale=RANDOM_MISALIGNMENT_STD_um)
                                                         )
-            glb_defect_pad_yield_min = min(glb_defect_pad_yield_min, np.min(overlay_pad_yield_map))
-            glb_defect_pad_yield_max = max(glb_defect_pad_yield_max, np.max(overlay_pad_yield_map))
+            glb_defect_pad_yield_min = min(glb_defect_pad_yield_min, np.nanmin(overlay_pad_yield_map))
+            glb_defect_pad_yield_max = max(glb_defect_pad_yield_max, np.nanmax(overlay_pad_yield_map))
             print("Generated pad-level overlay yield map for die {}.".format(die_id))
             die.pad_yield_map['Y_ovl'] = overlay_pad_yield_map
-        else:
-            overlay_pad_yield_map = None
-    
+
     wafer.glb_pad_yield_min_max_dict['Y_ovl'] = (glb_defect_pad_yield_min, glb_defect_pad_yield_max)
-
-    overlay_die_yield = np.mean(overlay_die_yield_list)
-    # end_time = time.time()
-    # print("Time taken to calculate the far pad misalignment: {:.2f} seconds".format(end_time - start_time))
-    # print("The overlay die yield is {}.".format(overlay_die_yield))
-
-    return overlay_die_yield
     

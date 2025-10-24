@@ -204,3 +204,76 @@ def defect_yield_calculator(
         plt.show()
 
     return particle_defect_die_yield, particle_defect_pad_yield_map_sub
+
+
+
+
+
+
+
+def pad_defect_yield_map_generator(
+    cfg,
+    D0: float,
+    t_0: float,
+    z: float,
+    k_r: float,
+    k_r0: float,
+    PAD_TOP_R_um: float,
+    PAD_ARR_ROW: int,
+    PAD_ARR_COL: int,
+    die,
+    pad_yield_flag: bool = False,
+    pad_yield_map_sub_factor: int = 1,
+):
+    def avg_defects_fail_pad_critical(*, cfg, die, D0, PAD_TOP_R_um, k_r, k_r0, t_0, z) -> np.ndarray:
+        '''
+        This function calculate the average number of fatal main void defects to the pad
+        To calculate the pad-level defect yield, we ignore whether the pad is redundant or not.
+        '''
+        pad2die_center_dist_um = np.sqrt(die.pad_coords[:, 0]**2 + die.pad_coords[:, 1]**2)
+
+        # Use the formula to calculate the average number of fatal defects per pad
+        term = k_r * pad2die_center_dist_um + k_r0
+        part1 = PAD_TOP_R_um**2
+        part2 = ((z - 1) / (z - 2)) * (term**2) * t_0
+        part3 = (4 * (z - 1) / (2 * z - 3)) * term * PAD_TOP_R_um * t_0
+        return np.pi * D0 * (part1 + part2 + part3)
+  
+    avg_main_voids_per_pad = avg_defects_fail_pad_critical(cfg=cfg, die=die, D0=D0, PAD_TOP_R_um=PAD_TOP_R_um, k_r=k_r, k_r0=k_r0, t_0=t_0, z=z) if pad_yield_flag else None
+
+    if pad_yield_flag == True:
+        glb_defect_pad_yield_min = 1.0
+        glb_defect_pad_yield_max = 0.0
+        particle_defect_pad_yield_map = np.exp(-avg_main_voids_per_pad)
+        glb_defect_pad_yield_min = min(glb_defect_pad_yield_min, np.nanmin(particle_defect_pad_yield_map))
+        glb_defect_pad_yield_max = max(glb_defect_pad_yield_max, np.nanmax(particle_defect_pad_yield_map))
+        die.glb_pad_yield_min_max_dict['Y_df'] = (glb_defect_pad_yield_min, glb_defect_pad_yield_max)
+        # Subsampling the pad yield map to save memory and speed up the plotting
+        nr = math.ceil(PAD_ARR_ROW / pad_yield_map_sub_factor)
+        nc = math.ceil(PAD_ARR_COL / pad_yield_map_sub_factor)
+        r_idx = np.round(np.linspace(0, PAD_ARR_ROW - 1, nr)).astype(int)
+        c_idx = np.round(np.linspace(0, PAD_ARR_COL - 1, nc)).astype(int)
+        RR, CC = np.meshgrid(r_idx, c_idx, indexing='ij')   # shape (nr, nc)
+        I = RR * PAD_ARR_COL + CC  # linear indices. shape (nr, nc)
+        particle_defect_pad_yield_map_sub = particle_defect_pad_yield_map[I]
+    else:
+        particle_defect_pad_yield_map = None
+        particle_defect_pad_yield_map_sub = None
+
+    if pad_yield_flag:
+        # Draw heatmap of pad-level defect yield map
+        plt.figure(figsize=(8, 6))
+        plt.imshow(
+            particle_defect_pad_yield_map_sub, 
+            cmap='viridis', 
+            vmin=die.glb_pad_yield_min_max_dict['Y_df'][0],
+            vmax=die.glb_pad_yield_min_max_dict['Y_df'][1],
+            interpolation='nearest'
+            )
+        plt.colorbar(label='Pad-level Defect Yield (Subsampled)')
+        plt.title('Pad-level Defect Yield Map')
+        plt.xlabel('Pad Column Index')
+        plt.ylabel('Pad Row Index')
+        plt.show()
+
+    return particle_defect_pad_yield_map_sub

@@ -11,8 +11,8 @@ def load_modeling_config(path, mode, debug=False):
     if mode == "w2w_simulation" or mode == "w2w_modeling":
         cfg.PAD_ARR_L_um = (cfg.PAD_ARR_ROW - 1) * cfg.PITCH_r_um  # pad array length (um)
         cfg.PAD_ARR_W_um = (cfg.PAD_ARR_COL - 1) * cfg.PITCH_c_um  # pad array width (um)
-        cfg.PAD_BOT_R_um = min(cfg.PITCH_r_um, cfg.PITCH_c_um) / 2 * cfg.PAD_BOT_R_um_ratio if cfg.PAD_BOT_R_um is None # bottom Cu pad radius (um)
-        cfg.PAD_TOP_R_um = cfg.PAD_BOT_R_um * cfg.PAD_TOP_R_um_ratio if cfg.PAD_TOP_R_um is None  # top Cu pad radius (um)
+        cfg.PAD_BOT_R_um = min(cfg.PITCH_r_um, cfg.PITCH_c_um) / 2 * cfg.PAD_BOT_R_um_ratio if cfg.PAD_BOT_R_um is None else cfg.PAD_BOT_R_um # bottom Cu pad radius (um)
+        cfg.PAD_TOP_R_um = cfg.PAD_BOT_R_um * cfg.PAD_TOP_R_um_ratio if cfg.PAD_TOP_R_um is None else cfg.PAD_TOP_R_um  # top Cu pad radius (um)
         cfg.SYSTEM_MAGNIFICATION_MEAN_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_MEAN_um + cfg.M_0) / 1e6
         cfg.SYSTEM_MAGNIFICATION_STD_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_STD_um) ** 2 / 1e6
         # TODO: You need to set pad_block_dim_x and pad_block_dim_y for pitch per row and pitch per column
@@ -54,8 +54,8 @@ def update_config_items(cfg, mode):
         # cfg.PAD_ARR_COL = int(np.floor(float(cfg.DIE_W_um / cfg.PITCH_c_um)))  # number of pads in a column of pad array
         cfg.PAD_ARR_L_um = (cfg.PAD_ARR_ROW - 1) * cfg.PITCH_r_um  # pad array length (um)
         cfg.PAD_ARR_W_um = (cfg.PAD_ARR_COL - 1) * cfg.PITCH_c_um  # pad array width (um)
-        cfg.PAD_BOT_R_um = min(cfg.PITCH_r_um, cfg.PITCH_c_um) / 2 * cfg.PAD_BOT_R_um_ratio  # bottom Cu pad radius (um)
-        cfg.PAD_TOP_R_um = cfg.PAD_BOT_R_um * cfg.PAD_TOP_R_um_ratio  # top Cu pad radius (um)
+        cfg.PAD_BOT_R_um = min(cfg.PITCH_r_um, cfg.PITCH_c_um) / 2 * cfg.PAD_BOT_R_um_ratio if cfg.PAD_BOT_R_um is None else cfg.PAD_BOT_R_um # bottom Cu pad radius (um)
+        cfg.PAD_TOP_R_um = cfg.PAD_BOT_R_um * cfg.PAD_TOP_R_um_ratio if cfg.PAD_TOP_R_um is None else cfg.PAD_TOP_R_um  # top Cu pad radius (um)
         cfg.SYSTEM_MAGNIFICATION_MEAN_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_MEAN_um + cfg.M_0) / 1e6
         cfg.SYSTEM_MAGNIFICATION_STD_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_STD_um) ** 2 / 1e6
         # TODO: You need to set pad_block_dim_x and pad_block_dim_y for pitch per row and pitch per column
