@@ -13,18 +13,6 @@ from dataclasses import dataclass
 from typing import Tuple, List
 import math
 import numpy as np
-from pathlib import Path
-
-# =============================================================================
-# =============================== USER INPUT ==================================
-# =============================================================================
-# ---- Manual pad global coordinates (unit: µm) ----
-COORDS_UM: List[Tuple[float, float]] = [
-    # >>> Replace with your pad global coords (µm) <<<
-    (0.0, 0.0),
-    (500.0, 0.0),
-    (500.0, 500.0),
-]
 
 # =============================================================================
 # =============================== PARAMETERS ==================================

@@ -10,8 +10,8 @@ import matplotlib.pyplot as plt
 from wafer_die_initialization import die_initialize
 from overlay_yield_calculator import pad_overlay_yield_map_generator
 from defect_yield_calculator import pad_defect_yield_map_generator
-from Cu_expansion_yield_calculator import Cu_expansion_yield_calculator
-
+from Cu_expansion_yield_calculator import pad_Cu_expansion_yield_map_generator
+from utils.util import risk_map_generator
 
 
 
@@ -92,7 +92,7 @@ def Pad_Yield_Map_Generator(
     print(f"Defect yield calculation took {time.time() - start_time:.2f} seconds")
 
     # Calculate the Cu expansion yield
-    Cu_expansion_die_yield, Cu_expansion_pad_yield_map = Cu_expansion_yield_calculator(
+    Cu_expansion_pad_yield_map = pad_Cu_expansion_yield_map_generator(
         cfg                 =       cfg,
         die                 =       die,
         TOP_DISH_MEAN_nm    =       cfg.TOP_DISH_MEAN_nm,
@@ -106,11 +106,9 @@ def Pad_Yield_Map_Generator(
         pad_bitmap_collection  = pad_bitmap_collection,
         pad_yield_flag      =       cfg.pad_yield_flag,
     )
-    die.die_yield['Y_cr'], die.pad_yield_map['Y_cr'] = Cu_expansion_die_yield, Cu_expansion_pad_yield_map
-    assembly_die_yield = overlay_die_yield * defect_die_yield * Cu_expansion_die_yield
-    assembly_pad_yield_map = overlay_pad_yield_map * defect_pad_yield_map * Cu_expansion_pad_yield_map if cfg.pad_yield_flag else None
-    die.die_yield['Y_asmb'], die.pad_yield_map['Y_asmb'] = assembly_die_yield, assembly_pad_yield_map
-    die_yield = die.die_yield
-    pad_yield_map = die.pad_yield_map
+    die.pad_yield_map['Y_bond'] = die.pad_yield_map['Y_ovl'] * die.pad_yield_map['Y_df'] * die.pad_yield_map['Y_ce']
+    risk_map_generator(cfg=cfg, 
+                        die=die,
+                    )
     del die
-    return die_yield, pad_yield_map
+    return die.pad_yield_map['Y_bond'] 

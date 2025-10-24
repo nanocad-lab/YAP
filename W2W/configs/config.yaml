@@ -173,9 +173,10 @@ w2w_modeling:
   # === General Settings ===
   MODE: "W2W_Hybrid_Bonding_Modeling"   # Name of the modeling
   DEBUG: false                          # Enable debug mode
+  OUTPUT_DIR: "pad_bitmap/"          # Output directory for simulation results
   # === Per Wafer Parameters ===
-  PITCH_r_um: 10                              # Row pad PITCH_um (µm)
-  PITCH_c_um: 10                              # Column pad PITCH_um (µm)
+  PITCH_r_um: 115                             # Row pad PITCH_um (µm)
+  PITCH_c_um: 115                              # Column pad PITCH_um (µm)
   DIE_W_um: 1400                          # Die width (µm)
   DIE_L_um: 1650                          # Die length (µm)
   WAF_R_um: 3000                         # Wafer radius (µm)

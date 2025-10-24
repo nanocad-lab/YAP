@@ -144,17 +144,71 @@ def draw_pad_bitmap(cfg, bitmap_collection):
 
 
 def criticality_generator(cfg, 
-                              bump_data: list,
-                              redundant_net_to_bumpids: dict,
-                              ) -> dict:
+                          bump_data: list,
+                          redundant_net_to_bumpids: dict,
+                        ):
     '''
-    Output format:
-    port esd_criticality mechanical_criticality
+    Criticality file output format:
+    <port> <esd_criticality> <mechanical_criticality>
     '''
+    bump_criticality = list()
+    for bump in bump_data:
+        port = bump['port']
+        num_copies = len(redundant_net_to_bumpids[bump['net']])
+        mechanical_criticality = 1.0 / num_copies
+        if num_copies == 1:
+            esd_criticality = 1.0
+        elif num_copies > 1 and ('vss' in port.lower() or 'vcc' in port.lower()):
+            esd_criticality = 1.0 / num_copies
+        elif num_copies > 1 and ('vss' not in port.lower() and 'vcc' not in port.lower()):
+            esd_criticality = 1.0
 
+        bump_criticality.append({
+            "port": port,
+            "esd_criticality": esd_criticality,
+            "mechanical_criticality": mechanical_criticality
+        })
+    with open(cfg.OUTPUT_DIR + "UCIe_standard_criticality.txt", 'w') as f:
+        for bump_crit in bump_criticality:
+            f.write(f"{bump_crit['port']} {bump_crit['esd_criticality']} {bump_crit['mechanical_criticality']}\n")
+    print("UCIe standard criticality file saved in ", cfg.OUTPUT_DIR + "UCIe_standard_criticality.txt")
+    return
+
+
+def risk_map_generator(cfg, 
+                          die_id: int,
+                          die: object,
+                        ):
+    '''
+    Risk map output format:
+    <pad_coords_x> <pad_coords_y> <esd_failure_probability> <overlay_failure_probability> <particle_failure_probability> <mechanical_failure_probability>
+    '''
+    risk_map = list()
+    for pad_id in range(len(die.pad_coords)):
+        pad_coords_x = die.pad_coords[pad_id, 0]
+        pad_coords_y = die.pad_coords[pad_id, 1]
+        if pad_coords_x == np.nan or pad_coords_y == np.nan:
+            continue
+        pad_ovl_yield = die.pad_yield_map['Y_ovl'].flatten()[pad_id]
+        pad_df_yield = die.pad_yield_map['Y_df'].flatten()[pad_id]
+        pad_ce_yield = die.pad_yield_map['Y_ce'].flatten()[pad_id]
+        pad_esd_yield = die.pad_yield_map['Y_esd'].flatten()[pad_id]
+        risk_map.append({
+            "pad_coords_x": pad_coords_x,
+            "pad_coords_y": pad_coords_y,
+            "esd_failure_probability": 1 - pad_esd_yield,
+            "overlay_failure_probability": 1 - pad_ovl_yield,
+            "particle_failure_probability": 1 - pad_df_yield,
+            "mechanical_failure_probability": 1 - pad_ce_yield,
+        })
+    with open(cfg.OUTPUT_DIR + "UCIe_standard_die_{}_risk_map.map".format(die_id), 'w') as f:
+        for pad_risk in risk_map:
+            f.write(f"{pad_risk['pad_coords_x']} {pad_risk['pad_coords_y']} {pad_risk['esd_failure_probability']} {pad_risk['overlay_failure_probability']} {pad_risk['particle_failure_probability']} {pad_risk['mechanical_failure_probability']}\n")
+    print("UCIe standard die {} risk map file saved in ".format(die_id), cfg.OUTPUT_DIR + "UCIe_standard_die_{}_risk_map.map".format(die.die_id))
+    return
 
 def convert_3dblox_to_pad_bitmap(cfg, 
-                                 blox_bmap_path='pad_bitmap/UCIe_standard.bmap', 
+                                 blox_bmap_path: str, 
                                  pad_arrange_pattern='checkerboard'):
     '''
     This module converts the 3DBlox .bmap file to pad bitmap for YAP to process.
@@ -200,7 +254,7 @@ def convert_3dblox_to_pad_bitmap(cfg,
         redundant_net_to_bumpids[bump['net']].add(bump['bumpid'])
     
     # Generate the criticality map
-    criticality = criticality_generator(cfg, bump_data, redundant_net_to_bumpids)
+    criticality_generator(cfg, bump_data, redundant_net_to_bumpids)
 
     # Initialize the pad bitmap
     # TODO: You need to modify the simulator to support different pad arrangement patterns
