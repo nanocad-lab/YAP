@@ -44,8 +44,8 @@ def Assembly_Yield_Simulator(
         )
         wafer_sample = waf_list[0]
         # Draw the swhole wafer
-        wafer_sample.draw_wafer_die(fig_size=(15, 15))
-        raise NotImplementedError("Stop here for debug.")
+        # wafer_sample.draw_wafer_die(fig_size=(15, 15))
+        # raise NotImplementedError("Stop here for debug.")
         # Generate overlay terms
         system_translation_x_um, system_translation_y_um, system_rotation_rad, system_magnification_ppm, MAX_ALLOWED_MISALIGNMENT_um = overlay_term_simulator(
             PAD_TOP_R_um                    =       cfg.PAD_TOP_R_um,
