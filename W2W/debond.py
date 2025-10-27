@@ -18,50 +18,6 @@ import numpy as np
 # =============================== PARAMETERS ==================================
 # =============================================================================
 
-# ---------- (A) Pad-scale: Geometry & Temps ----------
-PITCH_UM      = cfg.PITCH_r_um**2       # pad pitch p [µm]
-DIAM_UM       = cfg.PAD_TOP_R_um        # pad diameter d [µm]
-T_ANNEAL_C    = cfg.T_anl               # anneal temperature [°C]
-T_REF_C       = cfg.T_R                 # reference temperature [°C]
-DISHING_NM    = cfg.DISH_0_m * 1e9           # recess/dishing depth [nm] (runtime default; inversion overrides)
-
-# ---------- (B) Pad-scale: Material constants ----------
-# Copper
-CU_E_GPA      = cfg.CU_E_GPA
-CU_NU         = cfg.CU_NU
-CU_ALPHA_PPM  = cfg.CU_ALPHA_PPM
-# SiO2
-OX_E_GPA      = cfg.OX_E_GPA
-OX_NU         = cfg.OX_NU
-OX_ALPHA_PPM  = cfg.OX_ALPHA_PPM
-
-# ---------- (C) Pad-scale: Modeling constants (9) ----------
-SIGMA_Y_MPA   = cfg.SIGMA_Y_MPA
-R_P           = cfg.R_P
-R_C           = cfg.R_C
-CREEP_FACTOR  = cfg.CREEP_FACTO
-
-TCU_BASE_UM   = cfg.TCU_BASE_UM
-TCU_K_PER_C   = cfg.TCU_K_PER_C
-PHI_CU0       = cfg.PHI_CU0
-ETA_GROWTH    = cfg.ETA_GROWTH
-T_INT_NM      = cfg.T_INT_NM
-
-# ---------- (D) Pad-scale: Cool-down (Cu–Cu) ----------
-COOL_BAUSINGER_REDUCTION = cfg.COOL_BAUSINGER_REDUCTION
-COOL_A_HARD_MPA          = cfg.COOL_A_HARD_MPA
-COOL_K_HARD_PER_MPA      = cfg.COOL_K_HARD_PER_MPA
-KN_COOL_GAIN             = cfg.KN_COOL_GAIN
-VISC_LAMBDA = cfg.VISC_LAMBDA
-VISC_EXP    = cfg.VISC_EXP
-TCU_CONST_UM_COOL       = cfg.CU_CONST_UM_COO
-KDISH_TCU_GAIN_PER_NM   = cfg.KDISH_TCU_GAIN_PER_NM
-
-# ---------- (E) Critical peeling stress ----------
-CRIT_aY2_UM: float = cfg.CRIT_aY2_UM
-GC_SIO2_JPM2: float = cfg.GC_SIO2_JPM2
-GC_CU_JPM2:   float = cfg.GC_CU_JPM2
-Effective_Contact_Area: float = cfg.Effective_Contact_Area
 
 # ---------- (F) Wafer-layer materials ----------
 @dataclass(frozen=True)
@@ -70,10 +26,6 @@ class Material:
     E_Pa: float
     alpha_perC: float
     nu: float
-
-MAT_CU   = Material("Cu",   E_Pa=cfg.CU_E_GPA*1e9, alpha_perC=cfg.CU_ALPHA_PPM*1e-6, nu=cfg.CU_NU)
-MAT_SiO2 = Material("SiO2", E_Pa=cfg.OX_E_GPA*1e9, alpha_perC=cfg.OX_ALPHA_PPM*1e-6,  nu=cfg.OX_NU)
-MAT_Si   = Material("Si",   E_Pa=cfg.SI_E_GPA*1e9, alpha_perC=cfg.SI_ALPHA_PPM*1e-6, nu=cfg.SI_NU)
 
 # ---------- (G) Wafer configs ----------
 @dataclass
@@ -98,23 +50,88 @@ class WaferConfig:
     T_C: float
     T0_C: float
 
-WAFER_A = WaferConfig(
-    top=LayerMix3(MAT_CU,cfg.B_Chip_Cu_V,MAT_SiO2,cfg.B_Chip_Sio2_V,MAT_Si,cfg.B_Chip_Si_V,cfg.B_Chip_T),
-    bottom=LayerMix3(MAT_Si,cfg.B_Sub_Si_V,MAT_SiO2,cfg.B_Sub_Sio2_V,MAT_CU,cfg.B_Sub_Cu_V0,cfg.B_Sub_T),
-    L_m= cfg.WAF_R_um*1e-6, T_C= cfg.T_anl, T0_C= cfg.T_R
-)
-WAFER_B = WaferConfig(
-    top=LayerMix3(MAT_CU,cfg.T_Chip_Cu_V,MAT_SiO2,cfg.T_Chip_Sio2_V,MAT_Si,cfg.T_Chip_Si_V,cfg.T_Chip_T),
-    bottom=LayerMix3(MAT_Si,cfg.T_Sub_Si_V,MAT_SiO2,cfg.T_Sub_Sio2_V,MAT_CU,cfg.T_Sub_Cu_V,cfg.T_Sub_T),
-    L_m= cfg.WAF_R_um*1e-6, T_C= cfg.T_anl, T0_C= cfg.T_R
-)
+def __init_params(cfg):
+    global PITCH_UM, DIAM_UM, T_ANNEAL_C, T_REF_C, DISHING_NM, \
+            CU_E_GPA, CU_NU, CU_ALPHA_PPM, \
+            OX_E_GPA, OX_NU, OX_ALPHA_PPM, \
+            SIGMA_Y_MPA, R_P, R_C, CREEP_FACTOR, \
+            TCU_BASE_UM, TCU_K_PER_C, PHI_CU0, ETA_GROWTH, T_INT_NM, \
+            COOL_BAUSINGER_REDUCTION, COOL_A_HARD_MPA, COOL_K_HARD_PER_MPA, KN_COOL_GAIN, VISC_LAMBDA, VISC_EXP, TCU_CONST_UM_COOL, KDISH_TCU_GAIN_PER_NM, \
+            CRIT_aY2_UM, GC_SIO2_JPM2, GC_CU_JPM2, Effective_Contact_Area, \
+            MAT_CU, MAT_SiO2, MAT_Si, \
+            WAFER_A, WAFER_B, \
+            S_INIT_A_M, S_INIT_B_M, \
+            USE_PLOT
+    
+    # ---------- (A) Pad-scale: Geometry & Temps ----------
+    PITCH_UM      = cfg.PITCH_r_um**2       # pad pitch p [µm]
+    DIAM_UM       = cfg.PAD_TOP_R_um        # pad diameter d [µm]
+    T_ANNEAL_C    = cfg.T_anl               # anneal temperature [°C]
+    T_REF_C       = cfg.T_R                 # reference temperature [°C]
+    DISHING_NM    = cfg.DISH_0_m * 1e9           # recess/dishing depth [nm] (runtime default; inversion overrides)
 
-# ---------- (H) Pre-anneal warpages ----------
-S_INIT_A_M = cfg.S_INIT_A_M
-S_INIT_B_M = cfg.S_INIT_B_M
+    # ---------- (B) Pad-scale: Material constants ----------
+    # Copper
+    CU_E_GPA      = cfg.CU_E_GPA
+    CU_NU         = cfg.CU_NU
+    CU_ALPHA_PPM  = cfg.CU_ALPHA_PPM
+    # SiO2
+    OX_E_GPA      = cfg.OX_E_GPA
+    OX_NU         = cfg.OX_NU
+    OX_ALPHA_PPM  = cfg.OX_ALPHA_PPM
 
-# ---------- (J) Optional plotting ----------
-USE_PLOT = False
+    # ---------- (C) Pad-scale: Modeling constants (9) ----------
+    SIGMA_Y_MPA   = cfg.SIGMA_Y_MPA
+    R_P           = cfg.R_P
+    R_C           = cfg.R_C
+    CREEP_FACTOR  = cfg.CREEP_FACTO
+
+    TCU_BASE_UM   = cfg.TCU_BASE_UM
+    TCU_K_PER_C   = cfg.TCU_K_PER_C
+    PHI_CU0       = cfg.PHI_CU0
+    ETA_GROWTH    = cfg.ETA_GROWTH
+    T_INT_NM      = cfg.T_INT_NM
+
+    # ---------- (D) Pad-scale: Cool-down (Cu–Cu) ----------
+    COOL_BAUSINGER_REDUCTION = cfg.COOL_BAUSINGER_REDUCTION
+    COOL_A_HARD_MPA          = cfg.COOL_A_HARD_MPA
+    COOL_K_HARD_PER_MPA      = cfg.COOL_K_HARD_PER_MPA
+    KN_COOL_GAIN             = cfg.KN_COOL_GAIN
+    VISC_LAMBDA = cfg.VISC_LAMBDA
+    VISC_EXP    = cfg.VISC_EXP
+    TCU_CONST_UM_COOL       = cfg.CU_CONST_UM_COO
+    KDISH_TCU_GAIN_PER_NM   = cfg.KDISH_TCU_GAIN_PER_NM
+
+    # ---------- (E) Critical peeling stress ----------
+    CRIT_aY2_UM: float = cfg.CRIT_aY2_UM
+    GC_SIO2_JPM2: float = cfg.GC_SIO2_JPM2
+    GC_CU_JPM2:   float = cfg.GC_CU_JPM2
+    Effective_Contact_Area: float = cfg.Effective_Contact_Area
+
+    # ---------- (F) Wafer-layer materials ----------
+    MAT_CU   = Material("Cu",   E_Pa=cfg.CU_E_GPA*1e9, alpha_perC=cfg.CU_ALPHA_PPM*1e-6, nu=cfg.CU_NU)
+    MAT_SiO2 = Material("SiO2", E_Pa=cfg.OX_E_GPA*1e9, alpha_perC=cfg.OX_ALPHA_PPM*1e-6,  nu=cfg.OX_NU)
+    MAT_Si   = Material("Si",   E_Pa=cfg.SI_E_GPA*1e9, alpha_perC=cfg.SI_ALPHA_PPM*1e-6, nu=cfg.SI_NU)
+
+    # ---------- (G) Wafer configs ----------
+
+    WAFER_A = WaferConfig(
+        top=LayerMix3(MAT_CU,cfg.B_Chip_Cu_V,MAT_SiO2,cfg.B_Chip_Sio2_V,MAT_Si,cfg.B_Chip_Si_V,cfg.B_Chip_T),
+        bottom=LayerMix3(MAT_Si,cfg.B_Sub_Si_V,MAT_SiO2,cfg.B_Sub_Sio2_V,MAT_CU,cfg.B_Sub_Cu_V0,cfg.B_Sub_T),
+        L_m= cfg.WAF_R_um*1e-6, T_C= cfg.T_anl, T0_C= cfg.T_R
+    )
+    WAFER_B = WaferConfig(
+        top=LayerMix3(MAT_CU,cfg.T_Chip_Cu_V,MAT_SiO2,cfg.T_Chip_Sio2_V,MAT_Si,cfg.T_Chip_Si_V,cfg.T_Chip_T),
+        bottom=LayerMix3(MAT_Si,cfg.T_Sub_Si_V,MAT_SiO2,cfg.T_Sub_Sio2_V,MAT_CU,cfg.T_Sub_Cu_V,cfg.T_Sub_T),
+        L_m= cfg.WAF_R_um*1e-6, T_C= cfg.T_anl, T0_C= cfg.T_R
+    )
+
+    # ---------- (H) Pre-anneal warpages ----------
+    S_INIT_A_M = cfg.S_INIT_A_M
+    S_INIT_B_M = cfg.S_INIT_B_M
+
+    # ---------- (J) Optional plotting ----------
+    USE_PLOT = False
 
 # =============================================================================
 # ============================== PAD-SCALE CORE ===============================
@@ -126,7 +143,7 @@ def _units():
 def _geom_areas(p_um, d_um):
     U=_units(); p=p_um*U['um']; d=d_um*U['um']
     A_cell=p**2; A_cu=math.pi*(d**2)/4.0; A_ox=A_cell-A_cu
-    if A_ox<=0: raise ValueError("A_ox<=0；检查 PITCH_UM 与 DIAM_UM。")
+    if A_ox<=0: raise ValueError("A_ox<=0, check PITCH_UM and DIAM_UM values.")
     return A_cell, A_cu, A_ox
 
 def _fill_fraction(p_um,d_um):
@@ -442,6 +459,8 @@ def build_effcrit_and_dishing_arrays(peel_dict: dict, coords_mm_np: np.ndarray, 
 # =============================================================================
 
 def debond_dishing_bounds_calculator(cfg, coords_um):
+    # Initialize with input parameters
+    __init_params(cfg)
     # 1) Wafer-level stack to get peeling kernel
     resA = process_wafer(WAFER_A)  # bottom
     resB = process_wafer(WAFER_B)  # top
@@ -460,7 +479,7 @@ def debond_dishing_bounds_calculator(cfg, coords_um):
     )
 
     # 2) Use manual coords (µm) and convert to mm
-    coords_um = np.asarray(COORDS_UM, dtype=np.float64).reshape(-1, 2)
+    coords_um = np.asarray(coords_um, dtype=np.float64).reshape(-1, 2)
     if coords_um.size == 0:
         raise ValueError("Pad coords used for debond dishing bounds calculation is empty!")
     coords_mm = coords_um * 1e-3
