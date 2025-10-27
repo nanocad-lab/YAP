@@ -292,6 +292,7 @@ def convert_3dblox_to_pad_bitmap(cfg,
     CRITICAL_PAD_BLOCK_BITMAP = downsample_bitmap(CRITICAL_PAD_BITMAP, pad_block_size)
     REDUNDANT_PAD_BITMAP = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL), dtype=bool)
     REDUNDANT_PAD_BLOCK_BITMAP = downsample_bitmap(REDUNDANT_PAD_BITMAP, pad_block_size)
+    ESD_CRITICAL_PAD_BITMAP = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL), dtype=bool)
     pad_coords = np.full((cfg.PAD_ARR_ROW * cfg.PAD_ARR_COL, 2), np.nan, dtype=np.float32)  # x, y coordinates of each bump
 
     if pad_arrange_pattern == 'checkerboard': # This case is for UCIe standard
@@ -301,12 +302,17 @@ def convert_3dblox_to_pad_bitmap(cfg,
                     bump_id = int(row * cfg.PAD_ARR_COL / 2 + col // 2)
                     current_bump_dict = bump_data[bump_id]
                     current_bump_net = current_bump_dict['net']
+                    current_bump_port = current_bump_dict['port']
                     pad_coords[row * cfg.PAD_ARR_COL + col, 0] = current_bump_dict['x'] - (pad_array_left + pad_array_right) / 2
                     pad_coords[row * cfg.PAD_ARR_COL + col, 1] = current_bump_dict['y'] - (pad_array_top + pad_array_bottom) / 2
-                    if len(redundant_net_to_bumpids[current_bump_net]) == 1:
+                    num_copies = len(redundant_net_to_bumpids[current_bump_net])
+                    if num_copies == 1:
                         CRITICAL_PAD_BITMAP[row, col] = 1
-                    else:
+                    elif num_copies > 1 and ('vss' in current_bump_port.lower() or 'vcc' in current_bump_port.lower()): 
                         REDUNDANT_PAD_BITMAP[row, col] = 1
+                    elif num_copies > 1 and ('vss' not in current_bump_port.lower() and 'vcc' not in current_bump_port.lower()):
+                        REDUNDANT_PAD_BITMAP[row, col] = 1
+                        ESD_CRITICAL_PAD_BITMAP[row, col] = 1       # TODO: Check this with Alex. If redundant pads are connected to the same transistor gate, then this is correct.
                 else:
                     continue
     else:
@@ -328,6 +334,7 @@ def convert_3dblox_to_pad_bitmap(cfg,
     bitmap_collection["REDUNDANT_PAD_BITMAP"] = REDUNDANT_PAD_BITMAP
     bitmap_collection["REDUNDANT_PAD_BLOCK_BITMAP"] = REDUNDANT_PAD_BLOCK_BITMAP
     bitmap_collection["DUMMY_PAD_BITMAP"] = DUMMY_PAD_BITMAP
+    bitmap_collection["ESD_CRITICAL_PAD_BITMAP"] = ESD_CRITICAL_PAD_BITMAP
     bitmap_collection["is_redundant_copy_same_block"] = False
     bitmap_collection["num_critical_pads"] = num_critical_pads
     bitmap_collection["num_redundant_pads"] = num_redundant_pads

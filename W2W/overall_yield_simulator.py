@@ -270,7 +270,7 @@ def overall_yield_simulator(
             if np.abs(die_center_x) < die.DIE_W_um / 2 and np.abs(die_center_y) < die.DIE_L_um / 2:
                 # Assume dies in the center will be the first contact point and have higher ESD hazard
                 # Check critical pads specifically for the ESD failure mechanisms (ESD-critical pads)
-                esd_fail_pad_map = esd_hybrid_failure_simulator(cfg=cfg)
+                esd_fail_pad_map = esd_failure_simulator(cfg=cfg)
                 critical_esd_fail_map = die_esd_critical_pad_bitmap * esd_fail_pad_map
                 if any(critical_esd_fail_map == 1):
                     wafer.survival_die -= 1

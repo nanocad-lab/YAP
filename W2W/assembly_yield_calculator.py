@@ -13,6 +13,7 @@ from overlay_yield_calculator import pad_overlay_yield_map_generator
 from defect_yield_calculator import pad_defect_yield_map_generator
 from Cu_expansion_yield_calculator import pad_Cu_expansion_yield_map_generator
 from utils.util import risk_map_generator
+from esd_hybrid import pad_esd_yield_map_generator
 
 
 
@@ -126,8 +127,19 @@ def Pad_Yield_Map_Generator(
     Cu_expansion_yield_time = time.time() - start_time - wafer_init_time - overlay_yield_time - defect_yield_time
     print("Cu expansion yield calculation time: {} seconds.".format(Cu_expansion_yield_time))
 
+    # Calculate the ESD yield
+    pad_esd_yield_map_generator(
+        cfg                     = cfg,
+        wafer                   = wafer,
+        pad_bitmap_collection   = pad_bitmap_collection,
+        pad_yield_flag          = cfg.pad_yield_flag,
+    )
+    esd_yield_time = time.time() - start_time - wafer_init_time - overlay_yield_time - defect_yield_time - Cu_expansion_yield_time
+    print("ESD yield calculation time: {} seconds.".format(esd_yield_time))
+
+
     for die_id, die in enumerate(wafer.die_list):
-        die.pad_yield_map['Y_bond'] = die.pad_yield_map['Y_ovl'] * die.pad_yield_map['Y_df'] * die.pad_yield_map['Y_ce']
+        die.pad_yield_map['Y_bond'] = die.pad_yield_map['Y_ovl'] * die.pad_yield_map['Y_df'] * die.pad_yield_map['Y_ce'] * die.pad_yield_map['Y_esd']
         risk_map_generator(cfg=cfg, 
                             die_id=die_id,
                             die=die,

@@ -54,6 +54,8 @@ def overall_yield_simulator(
         die_critical_pad_bitmap = pad_bitmap_collection["CRITICAL_PAD_BITMAP"]
         # Read the redundant critical pad bitmap
         die_redundant_pad_bitmap = pad_bitmap_collection["REDUNDANT_PAD_BITMAP"]
+        # Read the ESD critical pad bitmap
+        die_esd_critical_pad_bitmap = pad_bitmap_collection["ESD_CRITICAL_PAD_BITMAP"]
         # Read the redundant net to bump ids mapping
         redundant_net_to_bumpids = pad_bitmap_collection["redundant_net_to_bumpids"]
 
@@ -222,12 +224,11 @@ def overall_yield_simulator(
         Check the ESD failure
         '''
         # TODO: ESD failure simulation to be implemented
-
-
-
-
-
-
+        esd_fail_pad_map = esd_failure_simulator(cfg=cfg, top_dish=top_dish, bot_dish=bot_dish)
+        critical_esd_fail_map = die_esd_critical_pad_bitmap * esd_fail_pad_map
+        if any(critical_esd_fail_map == 1):     # Only one pad will form the first contact
+            die.survival = False
+            continue
 
         if die.survival:
             safe_die_count += 1
