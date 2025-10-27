@@ -69,6 +69,7 @@ def Assembly_Yield_Simulator(
         
         # Generate void defects
         defect_yield_simulator(
+            cfg             =       cfg,
             D0              =       cfg.D0,  # Number of particles of all thicknesses per unit area (um^{-1}) on the die
             t_0             =       cfg.t_0,
             z               =       cfg.z,

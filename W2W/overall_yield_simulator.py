@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 from overlay_yield_simulator import die_pad_misalignment
 from Cu_gap_simulator import Cu_gap_simulator
 from debond import debond_dishing_bounds_calculator
+from esd_hybrid import * 
 
 
 def total_memory_mb(obj):
@@ -70,6 +71,8 @@ def overall_yield_simulator(
         die_critical_pad_bitmap = pad_bitmap_collection["CRITICAL_PAD_BITMAP"]
         # Read the redundant critical pad bitmap
         die_redundant_pad_bitmap = pad_bitmap_collection["REDUNDANT_PAD_BITMAP"]
+        # Read the ESD-critical pad bitmap
+        die_esd_critical_pad_bitmap = pad_bitmap_collection["ESD_CRITICAL_PAD_BITMAP"]
         # Read the redundant net to bump ids mapping
         redundant_net_to_bumpids = pad_bitmap_collection["redundant_net_to_bumpids"]
 
@@ -226,7 +229,8 @@ def overall_yield_simulator(
             Check the Cu gap, a true Monte Carlo simulator
             '''
             # Check the Cu expansion
-            Cu_gap = Cu_gap_simulator(TOP_DISH_MEAN_nm, TOP_DISH_STD_nm, BOT_DISH_MEAN_nm, BOT_DISH_STD_nm, int(die.num_pads))
+            top_dish, bot_dish = Cu_gap_simulator(TOP_DISH_MEAN_nm, TOP_DISH_STD_nm, BOT_DISH_MEAN_nm, BOT_DISH_STD_nm, int(die.num_pads))
+            Cu_gap = top_dish + bot_dish
             Cu_gap = Cu_gap.reshape(die.PAD_ARR_ROW, die.PAD_ARR_COL)
             # Calculate the safe range for Cu recess
             dishing_bound_array = debond_dishing_bounds_calculator(cfg, die.pad_coords) # (num_pads, 2) array: (dishing_low_nm, dishing_high_nm)
@@ -261,10 +265,17 @@ def overall_yield_simulator(
             Check the ESD failure
             '''
             # TODO: ESD failure simulation to be implemented
-
-
-
-
+            # Check if the die is in the wafer center
+            die_center_x, die_center_y = die.die_center[0], die.die_center[1]
+            if np.abs(die_center_x) < die.DIE_W_um / 2 and np.abs(die_center_y) < die.DIE_L_um / 2:
+                # Assume dies in the center will be the first contact point and have higher ESD hazard
+                # Check critical pads specifically for the ESD failure mechanisms (ESD-critical pads)
+                esd_fail_pad_map = esd_hybrid_failure_simulator(cfg=cfg)
+                critical_esd_fail_map = die_esd_critical_pad_bitmap * esd_fail_pad_map
+                if any(critical_esd_fail_map == 1):
+                    wafer.survival_die -= 1
+                    die.survival = False
+                    continue
 
             #check time for 10 dies
             if die_count % 10 == 9:

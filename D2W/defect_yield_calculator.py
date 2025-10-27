@@ -230,10 +230,17 @@ def pad_defect_yield_map_generator(
         This function calculate the average number of fatal main void defects to the pad
         To calculate the pad-level defect yield, we ignore whether the pad is redundant or not.
         '''
-        pad2die_center_dist_um = np.sqrt(die.pad_coords[:, 0]**2 + die.pad_coords[:, 1]**2)
-
+        if cfg.first_contact == 'center':
+            L0 = np.sqrt(die.pad_coords[:, 0]**2 + die.pad_coords[:, 1]**2) # pad to die center distance
+        elif cfg.first_contact == 'vertical-edge':
+            L0 = np.abs(die.DIE_W_um / 2 + die.pad_coords[:, 0]) # pad to left die edge distance
+        elif cfg.first_contact == 'horizontal-edge':
+            L0 = np.abs(die.DIE_L_um / 2 + die.pad_coords[:, 1]) # pad to bottom die edge distance
+        elif cfg.first_contact == 'corner':
+            L0 = np.sqrt((die.DIE_W_um / 2 + die.pad_coords[:, 0])**2 + (die.DIE_L_um / 2 + die.pad_coords[:, 1])**2) # pad to left-bottom die corner distance
+            
         # Use the formula to calculate the average number of fatal defects per pad
-        term = k_r * pad2die_center_dist_um + k_r0
+        term = k_r * L0 + k_r0
         part1 = PAD_TOP_R_um**2
         part2 = ((z - 1) / (z - 2)) * (term**2) * t_0
         part3 = (4 * (z - 1) / (2 * z - 3)) * term * PAD_TOP_R_um * t_0

@@ -39,8 +39,7 @@ def Cu_gap_simulator(
         BOT_DISH_MEAN_nm, 
         BOT_DISH_STD_nm, 
         num_pads,
-    ):
+    ) -> tuple[np.ndarray, np.ndarray]:
     top_dish = np.random.normal(TOP_DISH_MEAN_nm, TOP_DISH_STD_nm, num_pads)
     bot_dish = np.random.normal(BOT_DISH_MEAN_nm, BOT_DISH_STD_nm, num_pads)
-    Cu_gap = top_dish + bot_dish
-    return Cu_gap
+    return top_dish, bot_dish

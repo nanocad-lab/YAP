@@ -190,7 +190,8 @@ def overall_yield_simulator(
         Check the Cu gap, a true Monte Carlo simulator
         '''
         # Check the Cu expansion
-        Cu_gap = Cu_gap_simulator(TOP_DISH_MEAN_nm, TOP_DISH_STD_nm, BOT_DISH_MEAN_nm, BOT_DISH_STD_nm, int(die.num_pads))
+        top_dish, bot_dish = Cu_gap_simulator(TOP_DISH_MEAN_nm, TOP_DISH_STD_nm, BOT_DISH_MEAN_nm, BOT_DISH_STD_nm, int(die.num_pads))
+        Cu_gap = top_dish + bot_dish
         Cu_gap = Cu_gap.reshape(die_critical_pad_bitmap.shape)
         # Calculate the safe range for Cu recess
         dishing_bound_array = debond_dishing_bounds_calculator(cfg, die.pad_coords) # (num_pads, 2) array: (dishing_low_nm, dishing_high_nm)

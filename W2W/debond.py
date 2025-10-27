@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-stack_and_pad_effcrit.py  (produce dishing intervals from manual coord list)
+debond.py  (produce dishing intervals from manual coord list)
 
 This version removes ALL external wafer_info reading logic.
 You define pad global coordinates (in µm) at the file header via COORDS_UM.
