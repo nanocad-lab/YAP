@@ -11,6 +11,7 @@ import time
 from overlay_yield_simulator import die_pad_misalignment
 from Cu_gap_simulator import Cu_gap_simulator
 from debond import debond_dishing_bounds_calculator
+from esd_hybrid import esd_failure_simulator
 
 def overall_yield_simulator(
     cfg,
@@ -30,6 +31,10 @@ def overall_yield_simulator(
     TOP_DISH_STD_nm: float,
     BOT_DISH_MEAN_nm: float,
     BOT_DISH_STD_nm: float,
+    TILT_X_MEAN_DEG: float,
+    TILT_X_STD_DEG: float,
+    TILT_Y_MEAN_DEG: float,
+    TILT_Y_STD_DEG: float,
     PITCH_c_um: float,
     PITCH_r_um: float,
     PAD_TOP_R_um: float,
@@ -224,11 +229,22 @@ def overall_yield_simulator(
         Check the ESD failure
         '''
         # TODO: ESD failure simulation to be implemented
-        esd_fail_pad_map = esd_failure_simulator(cfg=cfg, top_dish=top_dish, bot_dish=bot_dish)
-        critical_esd_fail_map = die_esd_critical_pad_bitmap * esd_fail_pad_map
-        if any(critical_esd_fail_map == 1):     # Only one pad will form the first contact
-            die.survival = False
-            continue
+        first_contact_pad_idx, survive_bool = esd_failure_simulator(pad_coords_um=die.pad_coords,
+                                                pad_size_um=PAD_TOP_R_um * 2,
+                                                top_die_w_um=die.DIE_W_um,
+                                                top_die_h_um=die.DIE_L_um,
+                                                top_dish_nm_ext=top_dish,
+                                                bot_dish_nm_ext=bot_dish,
+                                                tilt_x_mean_deg=TILT_X_MEAN_DEG,
+                                                tilt_x_std_deg=TILT_X_STD_DEG,
+                                                tilt_y_mean_deg=TILT_Y_MEAN_DEG,
+                                                tilt_y_std_deg=TILT_Y_STD_DEG,
+                                                )
+        if first_contact_pad_idx is not None and survive_bool == False:    # One pad will form the first contact and fail
+            r_idx, c_idx = first_contact_pad_idx // PAD_ARR_COL, first_contact_pad_idx % PAD_ARR_COL
+            if die_esd_critical_pad_bitmap[r_idx, c_idx] == 1:  # If the failing pad is critical w.r.t. ESD
+                die.survival = False
+                continue
 
         if die.survival:
             safe_die_count += 1

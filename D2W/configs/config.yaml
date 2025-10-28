@@ -90,6 +90,14 @@ w2w_simulation:
   simulation_times: 1                  # Number of simulation iterations
   approximate_set: 1                 # 1: disable overlay simulation approximation, 100: enable
 
+  # === ESD Parameters ===
+  TILT_X_MEAN_DEG: 0.000
+  TILT_X_STD_DEG: 0.01
+  TILT_Y_MEAN_DEG: 0.000
+  TILT_Y_STD_DEG: 0.01
+  n_tilts_samples: 1000                  # Number of tilt samples for ESD simulation
+  n_dishes_samples: 1000                # Number of dish samples for ESD simulation
+
 
 #### Modeling parameters for Wafer-to-Wafer (W2W) hybrid bonding simulation.
 w2w_modeling:
@@ -174,7 +182,11 @@ w2w_modeling:
   DISH_0_m: 75e-9                         # Reference dish height (m)
   k_peel: 6.66e15                       # Peel force coefficient (N/m⁴/K)
 
-
+  # === ESD Parameters ===
+  TILT_X_MEAN_DEG: 0.000
+  TILT_X_STD_DEG: 0.01
+  TILT_Y_MEAN_DEG: 0.000
+  TILT_Y_STD_DEG: 0.01
 
 
 #### ==================================================================== ####
@@ -263,7 +275,14 @@ d2w_simulation:
   Young_modulus_Pa: 7.3e10                 # Young's modulus (Pa)
   Dielectric_thickness: 1.5e-6          # Dielectric thickness (m)
   DISH_0_m: 75e-9                         # Reference dish depth (m)
-  k_peel: 6.66e12                       # Peel force constant (N/m⁴/K)
+  k_peel: 6.66e12                       # Peel force constant (N/m⁴/K)\
+
+  # === ESD Parameters ===
+  TILT_X_MEAN_DEG: 0.000
+  TILT_X_STD_DEG: 0.01
+  TILT_Y_MEAN_DEG: 0.000
+  TILT_Y_STD_DEG: 0.01
+
 
   # === Simulation Control ===
   simulation_times: 1                  # Number of simulation iterations
@@ -356,3 +375,11 @@ d2w_modeling:
   Dielectric_thickness: 1.5e-6          # Dielectric layer thickness (m)
   DISH_0_m: 75e-9                         # Reference dish height (m)
   k_peel: 6.66e15                       # Peel force coefficient (N/m⁴/K)
+
+  # === ESD Parameters ===
+  TILT_X_MEAN_DEG: 0.000
+  TILT_X_STD_DEG: 0.01
+  TILT_Y_MEAN_DEG: 0.000
+  TILT_Y_STD_DEG: 0.01
+  n_tilts_samples: 1000                  # Number of tilt samples for ESD simulation
+  n_dishes_samples: 1000                # Number of dish samples for ESD simulation

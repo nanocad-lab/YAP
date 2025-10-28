@@ -26,8 +26,6 @@ def pad_Cu_expansion_yield_map_generator(*,
                                   TOP_DISH_STD_nm: float,
                                   BOT_DISH_MEAN_nm: float,
                                   BOT_DISH_STD_nm: float,
-                                  pad_bitmap_collection: dict,
-                                  pad_yield_flag: bool = False,
                                   ):
     dishing_bound_array = debond_dishing_bounds_calculator(cfg, die.pad_coords) # (num_pads, 2) array: (dishing_low_nm, dishing_high_nm)
     upper_limits = - dishing_bound_array[:, 0]  # - upper Cu height limits
@@ -38,7 +36,6 @@ def pad_Cu_expansion_yield_map_generator(*,
     glb_defect_pad_yield_max = max(glb_defect_pad_yield_max, np.nanmax(pad_yield_map))
     die.pad_yield_map['Y_ce'] = pad_yield_map
     die.glb_pad_yield_min_max_dict['Y_ce'] = (glb_defect_pad_yield_min, glb_defect_pad_yield_max)
-    print("Generated pad-level Cu expansion yield map for die {}.".format(i))
 
     # Draw the pad yield map
     plt.figure(figsize=(8, 6))

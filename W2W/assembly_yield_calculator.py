@@ -8,12 +8,14 @@
 import time
 import pickle
 import gzip
+import numpy as np
 from wafer_die_initialization import wafer_initialize
 from overlay_yield_calculator import pad_overlay_yield_map_generator
 from defect_yield_calculator import pad_defect_yield_map_generator
 from Cu_expansion_yield_calculator import pad_Cu_expansion_yield_map_generator
 from utils.util import risk_map_generator
 from esd_hybrid import pad_esd_yield_map_generator
+
 
 
 
@@ -126,14 +128,35 @@ def Pad_Yield_Map_Generator(
 
     Cu_expansion_yield_time = time.time() - start_time - wafer_init_time - overlay_yield_time - defect_yield_time
     print("Cu expansion yield calculation time: {} seconds.".format(Cu_expansion_yield_time))
-
+    
     # Calculate the ESD yield
-    pad_esd_yield_map_generator(
-        cfg                     = cfg,
-        wafer                   = wafer,
-        pad_bitmap_collection   = pad_bitmap_collection,
-        pad_yield_flag          = cfg.pad_yield_flag,
-    )
+    for die_ind, die in enumerate(wafer.die_list):
+        die_center_x, die_center_y = die.die_center[0], die.die_center[1]
+        if np.abs(die_center_x) < die.DIE_W_um / 2 and np.abs(die_center_y) < die.DIE_L_um / 2:
+            # Assume dies in the center will be the first contact point and have higher ESD hazard
+            esd_pad_yield_map, _, _ = pad_esd_yield_map_generator(
+                cfg                   = cfg,
+                pad_coords_um         = die.pad_coords,
+                pad_size_um           = cfg.PAD_TOP_R_um * 2,
+                pad_pitch_um          = cfg.PITCH_r_um,
+                top_die_w_um          = cfg.DIE_W_um,
+                top_die_h_um          = cfg.DIE_L_um,
+                n_tilts               = cfg.n_tilts_samples,
+                n_dishes              = cfg.n_dishes_samples,
+                tilt_x_mean_deg       = cfg.TILT_X_MEAN_DEG,
+                tilt_x_std_deg        = cfg.TILT_X_STD_DEG,
+                tilt_y_mean_deg       = cfg.TILT_Y_MEAN_DEG,
+                tilt_y_std_deg        = cfg.TILT_Y_STD_DEG,
+                top_dish_mean_nm      = cfg.TOP_DISH_MEAN_nm,
+                top_dish_std_nm       = cfg.TOP_DISH_STD_nm,
+                bot_dish_mean_nm      = cfg.BOT_DISH_MEAN_nm,
+                bot_dish_std_nm       = cfg.BOT_DISH_STD_nm,
+            )
+        else:
+            # For dies not in the center, assign full yield (1.0)
+            esd_pad_yield_map = np.ones((die.PAD_ARR_ROW, die.PAD_ARR_COL), dtype=np.float32)
+        die.pad_yield_map['Y_esd'] = esd_pad_yield_map
+
     esd_yield_time = time.time() - start_time - wafer_init_time - overlay_yield_time - defect_yield_time - Cu_expansion_yield_time
     print("ESD yield calculation time: {} seconds.".format(esd_yield_time))
 

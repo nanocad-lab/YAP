@@ -66,7 +66,6 @@ def Pad_Yield_Map_Generator(
         RANDOM_MISALIGNMENT_MEAN_um     =       cfg.RANDOM_MISALIGNMENT_MEAN_um,
         RANDOM_MISALIGNMENT_STD_um      =       cfg.RANDOM_MISALIGNMENT_STD_um,
         die                             =       die,
-        redundant_flag                  =       cfg.redundant_flag,
         pad_yield_flag                  =       cfg.pad_yield_flag,
         pad_yield_map_sub_factor        =       cfg.pad_yield_map_sub_factor,
     )
@@ -104,18 +103,29 @@ def Pad_Yield_Map_Generator(
         k_eb                =       cfg.k_eb,
         T_R                 =       cfg.T_R,
         T_anl               =       cfg.T_anl,
-        pad_bitmap_collection  = pad_bitmap_collection,
-        pad_yield_flag      =       cfg.pad_yield_flag,
     )
     die.pad_yield_map['Y_ce'] = Cu_expansion_pad_yield_map
 
     # Calculate the ESD yield
-    pad_esd_yield_map = pad_esd_yield_map_generator(
-        cfg                     = cfg,
-        pad_bitmap_collection   = pad_bitmap_collection,
-        pad_yield_flag          = cfg.pad_yield_flag,
+    esd_pad_yield_map, _, _ = pad_esd_yield_map_generator(
+        cfg                   = cfg,
+        pad_coords_um         = die.pad_coords,
+        pad_size_um           = cfg.PAD_TOP_R_um * 2,
+        pad_pitch_um          = cfg.PITCH_r_um,
+        top_die_w_um          = cfg.DIE_W_um,
+        top_die_h_um          = cfg.DIE_L_um,
+        n_tilts               = cfg.n_tilts_samples,
+        n_dishes              = cfg.n_dishes_samples,
+        tilt_x_mean_deg       = cfg.TILT_X_MEAN_DEG,
+        tilt_x_std_deg        = cfg.TILT_X_STD_DEG,
+        tilt_y_mean_deg       = cfg.TILT_Y_MEAN_DEG,
+        tilt_y_std_deg        = cfg.TILT_Y_STD_DEG,
+        top_dish_mean_nm      = cfg.TOP_DISH_MEAN_nm,
+        top_dish_std_nm       = cfg.TOP_DISH_STD_nm,
+        bot_dish_mean_nm      = cfg.BOT_DISH_MEAN_nm,
+        bot_dish_std_nm       = cfg.BOT_DISH_STD_nm,
     )
-    die.pad_yield_map['Y_esd'] = pad_esd_yield_map
+    die.pad_yield_map['Y_esd'] = esd_pad_yield_map
 
     die.pad_yield_map['Y_bond'] = die.pad_yield_map['Y_ovl'] * die.pad_yield_map['Y_df'] * die.pad_yield_map['Y_ce'] * die.pad_yield_map['Y_esd']
     risk_map_generator(cfg=cfg, 

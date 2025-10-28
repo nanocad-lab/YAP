@@ -14,8 +14,7 @@ import matplotlib.pyplot as plt
 from overlay_yield_simulator import die_pad_misalignment
 from Cu_gap_simulator import Cu_gap_simulator
 from debond import debond_dishing_bounds_calculator
-from esd_hybrid import * 
-
+from esd_hybrid import esd_failure_simulator
 
 def total_memory_mb(obj):
     total = sys.getsizeof(obj)
@@ -47,6 +46,10 @@ def overall_yield_simulator(
     TOP_DISH_STD_nm,
     BOT_DISH_MEAN_nm,
     BOT_DISH_STD_nm,
+    TILT_X_MEAN_DEG,
+    TILT_X_STD_DEG,
+    TILT_Y_MEAN_DEG,
+    TILT_Y_STD_DEG,
     k_et,
     k_eb,
     T_R,
@@ -270,12 +273,23 @@ def overall_yield_simulator(
             if np.abs(die_center_x) < die.DIE_W_um / 2 and np.abs(die_center_y) < die.DIE_L_um / 2:
                 # Assume dies in the center will be the first contact point and have higher ESD hazard
                 # Check critical pads specifically for the ESD failure mechanisms (ESD-critical pads)
-                esd_fail_pad_map = esd_failure_simulator(cfg=cfg)
-                critical_esd_fail_map = die_esd_critical_pad_bitmap * esd_fail_pad_map
-                if any(critical_esd_fail_map == 1):
-                    wafer.survival_die -= 1
-                    die.survival = False
-                    continue
+                first_contact_pad_idx, survive_bool = esd_failure_simulator(pad_coords_um=die.pad_coords,
+                                                pad_size_um=PAD_TOP_R_um * 2,
+                                                top_die_w_um=die.DIE_W_um,
+                                                top_die_h_um=die.DIE_L_um,
+                                                top_dish_nm_ext=top_dish,
+                                                bot_dish_nm_ext=bot_dish,
+                                                tilt_x_mean_deg=TILT_X_MEAN_DEG,
+                                                tilt_x_std_deg=TILT_X_STD_DEG,
+                                                tilt_y_mean_deg=TILT_Y_MEAN_DEG,
+                                                tilt_y_std_deg=TILT_Y_STD_DEG,
+                                                )
+                if first_contact_pad_idx is not None and survive_bool == False:
+                    r_idx, c_idx = first_contact_pad_idx // PAD_ARR_COL, first_contact_pad_idx % PAD_ARR_COL
+                    if die_esd_critical_pad_bitmap[r_idx, c_idx] == 1:
+                        wafer.survival_die -= 1
+                        die.survival = False
+                        continue
 
             #check time for 10 dies
             if die_count % 10 == 9:

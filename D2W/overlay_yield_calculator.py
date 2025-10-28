@@ -198,7 +198,6 @@ def pad_overlay_yield_map_generator(*,
     RANDOM_MISALIGNMENT_MEAN_um: float,
     RANDOM_MISALIGNMENT_STD_um: float,
     die,
-    redundant_flag: bool,
     pad_yield_flag: bool = False,
     pad_yield_map_sub_factor: int = 1,
 ):  

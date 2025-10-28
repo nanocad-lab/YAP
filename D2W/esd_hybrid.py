@@ -190,6 +190,7 @@ def find_min_gap_points(
 # =========================
 def pad_esd_yield_map_generator(
     *,
+    cfg,
     pad_coords_um: np.ndarray,
     pad_size_um: float,
     pad_pitch_um: float,
@@ -271,6 +272,8 @@ def pad_esd_yield_map_generator(
         pitch_um=pad_pitch_um,
         title="Risk Pad Map = P(first-touch) × p_fail (square side = PITCH)"
     )
+
+    risk_map_vec = risk_map_vec.reshape(cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL)
     return risk_map_vec, fig, float(p_fail_single)
 
 
@@ -291,7 +294,7 @@ def esd_failure_simulator(
     tilt_y_std_deg: float,
     base_seed: int = 20251006,
     z_top_um: float = 100.0,
-) -> Tuple[Optional[List[int]], float]:
+) -> Tuple[Optional[int], bool]:
     """
     仅随机选取一组 tilt 角度，做一次实验。
     返回：
@@ -302,7 +305,7 @@ def esd_failure_simulator(
       - 入围筛选使用 raw 值；旋转时 top dishing 取反。
     """
     assert pad_coords_um.shape[0] == top_dish_nm_ext.shape[0] == bot_dish_nm_ext.shape[0], \
-        "pad_coords 与 dishing 数组长度必须一致"
+        "The length of pad_coords_um, top_dish_nm_ext and bot_dish_nm_ext must be equal."
 
     rng = np.random.default_rng(base_seed ^ 0xA5A5A5A5)
     tilt_x = float(rng.normal(tilt_x_mean_deg, tilt_x_std_deg))
@@ -322,9 +325,15 @@ def esd_failure_simulator(
     )
     pids = out.get("pad_ids_min_equal", np.zeros((0,), dtype=int))
     pad_idx_list = pids.tolist() if pids.size > 0 else None
+    first_contact_pad_idx = pad_idx_list[0] if pad_idx_list is not None else None
 
     p_fail_single = _compute_p_fail_for_die(top_die_w_um, top_die_h_um)
-    return pad_idx_list, float(p_fail_single)
+    random_float = np.random.uniform(0.0, 1.0)      # Used to decide if failure occurs
+    if first_contact_pad_idx is not None and random_float < p_fail_single:
+        survive_bool = False
+    else:
+        survive_bool = True
+    return first_contact_pad_idx, survive_bool
 
 
 # =========================
