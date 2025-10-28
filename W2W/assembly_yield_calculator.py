@@ -118,17 +118,14 @@ def Pad_Yield_Map_Generator(
         TOP_DISH_STD_nm         = cfg.TOP_DISH_STD_nm,
         BOT_DISH_MEAN_nm        = cfg.BOT_DISH_MEAN_nm,
         BOT_DISH_STD_nm         = cfg.BOT_DISH_STD_nm,
-        k_et                    = cfg.k_et,
-        k_eb                    = cfg.k_eb,
-        T_R                     = cfg.T_R,
-        T_anl                   = cfg.T_anl,
-        pad_bitmap_collection   = pad_bitmap_collection,
-        pad_yield_flag          = cfg.pad_yield_flag,
+        pad_bitmap_collection       = pad_bitmap_collection,
     )
 
     Cu_expansion_yield_time = time.time() - start_time - wafer_init_time - overlay_yield_time - defect_yield_time
     print("Cu expansion yield calculation time: {} seconds.".format(Cu_expansion_yield_time))
-    
+    wafer.draw_wafer_die(fig_size=(10, 10), draw_pad_yield_map_option='Y_ce')
+
+    raise Exception("Debug stop after Cu expansion yield calculation.")
     # Calculate the ESD yield
     for die_ind, die in enumerate(wafer.die_list):
         die_center_x, die_center_y = die.die_center[0], die.die_center[1]
@@ -136,7 +133,7 @@ def Pad_Yield_Map_Generator(
             # Assume dies in the center will be the first contact point and have higher ESD hazard
             esd_pad_yield_map, _, _ = pad_esd_yield_map_generator(
                 cfg                   = cfg,
-                pad_coords_um         = die.pad_coords,
+                pad_coords_um         = wafer.base_pad_coords + die.die_center,
                 pad_size_um           = cfg.PAD_TOP_R_um * 2,
                 pad_pitch_um          = cfg.PITCH_r_um,
                 top_die_w_um          = cfg.DIE_W_um,
@@ -160,7 +157,7 @@ def Pad_Yield_Map_Generator(
     esd_yield_time = time.time() - start_time - wafer_init_time - overlay_yield_time - defect_yield_time - Cu_expansion_yield_time
     print("ESD yield calculation time: {} seconds.".format(esd_yield_time))
 
-
+    
     for die_id, die in enumerate(wafer.die_list):
         die.pad_yield_map['Y_bond'] = die.pad_yield_map['Y_ovl'] * die.pad_yield_map['Y_df'] * die.pad_yield_map['Y_ce'] * die.pad_yield_map['Y_esd']
         die.glb_pad_yield_min_max_dict['Y_bond'] = (np.nanmin(die.pad_yield_map['Y_bond']), np.nanmax(die.pad_yield_map['Y_bond']))
@@ -168,4 +165,5 @@ def Pad_Yield_Map_Generator(
                             die_id=die_id,
                             die=die,
                         )
+    wafer.draw_wafer_die(fig_size=(15, 15), draw_pad_yield_map_option='Y_bond')
     del wafer

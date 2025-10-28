@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 debond.py  (produce dishing intervals from manual coord list)
@@ -17,6 +18,7 @@ import numpy as np
 # =============================================================================
 # =============================== PARAMETERS ==================================
 # =============================================================================
+
 
 
 # ---------- (F) Wafer-layer materials ----------
@@ -50,18 +52,18 @@ class WaferConfig:
     T_C: float
     T0_C: float
 
+
 def __init_params(cfg):
     global PITCH_UM, DIAM_UM, T_ANNEAL_C, T_REF_C, DISHING_NM, \
-            CU_E_GPA, CU_NU, CU_ALPHA_PPM, \
-            OX_E_GPA, OX_NU, OX_ALPHA_PPM, \
-            SIGMA_Y_MPA, R_P, R_C, CREEP_FACTOR, \
-            TCU_BASE_UM, TCU_K_PER_C, PHI_CU0, ETA_GROWTH, T_INT_NM, \
-            COOL_BAUSINGER_REDUCTION, COOL_A_HARD_MPA, COOL_K_HARD_PER_MPA, KN_COOL_GAIN, VISC_LAMBDA, VISC_EXP, TCU_CONST_UM_COOL, KDISH_TCU_GAIN_PER_NM, \
-            CRIT_aY2_UM, GC_SIO2_JPM2, GC_CU_JPM2, Effective_Contact_Area, \
-            MAT_CU, MAT_SiO2, MAT_Si, \
-            WAFER_A, WAFER_B, \
-            S_INIT_A_M, S_INIT_B_M, \
-            USE_PLOT
+           CU_E_GPA, CU_NU, CU_ALPHA_PPM, OX_E_GPA, OX_NU, OX_ALPHA_PPM, \
+              SIGMA_Y_MPA, R_P, R_C, CREEP_FACTOR, \
+                TCU_BASE_UM, TCU_K_PER_C, PHI_CU0, ETA_GROWTH, T_INT_NM, \
+                    COOL_BAUSINGER_REDUCTION, COOL_A_HARD_MPA, COOL_K_HARD_PER_MPA, KN_COOL_GAIN, VISC_LAMBDA, VISC_EXP, TCU_CONST_UM_COOL, KDISH_TCU_GAIN_PER_NM, \
+                        CRIT_aY2_UM, GC_SIO2_JPM2, GC_CU_JPM2, Effective_Contact_Area, \
+                            MAT_CU, MAT_SiO2, MAT_Si, \
+                                WAFER_A, WAFER_B, \
+                                    S_INIT_A_M, S_INIT_B_M, \
+                                        USE_PLOT
     
     # ---------- (A) Pad-scale: Geometry & Temps ----------
     PITCH_UM      = cfg.PITCH_r_um**2       # pad pitch p [µm]
@@ -84,7 +86,7 @@ def __init_params(cfg):
     SIGMA_Y_MPA   = cfg.SIGMA_Y_MPA
     R_P           = cfg.R_P
     R_C           = cfg.R_C
-    CREEP_FACTOR  = cfg.CREEP_FACTO
+    CREEP_FACTOR  = cfg.CREEP_FACTOR
 
     TCU_BASE_UM   = cfg.TCU_BASE_UM
     TCU_K_PER_C   = cfg.TCU_K_PER_C
@@ -99,14 +101,14 @@ def __init_params(cfg):
     KN_COOL_GAIN             = cfg.KN_COOL_GAIN
     VISC_LAMBDA = cfg.VISC_LAMBDA
     VISC_EXP    = cfg.VISC_EXP
-    TCU_CONST_UM_COOL       = cfg.CU_CONST_UM_COO
+    TCU_CONST_UM_COOL       = cfg.TCU_CONST_UM_COOL
     KDISH_TCU_GAIN_PER_NM   = cfg.KDISH_TCU_GAIN_PER_NM
 
     # ---------- (E) Critical peeling stress ----------
-    CRIT_aY2_UM: float = cfg.CRIT_aY2_UM
-    GC_SIO2_JPM2: float = cfg.GC_SIO2_JPM2
-    GC_CU_JPM2:   float = cfg.GC_CU_JPM2
-    Effective_Contact_Area: float = cfg.Effective_Contact_Area
+    CRIT_aY2_UM = cfg.CRIT_aY2_UM
+    GC_SIO2_JPM2 = cfg.GC_SIO2_JPM2
+    GC_CU_JPM2 = cfg.GC_CU_JPM2
+    Effective_Contact_Area = cfg.Effective_Contact_Area
 
     # ---------- (F) Wafer-layer materials ----------
     MAT_CU   = Material("Cu",   E_Pa=cfg.CU_E_GPA*1e9, alpha_perC=cfg.CU_ALPHA_PPM*1e-6, nu=cfg.CU_NU)
@@ -117,7 +119,7 @@ def __init_params(cfg):
 
     WAFER_A = WaferConfig(
         top=LayerMix3(MAT_CU,cfg.B_Chip_Cu_V,MAT_SiO2,cfg.B_Chip_Sio2_V,MAT_Si,cfg.B_Chip_Si_V,cfg.B_Chip_T),
-        bottom=LayerMix3(MAT_Si,cfg.B_Sub_Si_V,MAT_SiO2,cfg.B_Sub_Sio2_V,MAT_CU,cfg.B_Sub_Cu_V0,cfg.B_Sub_T),
+        bottom=LayerMix3(MAT_Si,cfg.B_Sub_Si_V,MAT_SiO2,cfg.B_Sub_Sio2_V,MAT_CU,cfg.B_Sub_Cu_V,cfg.B_Sub_T),
         L_m= cfg.WAF_R_um*1e-6, T_C= cfg.T_anl, T0_C= cfg.T_R
     )
     WAFER_B = WaferConfig(
@@ -208,7 +210,7 @@ def compute_sigma_peel_MPa():
         sigma_c_MPa=sigma_c/U['MPa'],
     )
 
-def _sigma_y_cool_MPa(sigma_p_heat_MPa, sigma_y_heat_MPa=SIGMA_Y_MPA):
+def _sigma_y_cool_MPa(sigma_p_heat_MPa, sigma_y_heat_MPa):
     base=(1.0-COOL_BAUSINGER_REDUCTION)*float(sigma_y_heat_MPa)
     hard=COOL_A_HARD_MPA*(1.0-math.exp(-COOL_K_HARD_PER_MPA*max(0.0,float(sigma_p_heat_MPa))))
     return min(sigma_y_heat_MPa, base+hard)
@@ -218,7 +220,7 @@ def compute_cu_peel_cool_MPa():
     hot=compute_sigma_peel_MPa()
     if hot['phi_cu']<=0.0:
         return dict(sigma_cu_peel_MPa=0.0, reason="no_contact_in_heat_dwell",
-                    sigma_y_cool_MPa=_sigma_y_cool_MPa(0.0), delta_eff_nm=0.0)
+                    sigma_y_cool_MPa=_sigma_y_cool_MPa(0.0, SIGMA_Y_MPA), delta_eff_nm=0.0)
     sigma_m=_thermal_mismatch_sigma(CU_E_GPA,CU_NU,CU_ALPHA_PPM,OX_ALPHA_PPM,T_ANNEAL_C,T_REF_C)
     sigma_y_cool=_sigma_y_cool_MPa(hot['sigma_p_MPa'],SIGMA_Y_MPA); sigma_y_Pa=sigma_y_cool*1e6
     sigma_e_cool=max(-sigma_y_Pa,min(sigma_m,sigma_y_Pa))
@@ -246,8 +248,8 @@ def compute_cu_peel_cool_MPa():
 # =============================================================================
 
 def sigma_critical_MPa(Gc_Jpm2: float, E_GPa: float, nu: float,
-                       aY2_um: float = CRIT_aY2_UM,
-                       Effective_Contact_Area: float = Effective_Contact_Area) -> float:
+                    aY2_um: float,
+                    Effective_Contact_Area: float) -> float:
     E_Pa  = E_GPa * 1e9
     aY2_m = aY2_um * 1e-6
     sigma_Pa = Effective_Contact_Area * math.sqrt((Gc_Jpm2 * E_Pa) / (aY2_m * (1.0 - nu**2)))
@@ -379,9 +381,9 @@ def process_wafer(cfg: WaferConfig) -> WaferResult:
     top_eq = equiv_from_three(cfg.top)
     bot_eq = equiv_from_three(cfg.bottom)
     D = warpage_D_two_layer_exact(cfg.L_m, top_eq.t_m, bot_eq.t_m,
-                                  top_eq.E_Pa, bot_eq.E_Pa,
-                                  top_eq.alpha_perC, bot_eq.alpha_perC,
-                                  cfg.T_C, cfg.T0_C)
+                                top_eq.E_Pa, bot_eq.E_Pa,
+                                top_eq.alpha_perC, bot_eq.alpha_perC,
+                                cfg.T_C, cfg.T0_C)
     final_eq = combine_two_layers_to_one(top_eq, bot_eq)
     return WaferResult(D_m=D, final_eq=final_eq)
 
@@ -392,12 +394,12 @@ def foundation_stiffness_K_effective(E1,nu1,h1,E2,nu2,h2):
     return 1.0 / ((1.0-nu1)*h1/(3.0*E1) + (1.0-nu2)*h2/(3.0*E2))
 
 def suhir_peeling_two_wafers_bottomA_topB(waferA_eq: EqLayer, waferB_eq: EqLayer, R_m: float,
-                                          sag_total_A_m: float, sag_total_B_m: float,
-                                          sample_points: int = 500):
+                                        sag_total_A_m: float, sag_total_B_m: float,
+                                        sample_points: int = 500):
     D1 = plate_bending_stiffness(waferA_eq.E_Pa, waferA_eq.nu, waferA_eq.t_m)
     D2 = plate_bending_stiffness(waferB_eq.E_Pa, waferB_eq.nu, waferB_eq.t_m)
     K  = foundation_stiffness_K_effective(waferA_eq.E_Pa, waferA_eq.nu, waferA_eq.t_m,
-                                          waferB_eq.E_Pa, waferB_eq.nu, waferB_eq.t_m)
+                                        waferB_eq.E_Pa, waferB_eq.nu, waferB_eq.t_m)
     kappa1 = 2.0 * sag_total_A_m / (R_m**2)
     kappa2 = 2.0 * sag_total_B_m / (R_m**2)
     M =  (D1 * D2) / (D1 + D2) * (kappa1 - kappa2)
@@ -433,8 +435,8 @@ def build_effcrit_and_dishing_arrays(peel_dict: dict, coords_mm_np: np.ndarray, 
         -> Tuple[np.ndarray, np.ndarray]:
     """
     Returns:
-      effcrit_array:  (N,2) columns = (σ_eff_crit_Cu, σ_eff_crit_SiO2) [MPa]
-      dishing_array:  (N,2) columns = (D*_Cu_nm,      D*_SiO2_nm)      [nm]
+    effcrit_array:  (N,2) columns = (σ_eff_crit_Cu, σ_eff_crit_SiO2) [MPa]
+    dishing_array:  (N,2) columns = (D*_Cu_nm,      D*_SiO2_nm)      [nm]
     """
     p_MPa = peeling_stress_at_points_vec_MPa(peel_dict, coords_mm_np, R_m)   # (N,)
     crits = compute_critical_peeling_all()
@@ -459,7 +461,6 @@ def build_effcrit_and_dishing_arrays(peel_dict: dict, coords_mm_np: np.ndarray, 
 # =============================================================================
 
 def debond_dishing_bounds_calculator(cfg, coords_um):
-    # Initialize with input parameters
     __init_params(cfg)
     # 1) Wafer-level stack to get peeling kernel
     resA = process_wafer(WAFER_A)  # bottom

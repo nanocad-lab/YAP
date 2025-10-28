@@ -53,10 +53,10 @@ def get_eff_contact_area_ratio(
     eta_s: float,
     Roughness_constant: float,
     Adhesion_energy: float,
-    Young_modulus_Pa: float,
+    Dielectric_Young_modulus_Pa: float,
 ) -> float:
     Roughness_sigma_m_renorm = Roughness_sigma_m * np.sqrt(2)
-    Young_modulus_Pa_renorm = Young_modulus_Pa * 0.5
+    Young_modulus_Pa_renorm = Dielectric_Young_modulus_Pa * 0.5
     # Calculate theta
     theta = theta_func(R=Asperity_R_m,
                           sigma=Roughness_sigma_m_renorm,

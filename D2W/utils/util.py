@@ -131,7 +131,7 @@ def downsample_bitmap(bitmap, block_size):
 
 
 
-def draw_pad_bitmap(bitmap_collection):
+def draw_pad_bitmap(cfg, bitmap_collection):
     # Draw the critical and redundant pad bitmaps in one figure (critical light red, redundant light blue, dummy light gray)
     CRITICAL_PAD_BITMAP = bitmap_collection["CRITICAL_PAD_BITMAP"]
     REDUNDANT_PAD_BITMAP = bitmap_collection["REDUNDANT_PAD_BITMAP"]
@@ -354,7 +354,7 @@ def convert_3dblox_to_pad_bitmap(cfg,
     # sio.savemat(cfg.OUTPUT_DIR + "bitmap_collection.mat", bitmap_collection)
 
     # # Draw the critical and redundant pad bitmaps in one figure (critical light red, redundant light blue, dummy light gray)
-    draw_pad_bitmap(bitmap_collection)
+    draw_pad_bitmap(cfg, bitmap_collection)
 
     return bitmap_collection
 

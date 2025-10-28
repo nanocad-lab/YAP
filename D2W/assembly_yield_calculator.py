@@ -99,10 +99,7 @@ def Pad_Yield_Map_Generator(
         TOP_DISH_STD_nm     =       cfg.TOP_DISH_STD_nm,
         BOT_DISH_MEAN_nm    =       cfg.BOT_DISH_MEAN_nm,
         BOT_DISH_STD_nm     =       cfg.BOT_DISH_STD_nm,
-        k_et                =       cfg.k_et,
-        k_eb                =       cfg.k_eb,
-        T_R                 =       cfg.T_R,
-        T_anl               =       cfg.T_anl,
+        pad_bitmap_collection =   pad_bitmap_collection,
     )
     die.pad_yield_map['Y_ce'] = Cu_expansion_pad_yield_map
 

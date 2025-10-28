@@ -49,16 +49,10 @@ def roughness_parameters(
     eta_s: float,
     Roughness_constant: float,
     Adhesion_energy: float,
-    Young_modulus_Pa: float,
-    Dielectric_thickness: float,
-    PITCH_r_um: float,
-    PITCH_c_um: float,
-    PAD_BOT_R_um: float,
-    DISH_0_m: float,
-    k_peel: float
+    Dielectric_Young_modulus_Pa: float,
 ):
     Roughness_sigma_m_renorm = Roughness_sigma_m * np.sqrt(2)
-    Young_modulus_Pa_renorm = Young_modulus_Pa * 0.5
+    Young_modulus_Pa_renorm = Dielectric_Young_modulus_Pa * 0.5
     # Calculate theta
     theta = theta_func(R=Asperity_R_m,
                           sigma=Roughness_sigma_m_renorm,
@@ -70,23 +64,4 @@ def roughness_parameters(
     # A_star_b: normalized effective contact area
     A_star_b = A_star(s_star_b.root, constant=constant)
     # print("The normalized effective contact area A_star_b is: ", A_star_b)
-
-    # TODO: we should update this with Cain's model
-    max_acceptable_stress = np.sqrt(2 * Young_modulus_Pa_renorm * Adhesion_energy / Dielectric_thickness)
-    # print("The maximum acceptable stress is: ", max_acceptable_stress/1e6, "MPa")
-    max_acceptable_stress = max_acceptable_stress * A_star_b
-    # print("The effective maximum acceptable stress is: ", max_acceptable_stress/1e6, "MPa")
-
-    # Calculate the Cu pattern density
-    D_cu = np.pi * PAD_BOT_R_um ** 2 / PITCH_r_um ** 2
-    # print("The Cu pattern density D_cu is: ", D_cu)
-
-    # The equilibirum condition for dielectric layer delamination is max_acceptable_stress = peak_annealing_stress
-    # peak_annealing_stress = k_peel * D_cu * (DISH_0_m - zeta_1_)
-    zeta_1_ = DISH_0_m - max_acceptable_stress / (k_peel * D_cu)
-    zeta_1_ = zeta_1_ * 1e9     # Convert to nm
-    zeta_1_ = zeta_1_ * 2        # Convert to the sum of the top and bottom Cu pad expansion
-    # print("The roughness parameter zeta_1_ is: ", zeta_1_)
-
-
-    return zeta_1_
+    return A_star_b

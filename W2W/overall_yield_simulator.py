@@ -231,12 +231,14 @@ def overall_yield_simulator(
             '''
             Check the Cu gap, a true Monte Carlo simulator
             '''
+            # TODO: add the roughness parameters to Cain's model
             # Check the Cu expansion
             top_dish, bot_dish = Cu_gap_simulator(TOP_DISH_MEAN_nm, TOP_DISH_STD_nm, BOT_DISH_MEAN_nm, BOT_DISH_STD_nm, int(die.num_pads))
             Cu_gap = top_dish + bot_dish
             Cu_gap = Cu_gap.reshape(die.PAD_ARR_ROW, die.PAD_ARR_COL)
             # Calculate the safe range for Cu recess
-            dishing_bound_array = debond_dishing_bounds_calculator(cfg, die.pad_coords) # (num_pads, 2) array: (dishing_low_nm, dishing_high_nm)
+            die_pad_coords = wafer.base_pad_coords + die.die_center
+            dishing_bound_array = debond_dishing_bounds_calculator(cfg, die_pad_coords) # (num_pads, 2) array: (dishing_low_nm, dishing_high_nm)
             zeta_1 = - dishing_bound_array[:, 0].reshape(die.PAD_ARR_ROW, die.PAD_ARR_COL)  # - upper Cu height limits
             zeta_0 = - dishing_bound_array[:, 1].reshape(die.PAD_ARR_ROW, die.PAD_ARR_COL)  # - lower Cu height limits
 
