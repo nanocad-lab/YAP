@@ -78,7 +78,7 @@ def overall_yield_simulator(
         die_esd_critical_pad_bitmap = pad_bitmap_collection["ESD_CRITICAL_PAD_BITMAP"]
         # Read the redundant net to bump ids mapping
         redundant_net_to_bumpids = pad_bitmap_collection["redundant_net_to_bumpids"]
-
+        valid_pad_mask = (pad_bitmap_collection['CRITICAL_PAD_BITMAP'] == 1) | (pad_bitmap_collection['REDUNDANT_PAD_BITMAP'] == 1)
         critical_fail = 0
         redundant_fail = 0
 
@@ -108,7 +108,7 @@ def overall_yield_simulator(
                                                         )
             if approximate_set == 1:
                 # pad fail criteria: pad_misalignment >= MAX_ALLOWED_MISALIGNMENT_um
-                die.pad_misalignment = die.pad_misalignment.reshape(die.PAD_ARR_ROW, die.PAD_ARR_COL)
+                die.pad_misalignment = die.pad_misalignment.reshape(cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL)
                 critical_pad_misalignment = die.pad_misalignment * die_critical_pad_bitmap      # Shape: (PAD_ARR_ROW, PAD_ARR_COL)
                 # Check if any critical pad misalignment is greater than the maximum allowed misalignment
                 if np.any(critical_pad_misalignment >= MAX_ALLOWED_MISALIGNMENT_um):
@@ -204,6 +204,7 @@ def overall_yield_simulator(
                     # Check if any void overlaps with the critical pads
                     overlap_critical = overlap_void_pad_mask & check_critical_pad_bitmap.astype(bool)
                     if np.any(overlap_critical):
+                        print("Die fails due to critical pad void overlap.")
                         wafer.survival_die -= 1
                         die.survival = False
                     else:   # Voids overlapping with the redundant pads.
@@ -219,6 +220,7 @@ def overall_yield_simulator(
                         # Check every net connecting redundant pads, if all the redundant pad replicas fail due to voids, then the die fails
                         for net, redundant_bumpid_set in redundant_net_to_bumpids.items():
                             if redundant_bumpid_set.issubset(fail_bump_id_set):
+                                print("Die fails due to redundant pad void overlap.")
                                 wafer.survival_die -= 1
                                 die.survival = False
                                 redundant_fail += 1
@@ -235,16 +237,17 @@ def overall_yield_simulator(
             # Check the Cu expansion
             top_dish, bot_dish = Cu_gap_simulator(TOP_DISH_MEAN_nm, TOP_DISH_STD_nm, BOT_DISH_MEAN_nm, BOT_DISH_STD_nm, int(die.num_pads))
             Cu_gap = top_dish + bot_dish
-            Cu_gap = Cu_gap.reshape(die.PAD_ARR_ROW, die.PAD_ARR_COL)
+            Cu_gap = Cu_gap.reshape(cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL)
             # Calculate the safe range for Cu recess
             die_pad_coords = wafer.base_pad_coords + die.die_center
             dishing_bound_array = debond_dishing_bounds_calculator(cfg, die_pad_coords) # (num_pads, 2) array: (dishing_low_nm, dishing_high_nm)
-            zeta_1 = - dishing_bound_array[:, 0].reshape(die.PAD_ARR_ROW, die.PAD_ARR_COL)  # - upper Cu height limits
-            zeta_0 = - dishing_bound_array[:, 1].reshape(die.PAD_ARR_ROW, die.PAD_ARR_COL)  # - lower Cu height limits
-
+            zeta_1 = - dishing_bound_array[:, 0].reshape(cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL) * 2 # - upper limits of the sum of top and bottom Cu heights
+            zeta_0 = - dishing_bound_array[:, 1].reshape(cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL) * 2 # - lower limits of the sum of top and bottom Cu heights
+            zeta_0[valid_pad_mask == 0], zeta_1[valid_pad_mask == 0] = np.nan, np.nan
             # Check critical pad Cu gap
             critical_pad_Cu_gap = Cu_gap * die_critical_pad_bitmap      # Shape: (PAD_ARR_ROW, PAD_ARR_COL)
             if np.any(critical_pad_Cu_gap > zeta_1 * die_critical_pad_bitmap) or np.any(critical_pad_Cu_gap < zeta_0 * die_critical_pad_bitmap):
+                print("Die fails due to critical pad Cu gap failure.")
                 wafer.survival_die -= 1
                 die.survival = False
                 continue
@@ -261,6 +264,7 @@ def overall_yield_simulator(
             # Check every net connecting redundant pads, if all the redundant pad replicas fail due to voids, then the die fails
             for net, redundant_bumpid_set in redundant_net_to_bumpids.items():
                 if redundant_bumpid_set.issubset(fail_bump_id_set):
+                    print("Die fails due to redundant pad Cu gap failure.")
                     wafer.survival_die -= 1
                     die.survival = False
                     redundant_fail += 1
@@ -289,6 +293,7 @@ def overall_yield_simulator(
                 if first_contact_pad_idx is not None and survive_bool == False:
                     r_idx, c_idx = first_contact_pad_idx // PAD_ARR_COL, first_contact_pad_idx % PAD_ARR_COL
                     if die_esd_critical_pad_bitmap[r_idx, c_idx] == 1:
+                        print("Die fails due to ESD")
                         wafer.survival_die -= 1
                         die.survival = False
                         continue
@@ -301,7 +306,7 @@ def overall_yield_simulator(
         # print("The time for checking wafer {} is {} seconds.".format(waf_ind, time.time() - start_time))
         # # print("The number of survival dies in the wafer is {}.".format(wafer.survival_die))
         # Draw the swhole wafer
-        # wafer.draw_wafer_die(fig_size=(30, 30))
+        wafer.draw_wafer_die(fig_size=(10, 10))
         # raise ValueError("Stop here")
         # print("Critical pad fail: {}, Redundant pad fail: {}".format(critical_fail, redundant_fail))
         die_yield = wafer.survival_die / len(wafer.die_list)

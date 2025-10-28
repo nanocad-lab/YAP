@@ -199,7 +199,7 @@ def criticality_generator(cfg,
         })
     with open(cfg.OUTPUT_DIR + "UCIe_standard_criticality.txt", 'w') as f:
         for bump_crit in bump_criticality:
-            f.write(f"{bump_crit['port']} {bump_crit['esd_criticality']} {bump_crit['mechanical_criticality']}\n")
+            f.write(f"{bump_crit['port']} {bump_crit['esd_criticality']:.3f} {bump_crit['mechanical_criticality']:.3f}\n")
     print("UCIe standard criticality file saved in ", cfg.OUTPUT_DIR + "UCIe_standard_criticality.txt")
     return
 

@@ -274,7 +274,9 @@ def pad_esd_yield_map_generator(
     )
 
     risk_map_vec = risk_map_vec.reshape(cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL)
-    return risk_map_vec, fig, float(p_fail_single)
+    yield_map_vec = 1.0 - risk_map_vec
+    print(yield_map_vec)
+    return yield_map_vec, fig, float(p_fail_single)
 
 
 # =========================

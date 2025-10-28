@@ -10,7 +10,7 @@ w2w_simulation:
   PITCH_c_um: 115                            # Column pad pitch (µm)
   DIE_W_um: 1400                          # Die width (µm)
   DIE_L_um: 1630                          # Die length (µm)
-  WAF_R_um: 150000                         # Wafer radius (µm)
+  WAF_R_um: 10000                         # Wafer radius (µm)
   PAD_ARR_ROW: 14
   PAD_ARR_COL: 12
   PAD_BOT_R_um: 50                      # Bottom Cu pad radius (um)
@@ -187,7 +187,7 @@ w2w_modeling:
   PITCH_c_um: 115                              # Column pad PITCH_um (µm)
   DIE_W_um: 1400                          # Die width (µm)
   DIE_L_um: 1650                          # Die length (µm)
-  WAF_R_um: 5000                         # Wafer radius (µm)
+  WAF_R_um: 10000                         # Wafer radius (µm)
   PAD_BOT_R_um: 50                      # Bottom Cu pad radius (um)
   PAD_TOP_R_um: 50                      # Top Cu pad radius (um)
   PAD_ARR_ROW: 14
@@ -341,5 +341,5 @@ w2w_modeling:
   TILT_X_STD_DEG: 0.01
   TILT_Y_MEAN_DEG: 0.000
   TILT_Y_STD_DEG: 0.01
-  n_tilts_samples: 1                  # Number of tilt samples for ESD simulation
-  n_dishes_samples: 1                # Number of dish samples for ESD simulation
+  n_tilts_samples: 10000                  # Number of tilt samples for ESD simulation
+  n_dishes_samples: 10000                # Number of dish samples for ESD simulation

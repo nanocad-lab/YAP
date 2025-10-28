@@ -68,4 +68,4 @@ def get_eff_contact_area_ratio(
     # A_star_b: normalized effective contact area
     A_star_b = A_star(s_star_b.root, constant=constant)
     # print("The normalized effective contact area A_star_b is: ", A_star_b)
-    return A_star_b
+    return min(A_star_b, 1.0)   # This normalized area should not exceed 1.0

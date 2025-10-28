@@ -170,7 +170,7 @@ def criticality_generator(cfg,
         })
     with open(cfg.OUTPUT_DIR + "UCIe_standard_criticality.txt", 'w') as f:
         for bump_crit in bump_criticality:
-            f.write(f"{bump_crit['port']} {bump_crit['esd_criticality']} {bump_crit['mechanical_criticality']}\n")
+            f.write(f"{bump_crit['port']} {bump_crit['esd_criticality']:.3f} {bump_crit['mechanical_criticality']:.3f}\n")
     print("UCIe standard criticality file saved in ", cfg.OUTPUT_DIR + "UCIe_standard_criticality.txt")
     return
 
@@ -178,15 +178,16 @@ def criticality_generator(cfg,
 def risk_map_generator(cfg, 
                           die_id: int,
                           die: object,
+                          die_coords: np.ndarray,
                         ):
     '''
     Risk map output format:
     <pad_coords_x> <pad_coords_y> <esd_failure_probability> <overlay_failure_probability> <particle_failure_probability> <mechanical_failure_probability>
     '''
     risk_map = list()
-    for pad_id in range(len(die.pad_coords)):
-        pad_coords_x = die.pad_coords[pad_id, 0]
-        pad_coords_y = die.pad_coords[pad_id, 1]
+    for pad_id in range(len(die_coords)):
+        pad_coords_x = die_coords[pad_id, 0]
+        pad_coords_y = die_coords[pad_id, 1]
         if pad_coords_x == np.nan or pad_coords_y == np.nan:
             continue
         pad_ovl_yield = die.pad_yield_map['Y_ovl'].flatten()[pad_id]
@@ -201,10 +202,10 @@ def risk_map_generator(cfg,
             "particle_failure_probability": 1 - pad_df_yield,
             "mechanical_failure_probability": 1 - pad_ce_yield,
         })
-    with open(cfg.OUTPUT_DIR + "UCIe_standard_die_{}_risk_map.map".format(die_id), 'w') as f:
-        for pad_risk in risk_map:
-            f.write(f"{pad_risk['pad_coords_x']} {pad_risk['pad_coords_y']} {pad_risk['esd_failure_probability']} {pad_risk['overlay_failure_probability']} {pad_risk['particle_failure_probability']} {pad_risk['mechanical_failure_probability']}\n")
-    print("UCIe standard die {} risk map file saved in ".format(die_id), cfg.OUTPUT_DIR + "UCIe_standard_die_{}_risk_map.map".format(die.die_id))
+    # with open(cfg.OUTPUT_DIR + "UCIe_standard_die_{}_risk_map.map".format(die_id), 'w') as f:
+    #     for pad_risk in risk_map:
+    #         f.write(f"{pad_risk['pad_coords_x']} {pad_risk['pad_coords_y']} {pad_risk['esd_failure_probability']} {pad_risk['overlay_failure_probability']} {pad_risk['particle_failure_probability']} {pad_risk['mechanical_failure_probability']}\n")
+    # print("UCIe standard die {} risk map file saved in ".format(die_id), cfg.OUTPUT_DIR + "UCIe_standard_die_{}_risk_map.map".format(die_id))
     return
 
 def convert_3dblox_to_pad_bitmap(cfg, 

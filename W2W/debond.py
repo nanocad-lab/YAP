@@ -13,8 +13,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Tuple, List
 import math
+import matplotlib.pyplot as plt
 import numpy as np
-
+from roughness_coefficients import get_eff_contact_area_ratio
 # =============================================================================
 # =============================== PARAMETERS ==================================
 # =============================================================================
@@ -108,8 +109,15 @@ def __init_params(cfg):
     CRIT_aY2_UM = cfg.CRIT_aY2_UM
     GC_SIO2_JPM2 = cfg.GC_SIO2_JPM2
     GC_CU_JPM2 = cfg.GC_CU_JPM2
-    Effective_Contact_Area = cfg.Effective_Contact_Area
-
+    Effective_Contact_Area = get_eff_contact_area_ratio(
+        Asperity_R_m = cfg.Asperity_R_m,
+        Roughness_sigma_m = cfg.Roughness_sigma_m,
+        eta_s = cfg.eta_s,
+        Roughness_constant = cfg.Roughness_constant,
+        Adhesion_energy = cfg.Adhesion_energy,
+        Dielectric_Young_modulus_Pa = cfg.Dielectric_Young_modulus_Pa,
+    )
+    assert 0.0 < Effective_Contact_Area <= 1.0, "Effective_Contact_Area must be in (0,1], got {}".format(Effective_Contact_Area)
     # ---------- (F) Wafer-layer materials ----------
     MAT_CU   = Material("Cu",   E_Pa=cfg.CU_E_GPA*1e9, alpha_perC=cfg.CU_ALPHA_PPM*1e-6, nu=cfg.CU_NU)
     MAT_SiO2 = Material("SiO2", E_Pa=cfg.OX_E_GPA*1e9, alpha_perC=cfg.OX_ALPHA_PPM*1e-6,  nu=cfg.OX_NU)
@@ -259,7 +267,7 @@ def compute_critical_peeling_all():
     return {
         "sigma_crit_MPa": {
             "SiO2": sigma_critical_MPa(GC_SIO2_JPM2, OX_E_GPA, OX_NU, CRIT_aY2_UM, Effective_Contact_Area),
-            "Cu":   sigma_critical_MPa(GC_CU_JPM2,   CU_E_GPA, CU_NU, CRIT_aY2_UM, Effective_Contact_Area),
+            "Cu":   sigma_critical_MPa(GC_CU_JPM2,   CU_E_GPA, CU_NU, CRIT_aY2_UM, 1.0),
         }
     }
 
@@ -402,7 +410,7 @@ def suhir_peeling_two_wafers_bottomA_topB(waferA_eq: EqLayer, waferB_eq: EqLayer
                                         waferB_eq.E_Pa, waferB_eq.nu, waferB_eq.t_m)
     kappa1 = 2.0 * sag_total_A_m / (R_m**2)
     kappa2 = 2.0 * sag_total_B_m / (R_m**2)
-    M =  (D1 * D2) / (D1 + D2) * (kappa1 - kappa2)
+    M = (D1 * D2) / (D1 + D2) * (kappa1 - kappa2)
     beta = ((K * (D1 + D2)) / (4.0 * D1 * D2)) ** 0.25
     p_max = K * M / (2.0 * beta * D1)  # [Pa]
     decay_len = 1.0 / beta
@@ -418,6 +426,7 @@ def peeling_stress_at_points_vec_MPa(peel_dict: dict, coords_mm_np: np.ndarray, 
         raise ValueError("coords_mm_np must be shape (N,2).")
     xy_m = coords_mm_np.astype(np.float64, copy=False) * 1e-3
     r_m  = np.sqrt(xy_m[:,0]**2 + xy_m[:,1]**2)
+    # print(np.nanmin(r_m), np.nanmax(r_m))
     if np.any(r_m > R_m + 1e-15):
         idx = np.where(r_m > R_m + 1e-15)[0][:5]
         raise ValueError(f"{idx.size} points lie outside wafer radius R={R_m} m, e.g. indices {idx.tolist()}")
@@ -425,6 +434,14 @@ def peeling_stress_at_points_vec_MPa(peel_dict: dict, coords_mm_np: np.ndarray, 
     p_max = float(peel_dict["p_max_Pa"])
     beta  = float(peel_dict["beta"])
     p_pa  = p_max * np.exp(-beta*s) * (np.cos(beta*s) - np.sin(beta*s))
+    if USE_PLOT and np.nanmin(r_m) >= 7.3e-3:
+        plt.figure()
+        plt.scatter(r_m*1e3, p_pa/1e6, s=5)
+        plt.xlabel("Radius r (mm)")
+        plt.ylabel("Peeling Stress p (MPa)")
+        plt.title("Peeling Stress vs Radius")
+        plt.grid(True)
+        plt.show()
     return p_pa / 1e6  # MPa
 
 # =============================================================================

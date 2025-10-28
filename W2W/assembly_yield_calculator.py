@@ -103,9 +103,9 @@ def Pad_Yield_Map_Generator(
         pad_yield_flag              = cfg.pad_yield_flag,
         pad_yield_map_sub_factor    = cfg.pad_yield_map_sub_factor,
     )
-    defect_yield_time = time.time() - start_time - wafer_init_time - overlay_yield_time
-    print("Defect yield calculation time: {} seconds.".format(defect_yield_time))
-    # # Draw the die-level defect yield map
+    # defect_yield_time = time.time() - start_time - wafer_init_time - overlay_yield_time
+    # print("Defect yield calculation time: {} seconds.".format(defect_yield_time))
+    # Draw the die-level defect yield map
     # wafer.draw_wafer_die(fig_size=(10, 10), draw_pad_yield_map_option='Y_df')
     # raise Exception("Debug stop after defect yield calculation.")
 
@@ -121,11 +121,10 @@ def Pad_Yield_Map_Generator(
         pad_bitmap_collection       = pad_bitmap_collection,
     )
 
-    Cu_expansion_yield_time = time.time() - start_time - wafer_init_time - overlay_yield_time - defect_yield_time
-    print("Cu expansion yield calculation time: {} seconds.".format(Cu_expansion_yield_time))
-    wafer.draw_wafer_die(fig_size=(10, 10), draw_pad_yield_map_option='Y_ce')
+    # Cu_expansion_yield_time = time.time() - start_time - wafer_init_time - overlay_yield_time - defect_yield_time
+    # print("Cu expansion yield calculation time: {} seconds.".format(Cu_expansion_yield_time))
+    # wafer.draw_wafer_die(fig_size=(10, 10), draw_pad_yield_map_option='Y_ce')
 
-    raise Exception("Debug stop after Cu expansion yield calculation.")
     # Calculate the ESD yield
     for die_ind, die in enumerate(wafer.die_list):
         die_center_x, die_center_y = die.die_center[0], die.die_center[1]
@@ -151,19 +150,24 @@ def Pad_Yield_Map_Generator(
             )
         else:
             # For dies not in the center, assign full yield (1.0)
-            esd_pad_yield_map = np.ones((die.PAD_ARR_ROW, die.PAD_ARR_COL), dtype=np.float32)
+            esd_pad_yield_map = np.ones((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL), dtype=np.float32)
         die.pad_yield_map['Y_esd'] = esd_pad_yield_map
 
-    esd_yield_time = time.time() - start_time - wafer_init_time - overlay_yield_time - defect_yield_time - Cu_expansion_yield_time
-    print("ESD yield calculation time: {} seconds.".format(esd_yield_time))
+    # esd_yield_time = time.time() - start_time - wafer_init_time - overlay_yield_time - defect_yield_time - Cu_expansion_yield_time
+    # print("ESD yield calculation time: {} seconds.".format(esd_yield_time))
 
-    
+    wafer_glb_pad_yield_min = 1.0
+    wafer_glb_pad_yield_max = 0.0
     for die_id, die in enumerate(wafer.die_list):
         die.pad_yield_map['Y_bond'] = die.pad_yield_map['Y_ovl'] * die.pad_yield_map['Y_df'] * die.pad_yield_map['Y_ce'] * die.pad_yield_map['Y_esd']
-        die.glb_pad_yield_min_max_dict['Y_bond'] = (np.nanmin(die.pad_yield_map['Y_bond']), np.nanmax(die.pad_yield_map['Y_bond']))
+        wafer_glb_pad_yield_min = min(wafer_glb_pad_yield_min, np.nanmin(die.pad_yield_map['Y_bond']))
+        wafer_glb_pad_yield_max = max(wafer_glb_pad_yield_max, np.nanmax(die.pad_yield_map['Y_bond']))
         risk_map_generator(cfg=cfg, 
                             die_id=die_id,
                             die=die,
+                            die_coords=die.die_center + wafer.base_pad_coords,
                         )
-    wafer.draw_wafer_die(fig_size=(15, 15), draw_pad_yield_map_option='Y_bond')
+    wafer.glb_pad_yield_min_max_dict['Y_bond'] = (wafer_glb_pad_yield_min, wafer_glb_pad_yield_max)
+    print("wafer pad yield min max for Y_bond:", wafer.glb_pad_yield_min_max_dict['Y_bond'])
+    wafer.draw_wafer_die(fig_size=(10, 10), draw_pad_yield_map_option='Y_bond')
     del wafer

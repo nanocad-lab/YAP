@@ -9,7 +9,7 @@ import numpy as np
 from scipy.integrate import quad
 from scipy.stats import norm
 from debond import debond_dishing_bounds_calculator
-
+import matplotlib.pyplot as plt
 
 
 def pad_Cu_expansion_yield_map_generator(*,
@@ -26,8 +26,8 @@ def pad_Cu_expansion_yield_map_generator(*,
     for i, die in enumerate(wafer.die_list):
         die_pad_coords = wafer.base_pad_coords + die.die_center
         dishing_bound_array = debond_dishing_bounds_calculator(cfg, die_pad_coords) # (num_pads, 2) array: (dishing_low_nm, dishing_high_nm)
-        upper_limits = - dishing_bound_array[:, 0]  # - upper Cu height limits
-        lower_limits = - dishing_bound_array[:, 1]  # - lower Cu height limits
+        upper_limits = - dishing_bound_array[:, 0] * 2 # - upper limits of the sum of top and bottom Cu heights
+        lower_limits = - dishing_bound_array[:, 1] * 2 # - lower limits of the sum of top and bottom Cu heights
         pos_pads = norm.cdf(upper_limits, loc=TOP_DISH_MEAN_nm + BOT_DISH_MEAN_nm, scale=np.sqrt(TOP_DISH_STD_nm**2 + BOT_DISH_STD_nm**2)) - \
                    norm.cdf(lower_limits, loc=TOP_DISH_MEAN_nm + BOT_DISH_STD_nm, scale=np.sqrt(TOP_DISH_STD_nm**2 + BOT_DISH_STD_nm**2))
         pad_yield_map = pos_pads.reshape(cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL)
@@ -37,6 +37,7 @@ def pad_Cu_expansion_yield_map_generator(*,
         glb_cu_expansion_pad_yield_max = max(glb_cu_expansion_pad_yield_max, np.nanmax(pad_yield_map))
         die.pad_yield_map['Y_ce'] = pad_yield_map
         print("Generated pad-level Cu expansion yield map for die {}.".format(i))
+        
     wafer.glb_pad_yield_min_max_dict['Y_ce'] = (glb_cu_expansion_pad_yield_min, glb_cu_expansion_pad_yield_max)
     print("Global min of the pad-level Cu expansion yield: {}".format(glb_cu_expansion_pad_yield_min))
     print("Global max of the pad-level Cu expansion yield: {}".format(glb_cu_expansion_pad_yield_max))
