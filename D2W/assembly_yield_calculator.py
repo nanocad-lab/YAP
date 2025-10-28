@@ -128,8 +128,7 @@ def Pad_Yield_Map_Generator(
     die.pad_yield_map['Y_esd'] = esd_pad_yield_map
 
     die.pad_yield_map['Y_bond'] = die.pad_yield_map['Y_ovl'] * die.pad_yield_map['Y_df'] * die.pad_yield_map['Y_ce'] * die.pad_yield_map['Y_esd']
-    risk_map_generator(cfg=cfg, 
-                        die=die,
-                    )
-    del die
+    die.glb_pad_yield_min_max_dict['Y_bond'] = (np.nanmin(die.pad_yield_map['Y_bond']), np.nanmax(die.pad_yield_map['Y_bond']))
+
+    risk_map_generator(cfg=cfg, die=die)    # Generate and save the risk map in the specified output directory
     return die.pad_yield_map['Y_bond'] 
