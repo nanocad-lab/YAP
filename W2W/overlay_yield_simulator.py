@@ -85,7 +85,7 @@ def overlay_term_simulator(
         MAX_ALLOWED_MISALIGNMENT_um_for_ca = fsolve(equation, PAD_BOT_R_um)
         # print("The overlay misalignment that will fail the contact area constraint is {} um.".format(MAX_ALLOWED_MISALIGNMENT_um_for_ca[0]))
         # Calculate the overlay misalignment that will fail the contact area constraint
-        system_misalignment = np.linspace(PAD_BOT_R_um - PAD_TOP_R_um, PAD_BOT_R_um + PAD_TOP_R_um, 1000)
+        system_misalignment = np.linspace(PAD_BOT_R_um - PAD_TOP_R_um + 1e-9, PAD_BOT_R_um + PAD_TOP_R_um - 1e-9, 1000)
         theta1 = np.arccos((PAD_TOP_R_um**2 + system_misalignment**2 - PAD_BOT_R_um**2) / (2 * PAD_TOP_R_um * system_misalignment))
         theta2 = np.arccos((PAD_BOT_R_um**2 + system_misalignment**2 - PAD_TOP_R_um**2) / (2 * PAD_BOT_R_um * system_misalignment))
         contact_area = (PAD_TOP_R_um**2 * theta1 + PAD_BOT_R_um**2 * theta2 - system_misalignment * (PAD_TOP_R_um * np.sin(theta1)))
