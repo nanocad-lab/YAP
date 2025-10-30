@@ -216,25 +216,24 @@ def criticality_generator(cfg,
     <port> <esd_criticality> <mechanical_criticality>
     '''
     bump_criticality = list()
+    bump_set = set()
     for bump in bump_data:
         port = bump['port']
+        if (bump['net'], port) in bump_set:
+            continue
         num_copies = len(redundant_net_to_bumpids[bump['net']])
         mechanical_criticality = 1.0 / num_copies
-        if num_copies == 1:
-            esd_criticality = 1.0
-        elif num_copies > 1 and ('vss' in port.lower() or 'vcc' in port.lower()):
-            esd_criticality = 1.0 / num_copies
-        elif num_copies > 1 and ('vss' not in port.lower() and 'vcc' not in port.lower()):
-            esd_criticality = 1.0
+        esd_criticality = 1.0 / num_copies
 
         bump_criticality.append({
             "port": port,
             "esd_criticality": esd_criticality,
             "mechanical_criticality": mechanical_criticality
         })
+        bump_set.add((bump['net'], port))
     with open(cfg.OUTPUT_DIR + cfg.DESIGN + "_criticality.txt", 'w') as f:
         for bump_crit in bump_criticality:
-            f.write(f"{bump_crit['port']} {bump_crit['esd_criticality']:.3f} {bump_crit['mechanical_criticality']:.3f}\n")
+            f.write(f"{bump_crit['port']} {bump_crit['esd_criticality']:.6f} {bump_crit['mechanical_criticality']:.6f}\n")
     print(cfg.DESIGN + " criticality file saved in ", cfg.OUTPUT_DIR + cfg.DESIGN + "_criticality.txt")
     return
 

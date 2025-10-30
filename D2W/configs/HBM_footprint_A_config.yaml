@@ -606,9 +606,9 @@ d2w_modeling:
 
   # === Cu Expansion / Dishing Parameters ===
   TOP_DISH_MEAN_nm: -2.0                  # Top pad height mean (nm)
-  TOP_DISH_STD_nm: 0.3                     # Top pad height std (nm)
+  TOP_DISH_STD_nm: 0.6                     # Top pad height std (nm)
   BOT_DISH_MEAN_nm: -2.0                  # Bottom pad height mean (nm)
-  BOT_DISH_STD_nm: 0.3                     # Bottom pad height std (nm)
+  BOT_DISH_STD_nm: 0.6                     # Bottom pad height std (nm)
   k_et: 0.053                           # Top Cu expansion coef (nm/K)
   k_eb: 0.053                           # Bottom Cu expansion coef (nm/K)
   T_R: 25                               # Room temperature (°C)
@@ -683,5 +683,5 @@ d2w_modeling:
   TILT_X_STD_DEG: 0.01
   TILT_Y_MEAN_DEG: 0.000
   TILT_Y_STD_DEG: 0.01
-  n_tilts_samples: 100                  # Number of tilt samples for ESD simulation
-  n_dishes_samples: 100                # Number of dish samples for ESD simulation
+  n_tilts_samples: 1000                  # Number of tilt samples for ESD simulation
+  n_dishes_samples: 1000                # Number of dish samples for ESD simulation
