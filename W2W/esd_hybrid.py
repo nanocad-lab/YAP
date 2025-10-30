@@ -129,7 +129,7 @@ def find_min_gap_points(
     die_y = np.array([-hh, -hh,  hh,  hh], dtype=np.float32)
     z_top_die = z0 + A*die_x + B*die_y
     gaps_die  = z_top_die  # - 0
-    min_val = float(np.min(gaps_die))
+    min_val = float(np.nanmin(gaps_die))
     recs = [{"kind":"die_corner","corner_index":int(i),
              "x_um":float(die_x[i]),"y_um":float(die_y[i]),
              "gap_um":float(gaps_die[i])}
@@ -154,7 +154,7 @@ def find_min_gap_points(
         z_top = z0 + A*x4 + B*y4 + C*top_eff
         gaps  = z_top - bot_loc
 
-        vmin_pad = float(np.min(gaps))
+        vmin_pad = float(np.nanmin(gaps))
         if vmin_pad < min_val:
             min_val = vmin_pad
             recs = []

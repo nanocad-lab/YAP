@@ -31,21 +31,21 @@ def pad_Cu_expansion_yield_map_generator(*,
     glb_cu_expansion_pad_yield_min = 1.0  # Initialize to a high value
     glb_cu_expansion_pad_yield_max = 0.0  # Initialize to a low value
     dishing_bound_array = debond_dishing_bounds_calculator(cfg, die.pad_coords) # (num_pads, 2) array: (dishing_low_nm, dishing_high_nm)
-    upper_limits = - dishing_bound_array[:, 0]  # - upper Cu height limits
-    lower_limits = - dishing_bound_array[:, 1]  # - lower Cu height limits
-    pos_pads, _ = quad(lambda x: norm.pdf(x, loc=TOP_DISH_MEAN_nm + BOT_DISH_MEAN_nm, scale=np.sqrt(TOP_DISH_STD_nm**2 + BOT_DISH_STD_nm**2)), lower_limits, upper_limits)
-    pad_yield_map = pos_pads.reshape(die.PAD_ARR_ROW, die.PAD_ARR_COL)
+    upper_limits = - dishing_bound_array[:, 0] * 2 # - upper Cu height limits
+    lower_limits = - dishing_bound_array[:, 1] * 2 # - lower Cu height limits
+    pos_pads = norm.cdf(upper_limits, loc=TOP_DISH_MEAN_nm + BOT_DISH_MEAN_nm, scale=np.sqrt(TOP_DISH_STD_nm**2 + BOT_DISH_STD_nm**2)) - \
+               norm.cdf(lower_limits, loc=TOP_DISH_MEAN_nm + BOT_DISH_MEAN_nm, scale=np.sqrt(TOP_DISH_STD_nm**2 + BOT_DISH_STD_nm**2))
+    pad_yield_map = pos_pads.reshape(cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL)
     mask = (pad_bitmap_collection['CRITICAL_PAD_BITMAP'] == 1) | (pad_bitmap_collection['REDUNDANT_PAD_BITMAP'] == 1)
     pad_yield_map[~mask] = np.nan
     glb_cu_expansion_pad_yield_min = min(glb_cu_expansion_pad_yield_min, np.nanmin(pad_yield_map))
     glb_cu_expansion_pad_yield_max = max(glb_cu_expansion_pad_yield_max, np.nanmax(pad_yield_map))
-    die.pad_yield_map['Y_ce'] = pad_yield_map
     die.glb_pad_yield_min_max_dict['Y_ce'] = (glb_cu_expansion_pad_yield_min, glb_cu_expansion_pad_yield_max)
 
     # Draw the pad yield map
     plt.figure(figsize=(8, 6))
     plt.imshow(
-        die.pad_yield_map['Y_ce'],
+        pad_yield_map,
         cmap='viridis', 
         vmin=die.glb_pad_yield_min_max_dict['Y_ce'][0],
         vmax=die.glb_pad_yield_min_max_dict['Y_ce'][1],
@@ -55,3 +55,5 @@ def pad_Cu_expansion_yield_map_generator(*,
     plt.xlabel('Pad Column Index')
     plt.ylabel('Pad Row Index')
     plt.show()
+
+    return pad_yield_map

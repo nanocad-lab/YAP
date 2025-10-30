@@ -29,7 +29,7 @@ def pad_Cu_expansion_yield_map_generator(*,
         upper_limits = - dishing_bound_array[:, 0] * 2 # - upper limits of the sum of top and bottom Cu heights
         lower_limits = - dishing_bound_array[:, 1] * 2 # - lower limits of the sum of top and bottom Cu heights
         pos_pads = norm.cdf(upper_limits, loc=TOP_DISH_MEAN_nm + BOT_DISH_MEAN_nm, scale=np.sqrt(TOP_DISH_STD_nm**2 + BOT_DISH_STD_nm**2)) - \
-                   norm.cdf(lower_limits, loc=TOP_DISH_MEAN_nm + BOT_DISH_STD_nm, scale=np.sqrt(TOP_DISH_STD_nm**2 + BOT_DISH_STD_nm**2))
+                   norm.cdf(lower_limits, loc=TOP_DISH_MEAN_nm + BOT_DISH_MEAN_nm, scale=np.sqrt(TOP_DISH_STD_nm**2 + BOT_DISH_STD_nm**2))
         pad_yield_map = pos_pads.reshape(cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL)
         mask = (pad_bitmap_collection['CRITICAL_PAD_BITMAP'] == 1) | (pad_bitmap_collection['REDUNDANT_PAD_BITMAP'] == 1)
         pad_yield_map[~mask] = np.nan

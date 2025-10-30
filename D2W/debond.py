@@ -128,12 +128,12 @@ def __init_params(cfg):
     WAFER_A = WaferConfig(
         top=LayerMix3(MAT_CU,cfg.B_Chip_Cu_V,MAT_SiO2,cfg.B_Chip_Sio2_V,MAT_Si,cfg.B_Chip_Si_V,cfg.B_Chip_T),
         bottom=LayerMix3(MAT_Si,cfg.B_Sub_Si_V,MAT_SiO2,cfg.B_Sub_Sio2_V,MAT_CU,cfg.B_Sub_Cu_V,cfg.B_Sub_T),
-        L_m= cfg.WAF_R_um*1e-6, T_C= cfg.T_anl, T0_C= cfg.T_R
+        L_m= cfg.eff_DIE_R*1e-6, T_C= cfg.T_anl, T0_C= cfg.T_R
     )
     WAFER_B = WaferConfig(
         top=LayerMix3(MAT_CU,cfg.T_Chip_Cu_V,MAT_SiO2,cfg.T_Chip_Sio2_V,MAT_Si,cfg.T_Chip_Si_V,cfg.T_Chip_T),
         bottom=LayerMix3(MAT_Si,cfg.T_Sub_Si_V,MAT_SiO2,cfg.T_Sub_Sio2_V,MAT_CU,cfg.T_Sub_Cu_V,cfg.T_Sub_T),
-        L_m= cfg.WAF_R_um*1e-6, T_C= cfg.T_anl, T0_C= cfg.T_R
+        L_m= cfg.eff_DIE_R*1e-6, T_C= cfg.T_anl, T0_C= cfg.T_R
     )
 
     # ---------- (H) Pre-anneal warpages ----------
@@ -141,7 +141,7 @@ def __init_params(cfg):
     S_INIT_B_M = cfg.S_INIT_B_M
 
     # ---------- (J) Optional plotting ----------
-    USE_PLOT = False
+    USE_PLOT = True
 
 # =============================================================================
 # ============================== PAD-SCALE CORE ===============================
@@ -426,7 +426,6 @@ def peeling_stress_at_points_vec_MPa(peel_dict: dict, coords_mm_np: np.ndarray, 
         raise ValueError("coords_mm_np must be shape (N,2).")
     xy_m = coords_mm_np.astype(np.float64, copy=False) * 1e-3
     r_m  = np.sqrt(xy_m[:,0]**2 + xy_m[:,1]**2)
-    # print(np.nanmin(r_m), np.nanmax(r_m))
     if np.any(r_m > R_m + 1e-15):
         idx = np.where(r_m > R_m + 1e-15)[0][:5]
         raise ValueError(f"{idx.size} points lie outside wafer radius R={R_m} m, e.g. indices {idx.tolist()}")
@@ -434,7 +433,7 @@ def peeling_stress_at_points_vec_MPa(peel_dict: dict, coords_mm_np: np.ndarray, 
     p_max = float(peel_dict["p_max_Pa"])
     beta  = float(peel_dict["beta"])
     p_pa  = p_max * np.exp(-beta*s) * (np.cos(beta*s) - np.sin(beta*s))
-    if USE_PLOT and np.nanmin(r_m) >= 7.3e-3:
+    if USE_PLOT:
         plt.figure()
         plt.scatter(r_m*1e3, p_pa/1e6, s=5)
         plt.xlabel("Radius r (mm)")

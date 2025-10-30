@@ -129,7 +129,7 @@ def find_min_gap_points(
     die_y = np.array([-hh, -hh,  hh,  hh], dtype=np.float32)
     z_top_die = z0 + A*die_x + B*die_y
     gaps_die  = z_top_die  # - 0
-    min_val = float(np.min(gaps_die))
+    min_val = float(np.nanmin(gaps_die))
     recs = [{"kind":"die_corner","corner_index":int(i),
              "x_um":float(die_x[i]),"y_um":float(die_y[i]),
              "gap_um":float(gaps_die[i])}
@@ -154,11 +154,10 @@ def find_min_gap_points(
         z_top = z0 + A*x4 + B*y4 + C*top_eff
         gaps  = z_top - bot_loc
 
-        vmin_pad = float(np.min(gaps))
+        vmin_pad = float(np.nanmin(gaps))
         if vmin_pad < min_val:
             min_val = vmin_pad
             recs = []
-        if vmin_pad <= min_val:
             hit_m, hit_k = np.where(gaps == vmin_pad)
             for m,k in zip(hit_m.tolist(), hit_k.tolist()):
                 recs.append({
@@ -258,24 +257,23 @@ def pad_esd_yield_map_generator(
 
     # 首触概率
     prob_vec = counts_vec.astype(np.float32) / float(total_runs)
-
     # 该尺寸失效率
     p_fail_single = _compute_p_fail_for_die(top_die_w_um, top_die_h_um)
-
+    
     # risk pad map
     risk_map_vec = prob_vec * float(p_fail_single)
 
-    # 画图（按 pitch 为边长）
-    fig = plot_probability_over_pads_with_pitch(
-        pad_coords_um=pad_coords_um,
-        prob_vec=risk_map_vec,
-        pitch_um=pad_pitch_um,
-        title="Risk Pad Map = P(first-touch) × p_fail (square side = PITCH)"
-    )
+    # # 画图（按 pitch 为边长）
+    # fig = plot_probability_over_pads_with_pitch(
+    #     pad_coords_um=pad_coords_um,
+    #     prob_vec=risk_map_vec,
+    #     pitch_um=pad_pitch_um,
+    #     title="Risk Pad Map = P(first-touch) × p_fail (square side = PITCH)"
+    # )
+    fig = None
 
     risk_map_vec = risk_map_vec.reshape(cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL)
     yield_map_vec = 1.0 - risk_map_vec
-    print(yield_map_vec)
     return yield_map_vec, fig, float(p_fail_single)
 
 

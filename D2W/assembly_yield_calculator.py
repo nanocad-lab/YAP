@@ -103,6 +103,7 @@ def Pad_Yield_Map_Generator(
     )
     die.pad_yield_map['Y_ce'] = Cu_expansion_pad_yield_map
 
+    esd_start_time = time.time()
     # Calculate the ESD yield
     esd_pad_yield_map, _, _ = pad_esd_yield_map_generator(
         cfg                   = cfg,
@@ -122,10 +123,41 @@ def Pad_Yield_Map_Generator(
         bot_dish_mean_nm      = cfg.BOT_DISH_MEAN_nm,
         bot_dish_std_nm       = cfg.BOT_DISH_STD_nm,
     )
+    valid_pad_mask = (pad_bitmap_collection['CRITICAL_PAD_BITMAP'] == 1) | (pad_bitmap_collection['REDUNDANT_PAD_BITMAP'] == 1)
+    esd_pad_yield_map[~valid_pad_mask] = np.nan
     die.pad_yield_map['Y_esd'] = esd_pad_yield_map
-
+    die.glb_pad_yield_min_max_dict['Y_esd'] = (np.nanmin(die.pad_yield_map['Y_esd']), np.nanmax(die.pad_yield_map['Y_esd']))
+    # Draw the pad yield map
+    plt.figure(figsize=(8, 6))
+    plt.imshow(
+        die.pad_yield_map['Y_esd'],
+        cmap='viridis', 
+        vmin=die.glb_pad_yield_min_max_dict['Y_esd'][0],
+        vmax=die.glb_pad_yield_min_max_dict['Y_esd'][1],
+        interpolation='nearest',
+        )
+    plt.colorbar(label='Pad ESD Yield')
+    plt.xlabel('Pad Column Index')
+    plt.ylabel('Pad Row Index')
+    plt.show()
+    
+    print(f"ESD yield calculation took {time.time() - esd_start_time:.2f} seconds")
     die.pad_yield_map['Y_bond'] = die.pad_yield_map['Y_ovl'] * die.pad_yield_map['Y_df'] * die.pad_yield_map['Y_ce'] * die.pad_yield_map['Y_esd']
     die.glb_pad_yield_min_max_dict['Y_bond'] = (np.nanmin(die.pad_yield_map['Y_bond']), np.nanmax(die.pad_yield_map['Y_bond']))
+    print(f"Overall pad bonding yield min: {die.glb_pad_yield_min_max_dict['Y_bond'][0]:.6f}, max: {die.glb_pad_yield_min_max_dict['Y_bond'][1]:.6f}")
+    # Draw the pad yield map
+    plt.figure(figsize=(8, 6))
+    plt.imshow(
+        die.pad_yield_map['Y_bond'],
+        cmap='viridis', 
+        vmin=die.glb_pad_yield_min_max_dict['Y_bond'][0],
+        vmax=die.glb_pad_yield_min_max_dict['Y_bond'][1],
+        interpolation='nearest',
+        )
+    plt.colorbar(label='Pad Bonding Yield')
+    plt.xlabel('Pad Column Index')
+    plt.ylabel('Pad Row Index')
+    plt.show()
 
     risk_map_generator(cfg=cfg, die=die)    # Generate and save the risk map in the specified output directory
     return die.pad_yield_map['Y_bond'] 

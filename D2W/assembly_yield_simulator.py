@@ -43,8 +43,8 @@ def Assembly_Yield_Simulator(
             pad_bitmap_collection       =       pad_bitmap_collection,
             pad_yield_flag              =       cfg.pad_yield_flag,
         )
-        die_sample = die_list[0]
-        die_sample.draw_die(fig_size=(6, 6))
+        # die_sample = die_list[0]
+        # die_sample.draw_die(fig_size=(6, 6))
 
         # Generate overlay terms
         system_translation_x_um, system_translation_y_um, system_rotation_rad, system_magnification_ppm, MAX_ALLOWED_MISALIGNMENT_um = overlay_term_simulator(

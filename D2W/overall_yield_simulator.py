@@ -51,7 +51,7 @@ def overall_yield_simulator(
     for die_ind in range(NUM_DIES):
         # # check start time
         # start_time = time.time()
-        if die_count % 100 == 0:
+        if die_count % 10 == 0:
             print("Processing die {}/{}...".format(die_count, len(die_list)))
         die = die_list[die_ind]
         die_count += 1
@@ -63,7 +63,10 @@ def overall_yield_simulator(
         die_esd_critical_pad_bitmap = pad_bitmap_collection["ESD_CRITICAL_PAD_BITMAP"]
         # Read the redundant net to bump ids mapping
         redundant_net_to_bumpids = pad_bitmap_collection["redundant_net_to_bumpids"]
-
+        # Get the valid pad mask
+        valid_pad_mask = (pad_bitmap_collection['CRITICAL_PAD_BITMAP'] == 1) | (pad_bitmap_collection['REDUNDANT_PAD_BITMAP'] == 1)
+        # Read the mapping from physical to bump id
+        mapping_physical_to_bumpid = pad_bitmap_collection["mapping_physical_to_bumpid"]
         critical_fail = 0
         redundant_fail = 0
 
@@ -86,7 +89,7 @@ def overall_yield_simulator(
                                                     )
         if approximate_set == 1:
             # die fail criteria: any pad_misalignment >= MAX_ALLOWED_MISALIGNMENT_um
-            die.pad_misalignment = die.pad_misalignment.reshape(die.PAD_ARR_ROW, die.PAD_ARR_COL)
+            die.pad_misalignment = die.pad_misalignment.reshape(cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL)
             critical_pad_misalignment = die.pad_misalignment * die_critical_pad_bitmap
             # Check if any critical pad misalignment is greater than the maximum allowed misalignment
             if np.any(critical_pad_misalignment >= MAX_ALLOWED_MISALIGNMENT_um):
@@ -96,17 +99,16 @@ def overall_yield_simulator(
             # Check if too many redundant pad misalignment is greater than the maximum allowed misalignment
             redundant_pad_misalignment = die.pad_misalignment * die_redundant_pad_bitmap    # shape (PAD_ARR_ROW, PAD_ARR_COL)
             redundant_pad_fail_map[redundant_pad_misalignment > MAX_ALLOWED_MISALIGNMENT_um] = 1   # 1: redundant pad fails
-            # Get those failing pad indices
-            failing_redundant_pad_ind = np.argwhere(redundant_pad_fail_map == 1)
-            # Get the fail bump indices (specifically for UCIe mapping)
-            fail_bump_id_set = set((failing_redundant_pad_ind[:, 0] * PAD_ARR_COL / 2 + failing_redundant_pad_ind[:, 1] // 2).astype(int))      
+            # Get the fail bump indices
+            fail_bump_id = mapping_physical_to_bumpid[redundant_pad_fail_map == 1]
+            # Switch to set for easier checking
+            fail_bump_id_set = set(fail_bump_id.astype(int))    
 
         # Delete the die.pad_misalignment to save memory
         del die.pad_misalignment
 
         # If all the redundant pad replicas fail, then the die fails
-        for net, redundant_bump_ids in redundant_net_to_bumpids.items():
-            if redundant_bump_ids.issubset(fail_bump_id_set):
+        if any(redundant_bumpid_set.issubset(fail_bump_id_set) for net, redundant_bumpid_set in redundant_net_to_bumpids.items()):
                 die.survival = False
                 redundant_fail += 1
                 break
@@ -170,20 +172,22 @@ def overall_yield_simulator(
                     overlap_critical = overlap_void_pad_mask & check_critical_pad_bitmap.astype(bool)
                     if np.any(overlap_critical):
                         die.survival = False
+                        critical_fail += 1
+                        break
                     else:
                         # Check if any void overlaps with the redundant critical pads
                         overlap_redundant = overlap_void_pad_mask & check_redundant_pad_bitmap.astype(bool)
                         redundant_pad_fail_map[PAD_ARR_ROW-j_max-1:PAD_ARR_ROW-j_min, i_min:i_max+1][overlap_redundant] = 1
-                        # Get those failing pad indices
-                        failing_redundant_pad_ind = np.argwhere(redundant_pad_fail_map == 1)
-                        # Get the fail bump indices (specifically for UCIe mapping)
-                        fail_bump_id_set = set((failing_redundant_pad_ind[:, 0] * PAD_ARR_COL / 2 + failing_redundant_pad_ind[:, 1] // 2).astype(int))
+                        # Get the fail bump indices
+                        fail_bump_id = mapping_physical_to_bumpid[redundant_pad_fail_map == 1]
+                        # Switch to set for easier checking
+                        fail_bump_id_set = set(fail_bump_id.astype(int))
                 
                         # Check every net connecting redundant pads, if all the redundant pad replicas fail due to voids, then the die fails
-                        for net, redundant_bump_ids in redundant_net_to_bumpids.items():
-                            if redundant_bump_ids.issubset(fail_bump_id_set):
-                                die.survival = False
-                                break
+                        if any(redundant_bumpid_set.issubset(fail_bump_id_set) for net, redundant_bumpid_set in redundant_net_to_bumpids.items()):
+                            die.survival = False
+                            redundant_fail += 1
+                            break
                     if not die.survival:
                         break
                     
@@ -199,31 +203,35 @@ def overall_yield_simulator(
         # Check the Cu expansion
         top_dish, bot_dish = Cu_gap_simulator(TOP_DISH_MEAN_nm, TOP_DISH_STD_nm, BOT_DISH_MEAN_nm, BOT_DISH_STD_nm, int(die.num_pads))
         Cu_gap = top_dish + bot_dish
-        Cu_gap = Cu_gap.reshape(die_critical_pad_bitmap.shape)
-        # Calculate the safe range for Cu recess
+        Cu_gap = Cu_gap.reshape(cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL)
+        # Calculate the safe range for single pad Cu recess
         dishing_bound_array = debond_dishing_bounds_calculator(cfg, die.pad_coords) # (num_pads, 2) array: (dishing_low_nm, dishing_high_nm)
-        zeta_1 = - dishing_bound_array[:, 0].reshape(die.PAD_ARR_ROW, die.PAD_ARR_COL)  # - upper Cu height limits
-        zeta_0 = - dishing_bound_array[:, 1].reshape(die.PAD_ARR_ROW, die.PAD_ARR_COL)  # - lower Cu height limits
+        zeta_1 = - dishing_bound_array[:, 0].reshape(cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL) * 2 # upper limits of the sum of top and bottom Cu heights
+        zeta_0 = - dishing_bound_array[:, 1].reshape(cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL) * 2 # lower limits of the sum of top and bottom Cu heights
+        zeta_0[valid_pad_mask == 0], zeta_1[valid_pad_mask == 0] = np.nan, np.nan
 
         # Check critical pad Cu gap
         critical_pad_Cu_gap = Cu_gap * die_critical_pad_bitmap  # shape: (PAD_ARR_ROW, PAD_ARR_COL)
         if np.any(critical_pad_Cu_gap > zeta_1 * die_critical_pad_bitmap) or np.any(critical_pad_Cu_gap < zeta_0 * die_critical_pad_bitmap):
+            print(f"Die {die_ind} fails due to critical pad Cu gap.")
             die.survival = False
+            critical_fail += 1
             continue
 
         # Check redundant pad Cu gap
         redundant_pad_Cu_gap = Cu_gap * die_redundant_pad_bitmap
         redundant_pad_fail_map[redundant_pad_Cu_gap > zeta_1 * die_redundant_pad_bitmap] = 1
         redundant_pad_fail_map[redundant_pad_Cu_gap < zeta_0 * die_redundant_pad_bitmap] = 1
-        # Get those failing pad indices
-        failing_redundant_pad_ind = np.argwhere(redundant_pad_fail_map == 1)
-        # Get the fail bump indices (specifically for UCIe mapping)
-        fail_bump_id_set = set((failing_redundant_pad_ind[:, 0] * PAD_ARR_COL / 2 + failing_redundant_pad_ind[:, 1] // 2).astype(int))
+        # Get the fail bump indices
+        fail_bump_id = mapping_physical_to_bumpid[redundant_pad_fail_map == 1]
+        # Switch to set for easier checking
+        fail_bump_id_set = set(fail_bump_id.astype(int))
         # Check every net connecting redundant pads, if all the redundant pad replicas fail due to voids, then the die fails
-        for net, redundant_bumpid_set in redundant_net_to_bumpids.items():
-            if redundant_bumpid_set.issubset(fail_bump_id_set):
-                die.survival = False
-                break
+        if any(redundant_bumpid_set.issubset(fail_bump_id_set) for net, redundant_bumpid_set in redundant_net_to_bumpids.items()):
+            print(f"Die {die_ind} fails due to redundant pad Cu gap.")  
+            die.survival = False
+            redundant_fail += 1
+            break
         
         '''
         Check the ESD failure
@@ -243,6 +251,7 @@ def overall_yield_simulator(
         if first_contact_pad_idx is not None and survive_bool == False:    # One pad will form the first contact and fail
             r_idx, c_idx = first_contact_pad_idx // PAD_ARR_COL, first_contact_pad_idx % PAD_ARR_COL
             if die_esd_critical_pad_bitmap[r_idx, c_idx] == 1:  # If the failing pad is critical w.r.t. ESD
+                print(f"Die {die_ind} fails due to ESD on critical pad.")
                 die.survival = False
                 continue
 

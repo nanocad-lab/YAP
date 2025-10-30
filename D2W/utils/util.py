@@ -34,7 +34,7 @@ def load_modeling_config(path, mode, debug=False):
         assert int(cfg.pad_block_dim_x / cfg.PITCH_c_um) == int(cfg.pad_block_dim_y / cfg.PITCH_r_um), \
                 "Currently only square pad blocks are supported. Please set pad_block_dim_x/pitch_c_um equal to pad_block_dim_y/pitch_r_um."
         cfg.pad_block_size = int(cfg.pad_block_dim_x / cfg.PITCH_c_um)  # pad block size (#rows or #columns of the pad block)
-        cfg.eff_DIE_R = float(np.sqrt(cfg.DIE_W_um * cfg.DIE_L_um / np.pi))  # Effective wafer radius (um)
+        cfg.eff_DIE_R = float(np.sqrt((cfg.DIE_W_um / 2) ** 2 + (cfg.DIE_L_um / 2) ** 2))  # Effective die radius (um)
     else:
         raise ValueError(f"Unknown mode: {mode}. Supported modes are 'w2w_simulation', 'w2w_modeling', 'd2w_simulation', and 'd2w_modeling'.")
 
@@ -91,7 +91,7 @@ def update_config_items(cfg, mode):
         assert int(cfg.pad_block_dim_x / cfg.PITCH_c_um) == int(cfg.pad_block_dim_y / cfg.PITCH_r_um), \
                 "Currently only square pad blocks are supported. Please set pad_block_dim_x/pitch_c_um equal to pad_block_dim_y/pitch_r_um."
         cfg.pad_block_size = int(cfg.pad_block_dim_x / cfg.PITCH_c_um)  # pad block size (#rows or #columns of the pad block)
-        cfg.eff_DIE_R = float(np.sqrt(cfg.DIE_W_um * cfg.DIE_L_um / np.pi))  # Effective wafer radius (um)
+        cfg.eff_DIE_R = float(np.sqrt((cfg.DIE_W_um / 2) ** 2 + (cfg.DIE_L_um / 2) ** 2))  # Effective die radius (um)
     else:
         raise ValueError(f"Unknown mode: {mode}. Supported modes are 'w2w_simulation', 'w2w_modeling', 'd2w_simulation', and 'd2w_modeling'.")
 
@@ -172,6 +172,41 @@ def draw_pad_bitmap(cfg, bitmap_collection):
 
 
 
+def sort_pads_bmap(input_path, output_path):
+    """
+    Read pad data from .bmap file, from top-left to right-bottom order 
+    sorted by x ascending and y descending.
+    - x is the 3rd column (index 2)
+    - y is the 4th column (index 3)
+    """
+
+    pads = []
+    with open(input_path, 'r') as f:
+        for line in f:
+            parts = line.strip().split()
+            if len(parts) < 4:  # 至少需要 x, y 两列
+                continue
+            try:
+                x = float(parts[2])  # 第3列是x
+                y = float(parts[3])  # 第4列是y
+                pads.append((x, y, line.strip()))
+            except ValueError:
+                continue  # 跳过无法解析的行
+
+    # Transform to numpy array for sorting
+    data = np.array(pads, dtype=object)
+
+    # x ascending, y descending
+    idx = np.lexsort((data[:,0].astype(float), - data[:,1].astype(float)))
+    sorted_data = data[idx]
+
+    with open(output_path, 'w') as f:
+        for _, _, line in sorted_data:
+            f.write(line + '\n')
+
+    print(f"Sorted the order as from top-left to right-bottom and saved in {output_path}")
+
+
 def criticality_generator(cfg, 
                           bump_data: list,
                           redundant_net_to_bumpids: dict,
@@ -197,10 +232,10 @@ def criticality_generator(cfg,
             "esd_criticality": esd_criticality,
             "mechanical_criticality": mechanical_criticality
         })
-    with open(cfg.OUTPUT_DIR + "UCIe_standard_criticality.txt", 'w') as f:
+    with open(cfg.OUTPUT_DIR + cfg.DESIGN + "_criticality.txt", 'w') as f:
         for bump_crit in bump_criticality:
             f.write(f"{bump_crit['port']} {bump_crit['esd_criticality']:.3f} {bump_crit['mechanical_criticality']:.3f}\n")
-    print("UCIe standard criticality file saved in ", cfg.OUTPUT_DIR + "UCIe_standard_criticality.txt")
+    print(cfg.DESIGN + " criticality file saved in ", cfg.OUTPUT_DIR + cfg.DESIGN + "_criticality.txt")
     return
 
 
@@ -215,7 +250,7 @@ def risk_map_generator(cfg,
     for pad_id in range(len(die.pad_coords)):
         pad_coords_x = die.pad_coords[pad_id, 0]
         pad_coords_y = die.pad_coords[pad_id, 1]
-        if pad_coords_x == np.nan or pad_coords_y == np.nan:
+        if np.isnan(pad_coords_x) or np.isnan(pad_coords_y):
             continue
         pad_ovl_yield = die.pad_yield_map['Y_ovl'].flatten()[pad_id]
         pad_df_yield = die.pad_yield_map['Y_df'].flatten()[pad_id]
@@ -229,20 +264,20 @@ def risk_map_generator(cfg,
             "particle_failure_probability": 1 - pad_df_yield,
             "mechanical_failure_probability": 1 - pad_ce_yield,
         })
-    with open(cfg.OUTPUT_DIR + "UCIe_standard_risk_map.map", 'w') as f:
+    with open(cfg.OUTPUT_DIR + cfg.DESIGN + "_risk.map", 'w') as f:
         for pad_risk in risk_map:
             f.write(f"{pad_risk['pad_coords_x']} {pad_risk['pad_coords_y']} {pad_risk['esd_failure_probability']} {pad_risk['overlay_failure_probability']} {pad_risk['particle_failure_probability']} {pad_risk['mechanical_failure_probability']}\n")
-    print("UCIe standard risk map file saved in ", cfg.OUTPUT_DIR + "UCIe_standard_risk_map.map")
+    print(cfg.DESIGN + " risk map file saved in ", cfg.OUTPUT_DIR + cfg.DESIGN + "_risk.map")
     return
 
 
 
 
 def convert_3dblox_to_pad_bitmap(cfg, 
-                                 blox_bmap_path='pad_bitmap/UCIe_standard.bmap', 
+                                 blox_bmap_path='pad_bitmap/HBM_footprint_A.bmap', 
                                  pad_arrange_pattern='checkerboard'):
     '''
-    pad_arrange_pattern: 'checkerboard' for UCIe standard
+    pad_arrange_pattern: 'checkerboard' for UCIe standard and HBM
     '''
     # Extract configuration parameters
     pad_block_size = cfg.pad_block_size     # In UCIe standard, pad block size is 1 (no downsampling)
@@ -251,20 +286,22 @@ def convert_3dblox_to_pad_bitmap(cfg,
     redundant_logical_pad_copy = cfg.redundant_logical_pad_copy
     redundant_logical_pad_dist = cfg.redundant_logical_pad_dist
 
+    sort_pads_bmap(blox_bmap_path, blox_bmap_path + ".sorted")
+
     # Read the bump data from the .bmap file
     bump_data = []
     # Initialize the pad array boundaries
     [pad_array_left, pad_array_right, pad_array_top, pad_array_bottom] = [float('inf'), float('-inf'), float('-inf'), float('inf')]
     with open(blox_bmap_path, 'r') as f:
+        bumpid = 0
         for line in f:
             parts = line.strip().split()
             if len(parts) == 6:
                 instance, bump_type, x, y, port, net = parts
-                bumpid = int(instance.split("_")[1])
                 bump_data.append({      # From the top-left corner to the bottom-right corner
                     "bumpid": bumpid,
-                    "x": int(x),
-                    "y": int(y),
+                    "x": float(x),
+                    "y": float(y),
                     "port": port,
                     "net": net
                 })
@@ -276,6 +313,7 @@ def convert_3dblox_to_pad_bitmap(cfg,
                     pad_array_bottom = float(y)
                 if float(y) > pad_array_top:
                     pad_array_top = float(y)
+                bumpid += 1
     # Convert the bump data to pad bitmap
     redundant_net_to_bumpids = dict()
     for bump in bump_data:
@@ -294,27 +332,28 @@ def convert_3dblox_to_pad_bitmap(cfg,
     REDUNDANT_PAD_BLOCK_BITMAP = downsample_bitmap(REDUNDANT_PAD_BITMAP, pad_block_size)
     ESD_CRITICAL_PAD_BITMAP = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL), dtype=bool)
     pad_coords = np.full((cfg.PAD_ARR_ROW * cfg.PAD_ARR_COL, 2), np.nan, dtype=np.float32)  # x, y coordinates of each bump
+    # Build a mapping array from physical bump location (r, c) to bump id
+    mapping_physical_to_bumpid = np.full((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL), np.nan, dtype=np.float32) # Shape: (PAD_ARR_ROW, PAD_ARR_COL)
 
     if pad_arrange_pattern == 'checkerboard': # This case is for UCIe standard
-        for row in range(cfg.PAD_ARR_ROW):
-            for col in range(cfg.PAD_ARR_COL):
-                if (row + col) % 2 == 1:    # There is a bump (but not necessarily a critical pad)
-                    bump_id = int(row * cfg.PAD_ARR_COL / 2 + col // 2)
-                    current_bump_dict = bump_data[bump_id]
-                    current_bump_net = current_bump_dict['net']
-                    current_bump_port = current_bump_dict['port']
-                    pad_coords[row * cfg.PAD_ARR_COL + col, 0] = current_bump_dict['x'] - (pad_array_left + pad_array_right) / 2
-                    pad_coords[row * cfg.PAD_ARR_COL + col, 1] = current_bump_dict['y'] - (pad_array_top + pad_array_bottom) / 2
-                    num_copies = len(redundant_net_to_bumpids[current_bump_net])
-                    if num_copies == 1:
-                        CRITICAL_PAD_BITMAP[row, col] = 1
-                    elif num_copies > 1 and ('vss' in current_bump_port.lower() or 'vcc' in current_bump_port.lower()): 
-                        REDUNDANT_PAD_BITMAP[row, col] = 1
-                    elif num_copies > 1 and ('vss' not in current_bump_port.lower() and 'vcc' not in current_bump_port.lower()):
-                        REDUNDANT_PAD_BITMAP[row, col] = 1
-                        ESD_CRITICAL_PAD_BITMAP[row, col] = 1       # TODO: Check this with Alex. If redundant pads are connected to the same transistor gate, then this is correct.
-                else:
-                    continue
+        for bump in bump_data:
+            x = bump['x']
+            y = bump['y']
+            row = int(round((pad_array_top - y ) / (cfg.PITCH_r_um)))   # Because in checkerboard pattern, the pitch per row is halved
+            col = int(round((x - pad_array_left) / (cfg.PITCH_c_um)))   # Because in checkerboard pattern, the pitch per column is halved
+            mapping_physical_to_bumpid[row, col] = bump['bumpid']
+            pad_coords[row * cfg.PAD_ARR_COL + col, 0] = bump['x'] - (pad_array_left + pad_array_right) / 2
+            pad_coords[row * cfg.PAD_ARR_COL + col, 1] = bump['y'] - (pad_array_top + pad_array_bottom) / 2
+            current_bump_net = bump['net']
+            current_bump_port = bump['port']
+            num_copies = len(redundant_net_to_bumpids[current_bump_net])
+            if num_copies == 1:
+                CRITICAL_PAD_BITMAP[row, col] = 1
+            elif num_copies > 1 and ('vss' in current_bump_port.lower() or 'vcc' in current_bump_port.lower()): 
+                REDUNDANT_PAD_BITMAP[row, col] = 1
+            elif num_copies > 1 and ('vss' not in current_bump_port.lower() and 'vcc' not in current_bump_port.lower()):
+                REDUNDANT_PAD_BITMAP[row, col] = 1
+                ESD_CRITICAL_PAD_BITMAP[row, col] = 1       # TODO: Check this with Alex. If redundant pads are connected to the same transistor gate, then this is correct.
     else:
         raise NotImplementedError("Currently only support checkerboard pad arrangement pattern.")
     DUMMY_PAD_BITMAP = ~(CRITICAL_PAD_BITMAP | REDUNDANT_PAD_BITMAP)
@@ -347,7 +386,7 @@ def convert_3dblox_to_pad_bitmap(cfg,
     bitmap_collection["pad_block_size"] = pad_block_size
     bitmap_collection["redundant_net_to_bumpids"] = redundant_net_to_bumpids
     bitmap_collection["pad_coords"] = pad_coords
-    
+    bitmap_collection["mapping_physical_to_bumpid"] = mapping_physical_to_bumpid
     
     # Save the bitmap collection as npy file and mat file
     np.save(cfg.OUTPUT_DIR + "bitmap_collection.npy", bitmap_collection)
