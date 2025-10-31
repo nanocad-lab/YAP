@@ -49,6 +49,11 @@ def overall_yield_simulator(
     die_count = 0
     safe_die_count = 0
     # Read the critical pad bitmap
+    start_time = time.time()
+    dishing_bound_array = debond_dishing_bounds_calculator(cfg, die_list[0].pad_coords) # (num_pads, 2) array: (dishing_low_nm, dishing_high_nm)
+    print("Dishing bound calculation time: {:.2f} seconds".format(time.time() - start_time))
+    np.save("dishing_bound_array.npy", dishing_bound_array)
+    # dishing_bound_array = np.load("dishing_bound_array.npy")
     for die_ind in range(NUM_DIES):
         # # check start time
         start_time = time.time()
@@ -107,9 +112,6 @@ def overall_yield_simulator(
 
         # Delete the die.pad_misalignment to save memory
         del die.pad_misalignment
-        
-        print("Overlay checking time for die {}: {:.2f} seconds".format(die_ind, time.time() - start_time))
-        overlay_checking_finish_time = time.time()
 
         # If all the redundant pad replicas fail, then the die fails
         if any(redundant_bumpid_set.issubset(fail_bump_id_set) for net, redundant_bumpid_set in redundant_net_to_bumpids.items()):
@@ -195,8 +197,6 @@ def overall_yield_simulator(
                             break
                     if not die.survival:
                         break
-        voids_checking_finish_time = time.time()
-        print("Void checking time for die {}: {:.2f} seconds".format(die_ind, voids_checking_finish_time - overlay_checking_finish_time))
 
         # Proceed if die still survives
         if not die.survival:
@@ -211,16 +211,10 @@ def overall_yield_simulator(
         Cu_gap = top_dish + bot_dish
         Cu_gap = Cu_gap.reshape(cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL)
         # Calculate the safe range for single pad Cu recess
-        profiler = cProfile.Profile()
-        profiler.enable()
-        dishing_bound_array = debond_dishing_bounds_calculator(cfg, die.pad_coords) # (num_pads, 2) array: (dishing_low_nm, dishing_high_nm)
-        profiler.disable()
-        stats = pstats.Stats(profiler).sort_stats('cumulative')
-        stats.print_stats()
-        raise ValueError("Test error")
         zeta_1 = - dishing_bound_array[:, 0].reshape(cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL) * 2 # upper limits of the sum of top and bottom Cu heights
         zeta_0 = - dishing_bound_array[:, 1].reshape(cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL) * 2 # lower limits of the sum of top and bottom Cu heights
         zeta_0[valid_pad_mask == 0], zeta_1[valid_pad_mask == 0] = np.nan, np.nan
+        print("min zeta_0: {}, max zeta_1: {}".format(np.nanmin(zeta_0), np.nanmax(zeta_1)))
 
         # Check critical pad Cu gap
         critical_pad_Cu_gap = Cu_gap * die_critical_pad_bitmap  # shape: (PAD_ARR_ROW, PAD_ARR_COL)
@@ -244,9 +238,6 @@ def overall_yield_simulator(
             die.survival = False
             redundant_fail += 1
             break
-        
-        Cu_gap_checking_finish_time = time.time()
-        print("Cu gap checking time for die {}: {:.2f} seconds".format(die_ind, Cu_gap_checking_finish_time - voids_checking_finish_time))
 
         '''
         Check the ESD failure
@@ -270,8 +261,6 @@ def overall_yield_simulator(
                 die.survival = False
                 continue
         
-        ESD_checking_finish_time = time.time()
-        print("ESD checking time for die {}: {:.2f} seconds".format(die_ind, ESD_checking_finish_time - Cu_gap_checking_finish_time))
         if die.survival:
             safe_die_count += 1
 

@@ -286,7 +286,7 @@ def _cu_stress_at(D_nm: float) -> float:
     with _TempDishing(D_nm):
         return compute_cu_peel_cool_MPa()['sigma_cu_peel_MPa']
 
-def _bisect_mono(f, target, lo, hi, is_increasing, tol=1e-6, maxit=80):
+def _bisect_mono(f, target, lo, hi, is_increasing, tol=1e-5, maxit=80):
     f_lo, f_hi = f(lo), f(hi)
     if is_increasing:
         if target <= f_lo: return lo
