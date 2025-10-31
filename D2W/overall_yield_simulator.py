@@ -50,14 +50,14 @@ def overall_yield_simulator(
     safe_die_count = 0
     # Read the critical pad bitmap
     start_time = time.time()
-    dishing_bound_array = debond_dishing_bounds_calculator(cfg, die_list[0].pad_coords) # (num_pads, 2) array: (dishing_low_nm, dishing_high_nm)
-    print("Dishing bound calculation time: {:.2f} seconds".format(time.time() - start_time))
-    np.save("dishing_bound_array.npy", dishing_bound_array)
-    # dishing_bound_array = np.load("dishing_bound_array.npy")
+    # dishing_bound_array = debond_dishing_bounds_calculator(cfg, die_list[0].pad_coords) # (num_pads, 2) array: (dishing_low_nm, dishing_high_nm)
+    # print("Dishing bound calculation time: {:.2f} seconds".format(time.time() - start_time))
+    # np.save("dishing_bound_array.npy", dishing_bound_array)
+    dishing_bound_array = np.load("dishing_bound_array.npy")
     for die_ind in range(NUM_DIES):
         # # check start time
         start_time = time.time()
-        if die_count % 10 == 0:
+        if die_count % 100 == 0:
             print("Processing die {}/{}...".format(die_count, len(die_list)))
         die = die_list[die_ind]
         die_count += 1
@@ -210,11 +210,11 @@ def overall_yield_simulator(
         top_dish, bot_dish = Cu_gap_simulator(TOP_DISH_MEAN_nm, TOP_DISH_STD_nm, BOT_DISH_MEAN_nm, BOT_DISH_STD_nm, int(die.num_pads))
         Cu_gap = top_dish + bot_dish
         Cu_gap = Cu_gap.reshape(cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL)
+
         # Calculate the safe range for single pad Cu recess
         zeta_1 = - dishing_bound_array[:, 0].reshape(cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL) * 2 # upper limits of the sum of top and bottom Cu heights
         zeta_0 = - dishing_bound_array[:, 1].reshape(cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL) * 2 # lower limits of the sum of top and bottom Cu heights
         zeta_0[valid_pad_mask == 0], zeta_1[valid_pad_mask == 0] = np.nan, np.nan
-        print("min zeta_0: {}, max zeta_1: {}".format(np.nanmin(zeta_0), np.nanmax(zeta_1)))
 
         # Check critical pad Cu gap
         critical_pad_Cu_gap = Cu_gap * die_critical_pad_bitmap  # shape: (PAD_ARR_ROW, PAD_ARR_COL)
