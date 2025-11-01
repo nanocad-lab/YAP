@@ -141,7 +141,7 @@ def __init_params(cfg):
     S_INIT_B_M = cfg.S_INIT_B_M
 
     # ---------- (J) Optional plotting ----------
-    USE_PLOT = False
+    USE_PLOT = True
 
 # =============================================================================
 # ============================== PAD-SCALE CORE ===============================
@@ -308,7 +308,7 @@ def _expand_bracket(f, target, lo0, hi0, is_increasing, step=50.0, max_hi=100000
     f_lo, f_hi = f(lo), f(hi)
     if (is_increasing and (f_lo <= target <= f_hi)) or ((not is_increasing) and (f_hi <= target <= f_lo)):
         return lo, hi, True
-    for _ in range(40):
+    for _ in range(100):
         if is_increasing:
             if target > f_hi: hi = min(max_hi, hi + step); f_hi = f(hi)
             elif target < f_lo: lo = max(0.0, lo - step);   f_lo = f(lo)
@@ -326,6 +326,8 @@ def invert_dishing_sio2_given_sigma_eff(sigma_eff_MPa: float) -> Tuple[float, di
     lo, hi, ok = _expand_bracket(_sio2_stress_at, target, 0.0, 50.0, is_increasing=False)
     if not ok:
         f0 = _sio2_stress_at(0.0)
+        print("f0 =", f0, "target =", target)
+        print("hi =", hi, "_sio2_stress_at(hi) =", _sio2_stress_at(hi))
         if f0 < target: return 0.0, dict(mode="no_risk", sigma0=f0, target=target)
         return hi, dict(mode="clamped_hi", D_hi=hi, sigma_hi=_sio2_stress_at(hi), target=target)
     D_raw = _bisect_mono(_sio2_stress_at, target, lo, hi, is_increasing=False)
@@ -464,9 +466,27 @@ def build_effcrit_and_dishing_arrays(peel_dict: dict, coords_mm_np: np.ndarray, 
     N = p_MPa.shape[0]
     D_sio2_nm = np.empty(N, dtype=np.float64)
     D_cu_nm   = np.empty(N, dtype=np.float64)
+    print("sigma_crit_SiO2 = {:.3f} MPa".format(sigma_crit_SiO2))
+    print(invert_dishing_sio2_given_sigma_eff(sigma_crit_SiO2 - 100.0))
+    print(invert_dishing_sio2_given_sigma_eff(sigma_crit_SiO2 - 200.0))
+    raise RuntimeError("Debugging stop.")
+
     for i in range(N):
         D_sio2_nm[i], _ = invert_dishing_sio2_given_sigma_eff(float(sigma_eff_SiO2[i]))
+        assert D_sio2_nm[i] >= 0.0, "Negative D_sio2_nm at index {}.".format(i)
         D_cu_nm[i],   _ = invert_dishing_cu_given_sigma_eff(float(sigma_eff_Cu[i]))
+        assert D_cu_nm[i] >= 0.0, "Negative D_cu_nm at index {}.".format(i)
+
+    # Draw p_MPa, point size = 5
+    plt.figure(figsize=(15, 10))
+    plt.scatter(coords_mm_np[:, 0], coords_mm_np[:, 1], c=p_MPa, cmap='viridis', s=8)
+    plt.colorbar(label='Peeling Stress p (MPa)')
+    plt.xlabel('X (mm)')
+    plt.ylabel('Y (mm)')
+    plt.title('Peeling Stress Distribution')
+    plt.axis('equal')
+    plt.grid(True)
+    plt.show()
 
     effcrit = np.column_stack([sigma_eff_Cu, sigma_eff_SiO2])      # (N,2)
     dishing = np.column_stack([D_cu_nm, D_sio2_nm])                # (N,2)

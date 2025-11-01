@@ -551,7 +551,7 @@ d2w_modeling:
   B_Sub_Sio2_V: 0.00                    # Efficient substrate layer Sio2 volume density
   B_Sub_Si_V: 0.90                      # Efficient substrate layer si volume density
   B_Sub_T: 775e-6                       # Efficient substrate layer thickness (m)
-  S_INIT_A_M: 50e-9                   # Pre-anneal warpages (m)
+  S_INIT_A_M: 450e-9                   # Pre-anneal warpages (m)
   # === Top Wafer Settings ===
   T_Chip_Cu_V: 0.30                     # Efficient chip layer Cu volume density
   T_Chip_Sio2_V: 0.70                   # Efficient chip layer Sio2 volume density
@@ -683,5 +683,5 @@ d2w_modeling:
   TILT_X_STD_DEG: 0.01
   TILT_Y_MEAN_DEG: 0.000
   TILT_Y_STD_DEG: 0.01
-  n_tilts_samples: 1000                  # Number of tilt samples for ESD simulation
-  n_dishes_samples: 1000                # Number of dish samples for ESD simulation
+  n_tilts_samples: 1                  # Number of tilt samples for ESD simulation
+  n_dishes_samples: 1                # Number of dish samples for ESD simulation

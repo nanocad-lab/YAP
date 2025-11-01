@@ -143,7 +143,7 @@ def draw_pad_bitmap(cfg, bitmap_collection):
     PAD_BITMAP[REDUNDANT_PAD_BITMAP == 1] = 2  # blue
     PAD_BITMAP[DUMMY_PAD_BITMAP == 1] = 3  # gray
 
-    plt.figure(figsize=(8, 8))
+    plt.figure(figsize=(15, 15))
     cmap = ListedColormap([
         (1.0, 0.5, 0.5),    # 1 - critical (medium red)
         (0.4, 0.4, 0.9),    # 2 - redundant (medium blue)
