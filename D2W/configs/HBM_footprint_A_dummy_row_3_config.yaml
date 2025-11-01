@@ -4,7 +4,7 @@ w2w_simulation:
   MODE: "W2W_Hybrid_Bonding_Simulation"  # Name of the simulation
   DEBUG: false                                      # Enable debug mode
   OUTPUT_DIR: "output/"          # Output directory for simulation results
-  DESIGN: "HBM_footprint_B"                      # Design name
+  DESIGN: "HBM_footprint_A_dummy_row_3"                      # Design name
   # === Wafer and Die Settings ===
   NUM_WAFERS: 1                        # Number of wafers used in simulation
   PITCH_r_um: 115                            # Row pad pitch (µm)   (In checkerboard layout, this is sqrt(2)/2 times of the real pitch)
@@ -180,7 +180,7 @@ w2w_modeling:
   MODE: "W2W_Hybrid_Bonding_Modeling"   # Name of the modeling
   DEBUG: false                          # Enable debug mode
   OUTPUT_DIR: "output/"          # Output directory for simulation results
-  DESIGN: "HBM_footprint_B"                      # Design name
+  DESIGN: "HBM_footprint_A_dummy_row_3"                      # Design name
   # === Per Wafer Parameters ===
   PITCH_r_um: 55                              # Row pad PITCH_um (µm)   (In checkerboard layout, this is sqrt(2)/2 times of the real pitch)
   PITCH_c_um: 35                              # Column pad PITCH_um (µm)    (In checkerboard layout, this is sqrt(2)/2 times of the real pitch)
@@ -348,15 +348,15 @@ d2w_simulation:
   MODE: "D2W_Hybrid_Bonding_Simulation" # Name of the simulation
   DEBUG: false                          # Enable debug mode
   OUTPUT_DIR: "output/"          # Output directory for simulation results
-  DESIGN: "HBM_footprint_B"                      # Design name  
+  DESIGN: "HBM_footprint_A_dummy_row_3"                      # Design name  
   # === Die Settings ===
   NUM_DIES: 1                            # Number of Dies used in simulation
   PITCH_r_um: 55                            # Row pad pitch (µm) (In checkerboard layout, this is sqrt(2)/2 times of the real pitch)
   PITCH_c_um: 35                            # Column pad pitch (µm)  (In checkerboard layout, this is sqrt(2)/2 times of the real pitch)
-  DIE_W_um: 12500                          # Die width (µm)
-  DIE_L_um: 9000                          # Die length (µm)
-  PAD_ARR_ROW: 161
-  PAD_ARR_COL: 348
+  DIE_W_um: 11000                          # Die width (µm)
+  DIE_L_um: 9200                          # Die length (µm)
+  PAD_ARR_ROW: 167
+  PAD_ARR_COL: 314
   PAD_BOT_R_um: 9                      # Bottom Cu pad radius (um)
   PAD_TOP_R_um: 9                      # Top Cu pad radius (um)
   PAD_BOT_R_um_ratio: 0.5                  # Ratio of bottom pad dimension to the PITCH_um
@@ -524,14 +524,14 @@ d2w_modeling:
   MODE: "D2W_Hybrid_Bonding_Modeling"   # Name of the modeling
   DEBUG: false                          # Enable debug mode
   OUTPUT_DIR: "output/"          # Output directory for simulation results
-  DESIGN: "HBM_footprint_B"                      # Design name  
+  DESIGN: "HBM_footprint_A_dummy_row_3"                      # Design name  
   # === Per Wafer Parameters ===
   PITCH_r_um: 55                            # Row pad pitch (µm) (In checkerboard layout, this is sqrt(2)/2 times of the real pitch)
   PITCH_c_um: 35                            # Column pad pitch (µm) (In checkerboard layout, this is sqrt(2)/2 times of the real pitch)
-  DIE_W_um: 12500                          # Die width (µm)
-  DIE_L_um: 9000                          # Die length (µm)
-  PAD_ARR_ROW: 161
-  PAD_ARR_COL: 348
+  DIE_W_um: 11000                          # Die width (µm)
+  DIE_L_um: 9200                          # Die length (µm)
+  PAD_ARR_ROW: 167
+  PAD_ARR_COL: 314
   PAD_BOT_R_um: 9                      # Bottom Cu pad radius (um)
   PAD_TOP_R_um: 9                      # Top Cu pad radius (um)
   PAD_BOT_R_um_ratio: 0.5                  # Ratio of bottom pad dimension to the PITCH_um
@@ -605,10 +605,10 @@ d2w_modeling:
   k_S: 2.7
 
   # === Cu Expansion / Dishing Parameters ===
-  TOP_DISH_MEAN_nm: -2.0                  # Top pad height mean (nm)
-  TOP_DISH_STD_nm: 0.3                     # Top pad height std (nm)
-  BOT_DISH_MEAN_nm: -2.0                  # Bottom pad height mean (nm)
-  BOT_DISH_STD_nm: 0.3                     # Bottom pad height std (nm)
+  TOP_DISH_MEAN_nm: -1.0                  # Top pad height mean (nm)
+  TOP_DISH_STD_nm: 0.6                     # Top pad height std (nm)
+  BOT_DISH_MEAN_nm: -1.0                  # Bottom pad height mean (nm)
+  BOT_DISH_STD_nm: 0.6                     # Bottom pad height std (nm)
   k_et: 0.053                           # Top Cu expansion coef (nm/K)
   k_eb: 0.053                           # Bottom Cu expansion coef (nm/K)
   T_R: 25                               # Room temperature (°C)
@@ -683,5 +683,5 @@ d2w_modeling:
   TILT_X_STD_DEG: 0.01
   TILT_Y_MEAN_DEG: 0.000
   TILT_Y_STD_DEG: 0.01
-  n_tilts_samples: 100                  # Number of tilt samples for ESD simulation
-  n_dishes_samples: 100                # Number of dish samples for ESD simulation
+  n_tilts_samples: 1                  # Number of tilt samples for ESD simulation
+  n_dishes_samples: 1                # Number of dish samples for ESD simulation

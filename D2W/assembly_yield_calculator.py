@@ -46,6 +46,7 @@ def Pad_Yield_Map_Generator(
 
     # Calculate the overlay yield
     overlay_pad_yield_map = pad_overlay_yield_map_generator(
+        cfg                             =       cfg,
         PAD_TOP_R_um                    =       cfg.PAD_TOP_R_um,
         PAD_BOT_R_um                    =       cfg.PAD_BOT_R_um,
         PAD_ARR_ROW                     =       cfg.PAD_ARR_ROW,
@@ -92,6 +93,7 @@ def Pad_Yield_Map_Generator(
     print(f"Defect yield calculation took {time.time() - start_time:.2f} seconds")
 
     # Calculate the Cu expansion yield
+    Cu_expansion_start_time = time.time()
     Cu_expansion_pad_yield_map = pad_Cu_expansion_yield_map_generator(
         cfg                 =       cfg,
         die                 =       die,
@@ -102,6 +104,7 @@ def Pad_Yield_Map_Generator(
         pad_bitmap_collection =   pad_bitmap_collection,
     )
     die.pad_yield_map['Y_ce'] = Cu_expansion_pad_yield_map
+    print(f"Cu expansion yield calculation took {time.time() - Cu_expansion_start_time:.2f} seconds")
 
     esd_start_time = time.time()
     # Calculate the ESD yield
@@ -127,37 +130,38 @@ def Pad_Yield_Map_Generator(
     esd_pad_yield_map[~valid_pad_mask] = np.nan
     die.pad_yield_map['Y_esd'] = esd_pad_yield_map
     die.glb_pad_yield_min_max_dict['Y_esd'] = (np.nanmin(die.pad_yield_map['Y_esd']), np.nanmax(die.pad_yield_map['Y_esd']))
-    # Draw the pad yield map
-    plt.figure(figsize=(8, 6))
-    plt.imshow(
-        die.pad_yield_map['Y_esd'],
-        cmap='viridis', 
-        vmin=die.glb_pad_yield_min_max_dict['Y_esd'][0],
-        vmax=die.glb_pad_yield_min_max_dict['Y_esd'][1],
-        interpolation='nearest',
-        )
-    plt.colorbar(label='Pad ESD Yield')
-    plt.xlabel('Pad Column Index')
-    plt.ylabel('Pad Row Index')
-    plt.show()
+    if cfg.plot_flag:
+        # Draw the pad yield map
+        plt.figure(figsize=(8, 6))
+        plt.imshow(
+            die.pad_yield_map['Y_esd'],
+            cmap='viridis', 
+            vmin=die.glb_pad_yield_min_max_dict['Y_esd'][0],
+            vmax=die.glb_pad_yield_min_max_dict['Y_esd'][1],
+            interpolation='nearest',
+            )
+        plt.colorbar(label='Pad ESD Yield')
+        plt.xlabel('Pad Column Index')
+        plt.ylabel('Pad Row Index')
+        plt.show()
     
     print(f"ESD yield calculation took {time.time() - esd_start_time:.2f} seconds")
     die.pad_yield_map['Y_bond'] = die.pad_yield_map['Y_ovl'] * die.pad_yield_map['Y_df'] * die.pad_yield_map['Y_ce'] * die.pad_yield_map['Y_esd']
     die.glb_pad_yield_min_max_dict['Y_bond'] = (np.nanmin(die.pad_yield_map['Y_bond']), np.nanmax(die.pad_yield_map['Y_bond']))
     print(f"Overall pad bonding yield min: {die.glb_pad_yield_min_max_dict['Y_bond'][0]:.6f}, max: {die.glb_pad_yield_min_max_dict['Y_bond'][1]:.6f}")
-    # Draw the pad yield map
-    plt.figure(figsize=(8, 6))
-    plt.imshow(
-        die.pad_yield_map['Y_bond'],
-        cmap='viridis', 
-        vmin=die.glb_pad_yield_min_max_dict['Y_bond'][0],
-        vmax=die.glb_pad_yield_min_max_dict['Y_bond'][1],
-        interpolation='nearest',
-        )
-    plt.colorbar(label='Pad Bonding Yield')
-    plt.xlabel('Pad Column Index')
-    plt.ylabel('Pad Row Index')
-    plt.show()
+    if cfg.plot_flag:
+        # Draw the pad yield map
+        plt.figure(figsize=(8, 6))
+        plt.imshow(
+            die.pad_yield_map['Y_bond'],
+            cmap='viridis', 
+            vmin=die.glb_pad_yield_min_max_dict['Y_bond'][0],
+            vmax=die.glb_pad_yield_min_max_dict['Y_bond'][1],
+            interpolation='nearest',
+            )
+        plt.colorbar(label='Pad Bonding Yield')
+        plt.xlabel('Pad Column Index')
+        plt.ylabel('Pad Row Index')
+        plt.show()
 
     risk_map_generator(cfg=cfg, die=die)    # Generate and save the risk map in the specified output directory
-    return die.pad_yield_map['Y_bond'] 

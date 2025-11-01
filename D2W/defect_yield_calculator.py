@@ -267,7 +267,7 @@ def pad_defect_yield_map_generator(
         particle_defect_pad_yield_map = None
         particle_defect_pad_yield_map_sub = None
 
-    if pad_yield_flag:
+    if cfg.plot_flag and pad_yield_flag:
         # Draw heatmap of pad-level defect yield map
         plt.figure(figsize=(8, 6))
         plt.imshow(

@@ -3,7 +3,7 @@ w2w_simulation:
   # === General Settings ===
   MODE: "W2W_Hybrid_Bonding_Simulation"  # Name of the simulation
   DEBUG: false                                      # Enable debug mode
-  OUTPUT_DIR: "pad_bitmap/"          # Output directory for simulation results
+  OUTPUT_DIR: "output/"          # Output directory for simulation results
   DESIGN: "HBM_footprint_A"                      # Design name
   # === Wafer and Die Settings ===
   NUM_WAFERS: 1                        # Number of wafers used in simulation
@@ -179,7 +179,7 @@ w2w_modeling:
   # === General Settings ===
   MODE: "W2W_Hybrid_Bonding_Modeling"   # Name of the modeling
   DEBUG: false                          # Enable debug mode
-  OUTPUT_DIR: "pad_bitmap/"          # Output directory for simulation results
+  OUTPUT_DIR: "output/"          # Output directory for simulation results
   DESIGN: "HBM_footprint_A"                      # Design name
   # === Per Wafer Parameters ===
   PITCH_r_um: 55                              # Row pad PITCH_um (µm)   (In checkerboard layout, this is sqrt(2)/2 times of the real pitch)
@@ -347,7 +347,7 @@ d2w_simulation:
   # === General Settings ===
   MODE: "D2W_Hybrid_Bonding_Simulation" # Name of the simulation
   DEBUG: false                          # Enable debug mode
-  OUTPUT_DIR: "pad_bitmap/"          # Output directory for simulation results
+  OUTPUT_DIR: "output/"          # Output directory for simulation results
   DESIGN: "HBM_footprint_A"                      # Design name  
   # === Die Settings ===
   NUM_DIES: 1                            # Number of Dies used in simulation
@@ -376,7 +376,7 @@ d2w_simulation:
   B_Sub_Sio2_V: 0.00                    # Efficient substrate layer Sio2 volume density
   B_Sub_Si_V: 0.90                      # Efficient substrate layer si volume density
   B_Sub_T: 775e-6                       # Efficient substrate layer thickness (m)
-  S_INIT_A_M: 50e-9                     # Pre-anneal warpages (m)
+  S_INIT_A_M: 25e-9                     # Pre-anneal warpages (m)
   # === Top Wafer Settings ===
   T_Chip_Cu_V: 0.30                     # Efficient chip layer Cu volume density
   T_Chip_Sio2_V: 0.70                   # Efficient chip layer Sio2 volume density
@@ -523,7 +523,7 @@ d2w_modeling:
   # === General Settings ===
   MODE: "D2W_Hybrid_Bonding_Modeling"   # Name of the modeling
   DEBUG: false                          # Enable debug mode
-  OUTPUT_DIR: "pad_bitmap/"          # Output directory for simulation results
+  OUTPUT_DIR: "output/"          # Output directory for simulation results
   DESIGN: "HBM_footprint_A"                      # Design name  
   # === Per Wafer Parameters ===
   PITCH_r_um: 55                            # Row pad pitch (µm) (In checkerboard layout, this is sqrt(2)/2 times of the real pitch)
@@ -551,7 +551,7 @@ d2w_modeling:
   B_Sub_Sio2_V: 0.00                    # Efficient substrate layer Sio2 volume density
   B_Sub_Si_V: 0.90                      # Efficient substrate layer si volume density
   B_Sub_T: 775e-6                       # Efficient substrate layer thickness (m)
-  S_INIT_A_M: 450e-9                   # Pre-anneal warpages (m)
+  S_INIT_A_M: 25e-9                   # Pre-anneal warpages (m)
   # === Top Wafer Settings ===
   T_Chip_Cu_V: 0.30                     # Efficient chip layer Cu volume density
   T_Chip_Sio2_V: 0.70                   # Efficient chip layer Sio2 volume density

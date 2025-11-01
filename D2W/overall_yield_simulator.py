@@ -7,8 +7,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import time
-import cProfile
-import pstats
+import os
 from overlay_yield_simulator import die_pad_misalignment
 from Cu_gap_simulator import Cu_gap_simulator
 from debond import debond_dishing_bounds_calculator
@@ -48,16 +47,20 @@ def overall_yield_simulator(
     yield_list = []
     die_count = 0
     safe_die_count = 0
-    # Read the critical pad bitmap
-    start_time = time.time()
-    # dishing_bound_array = debond_dishing_bounds_calculator(cfg, die_list[0].pad_coords) # (num_pads, 2) array: (dishing_low_nm, dishing_high_nm)
-    # print("Dishing bound calculation time: {:.2f} seconds".format(time.time() - start_time))
-    # np.save("dishing_bound_array.npy", dishing_bound_array)
-    dishing_bound_array = np.load("dishing_bound_array.npy")
+    # Get the valid pad mask
+    valid_pad_mask = (pad_bitmap_collection['CRITICAL_PAD_BITMAP'] == 1) | (pad_bitmap_collection['REDUNDANT_PAD_BITMAP'] == 1) | (pad_bitmap_collection['DUMMY_PAD_BITMAP'] == 1)
+    valid_die_pad_coords = die_list[0].pad_coords[valid_pad_mask.flatten() == 1]
+    if not os.path.exists(cfg.OUTPUT_DIR + cfg.DESIGN + '/' + cfg.DESIGN + "_dishing_bound_array.npy"):
+        start_time = time.time()
+        valid_pad_dishing_bound_array = debond_dishing_bounds_calculator(cfg, valid_die_pad_coords) # (num_pads, 2) array: (dishing_low_nm, dishing_high_nm)
+        print("Dishing bound calculation time: {:.2f} seconds".format(time.time() - start_time))
+        np.save(cfg.OUTPUT_DIR + cfg.DESIGN + '/' + cfg.DESIGN + "_dishing_bound_array.npy", valid_pad_dishing_bound_array)
+    else:
+        valid_pad_dishing_bound_array = np.load(cfg.OUTPUT_DIR + cfg.DESIGN + '/' + cfg.DESIGN + "_dishing_bound_array.npy")
     for die_ind in range(NUM_DIES):
         # # check start time
         start_time = time.time()
-        if die_count % 100 == 0:
+        if die_count % 500 == 0:
             print("Processing die {}/{}...".format(die_count, len(die_list)))
         die = die_list[die_ind]
         die_count += 1
@@ -70,12 +73,11 @@ def overall_yield_simulator(
         # Read the redundant net to bump ids mapping
         redundant_net_to_bumpids = pad_bitmap_collection["redundant_net_to_bumpids"]
         # Get the valid pad mask
-        valid_pad_mask = (pad_bitmap_collection['CRITICAL_PAD_BITMAP'] == 1) | (pad_bitmap_collection['REDUNDANT_PAD_BITMAP'] == 1)
+        valid_pad_mask = (pad_bitmap_collection['CRITICAL_PAD_BITMAP'] == 1) | (pad_bitmap_collection['REDUNDANT_PAD_BITMAP'] == 1) | (pad_bitmap_collection['DUMMY_PAD_BITMAP'] == 1)
         # Read the mapping from physical to bump id
         mapping_physical_to_bumpid = pad_bitmap_collection["mapping_physical_to_bumpid"]
         critical_fail = 0
         redundant_fail = 0
-
         redundant_pad_fail_map = np.zeros((PAD_ARR_ROW, PAD_ARR_COL))
 
         """
@@ -208,16 +210,18 @@ def overall_yield_simulator(
         '''
         # Check the Cu expansion
         top_dish, bot_dish = Cu_gap_simulator(TOP_DISH_MEAN_nm, TOP_DISH_STD_nm, BOT_DISH_MEAN_nm, BOT_DISH_STD_nm, int(die.num_pads))
-        Cu_gap = top_dish + bot_dish
-        Cu_gap = Cu_gap.reshape(cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL)
+        Cu_gap_in_valid_pads = top_dish + bot_dish
+        Cu_gap_map = np.full((PAD_ARR_ROW, PAD_ARR_COL), np.nan)
+        Cu_gap_map[valid_pad_mask == 1] = Cu_gap_in_valid_pads
 
         # Calculate the safe range for single pad Cu recess
-        zeta_1 = - dishing_bound_array[:, 0].reshape(cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL) * 2 # upper limits of the sum of top and bottom Cu heights
-        zeta_0 = - dishing_bound_array[:, 1].reshape(cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL) * 2 # lower limits of the sum of top and bottom Cu heights
-        zeta_0[valid_pad_mask == 0], zeta_1[valid_pad_mask == 0] = np.nan, np.nan
+        zeta_0 = np.full((PAD_ARR_ROW, PAD_ARR_COL), np.nan)
+        zeta_1 = np.full((PAD_ARR_ROW, PAD_ARR_COL), np.nan)
+        zeta_0[valid_pad_mask == 1] = - valid_pad_dishing_bound_array[:, 1] * 2 # lower limits of the sum of top and bottom Cu heights
+        zeta_1[valid_pad_mask == 1] = - valid_pad_dishing_bound_array[:, 0] * 2 # upper limits of the sum of top and bottom Cu heights
 
         # Check critical pad Cu gap
-        critical_pad_Cu_gap = Cu_gap * die_critical_pad_bitmap  # shape: (PAD_ARR_ROW, PAD_ARR_COL)
+        critical_pad_Cu_gap = Cu_gap_map * die_critical_pad_bitmap  # shape: (PAD_ARR_ROW, PAD_ARR_COL)
         if np.any(critical_pad_Cu_gap > zeta_1 * die_critical_pad_bitmap) or np.any(critical_pad_Cu_gap < zeta_0 * die_critical_pad_bitmap):
             print(f"Die {die_ind} fails due to critical pad Cu gap.")
             die.survival = False
@@ -225,7 +229,7 @@ def overall_yield_simulator(
             continue
 
         # Check redundant pad Cu gap
-        redundant_pad_Cu_gap = Cu_gap * die_redundant_pad_bitmap
+        redundant_pad_Cu_gap = Cu_gap_map * die_redundant_pad_bitmap
         redundant_pad_fail_map[redundant_pad_Cu_gap > zeta_1 * die_redundant_pad_bitmap] = 1
         redundant_pad_fail_map[redundant_pad_Cu_gap < zeta_0 * die_redundant_pad_bitmap] = 1
         # Get the fail bump indices
@@ -243,7 +247,7 @@ def overall_yield_simulator(
         Check the ESD failure
         '''
         # TODO: ESD failure simulation to be implemented
-        first_contact_pad_idx, survive_bool = esd_failure_simulator(pad_coords_um=die.pad_coords,
+        first_contact_pad_idx, survive_bool = esd_failure_simulator(pad_coords_um=valid_die_pad_coords,
                                                 pad_size_um=PAD_TOP_R_um * 2,
                                                 top_die_w_um=die.DIE_W_um,
                                                 top_die_h_um=die.DIE_L_um,

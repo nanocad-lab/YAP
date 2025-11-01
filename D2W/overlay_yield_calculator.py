@@ -107,22 +107,15 @@ def overlay_yield_calculator(*,
         CONTACT_AREA_CONSTRAINT=CONTACT_AREA_CONSTRAINT,
         CRITICAL_DIST_CONSTRAINT=CRITICAL_DIST_CONSTRAINT,
     )
-    # print("PAD_TOP_R_um: ", PAD_TOP_R_um, "um")
-    # print("PAD_BOT_R_um: ", PAD_BOT_R_um, "um")
-    # print("PITCH_r_um: ", PITCH_r_um, "um")
-    # print("PITCH_c_um: ", PITCH_c_um, "um")
-    # print("CONTACT_AREA_CONSTRAINT: ", CONTACT_AREA_CONSTRAINT)
-    # print("CRITICAL_DIST_CONSTRAINT: ", CRITICAL_DIST_CONSTRAINT)
-    print("The maximum allowed misalignment is {} nm.".format(MAX_ALLOWED_MISALIGNMENT * 1e3))
     num_samples = num_samples
     system_translation_x_samples_um = np.random.normal(SYSTEM_TRANSLATION_X_MEAN_um, SYSTEM_TRANSLATION_X_STD_um, num_samples)
     system_translation_y_samples_um = np.random.normal(SYSTEM_TRANSLATION_Y_MEAN_um, SYSTEM_TRANSLATION_Y_STD_um, num_samples)
     system_rotation_samples_rad = np.random.normal(SYSTEM_ROTATION_MEAN_rad, SYSTEM_ROTATION_STD_rad, num_samples)
     system_magnification_samples = np.random.normal(SYSTEM_MAGNIFICATION_MEAN_ppm, SYSTEM_MAGNIFICATION_STD_ppm, num_samples)
-    print("system_translation_x_samples_um contribution", system_translation_x_samples_um.mean()*1e3, " nm")
-    print("system_translation_y_samples_um contribution", system_translation_y_samples_um.mean()*1e3, " nm")
-    print("system_rotation_samples_rad contribution", system_rotation_samples_rad.mean() * np.sqrt(die.DIE_W_um**2 + die.DIE_L_um**2) * 1e3, " nm")
-    print("system_magnification_samples contribution", system_magnification_samples.mean() * np.sqrt(die.DIE_W_um**2 + die.DIE_L_um**2) * 1e3, " nm")
+    # print("system_translation_x_samples_um contribution", system_translation_x_samples_um.mean()*1e3, " nm")
+    # print("system_translation_y_samples_um contribution", system_translation_y_samples_um.mean()*1e3, " nm")
+    # print("system_rotation_samples_rad contribution", system_rotation_samples_rad.mean() * np.sqrt(die.DIE_W_um**2 + die.DIE_L_um**2) * 1e3, " nm")
+    # print("system_magnification_samples contribution", system_magnification_samples.mean() * np.sqrt(die.DIE_W_um**2 + die.DIE_L_um**2) * 1e3, " nm")
 
     # Sample the systematic misalignment for corner pads based on the systematic translation, rotation, and magnification
     # Calculate the die yield based on the worst-case pad misalignment
@@ -178,6 +171,7 @@ def overlay_yield_calculator(*,
 
 
 def pad_overlay_yield_map_generator(*,
+    cfg,
     PAD_TOP_R_um: float,
     PAD_BOT_R_um: float,
     PAD_ARR_ROW: int,
@@ -209,16 +203,16 @@ def pad_overlay_yield_map_generator(*,
         CONTACT_AREA_CONSTRAINT=CONTACT_AREA_CONSTRAINT,
         CRITICAL_DIST_CONSTRAINT=CRITICAL_DIST_CONSTRAINT,
     )
-    print("The maximum allowed misalignment is {} nm.".format(MAX_ALLOWED_MISALIGNMENT * 1e3))
+    print("The maximum allowed misalignment is {:.2f} nm.".format(MAX_ALLOWED_MISALIGNMENT * 1e3))
     num_samples = num_samples
     system_translation_x_samples_um = np.random.normal(SYSTEM_TRANSLATION_X_MEAN_um, SYSTEM_TRANSLATION_X_STD_um, num_samples)
     system_translation_y_samples_um = np.random.normal(SYSTEM_TRANSLATION_Y_MEAN_um, SYSTEM_TRANSLATION_Y_STD_um, num_samples)
     system_rotation_samples_rad = np.random.normal(SYSTEM_ROTATION_MEAN_rad, SYSTEM_ROTATION_STD_rad, num_samples)
     system_magnification_samples = np.random.normal(SYSTEM_MAGNIFICATION_MEAN_ppm, SYSTEM_MAGNIFICATION_STD_ppm, num_samples)
-    print("system_translation_x_samples_um contribution", system_translation_x_samples_um.mean()*1e3, " nm")
-    print("system_translation_y_samples_um contribution", system_translation_y_samples_um.mean()*1e3, " nm")
-    print("system_rotation_samples_rad contribution", system_rotation_samples_rad.mean() * np.sqrt(die.DIE_W_um**2 + die.DIE_L_um**2) * 1e3, " nm")
-    print("system_magnification_samples contribution", system_magnification_samples.mean() * np.sqrt(die.DIE_W_um**2 + die.DIE_L_um**2) * 1e3, " nm")
+    # print("system_translation_x_samples_um contribution", system_translation_x_samples_um.mean()*1e3, " nm")
+    # print("system_translation_y_samples_um contribution", system_translation_y_samples_um.mean()*1e3, " nm")
+    # print("system_rotation_samples_rad contribution", system_rotation_samples_rad.mean() * np.sqrt(die.DIE_W_um**2 + die.DIE_L_um**2) * 1e3, " nm")
+    # print("system_magnification_samples contribution", system_magnification_samples.mean() * np.sqrt(die.DIE_W_um**2 + die.DIE_L_um**2) * 1e3, " nm")
 
     if pad_yield_flag == True:
         glb_defect_pad_yield_min = 1.0
@@ -246,18 +240,19 @@ def pad_overlay_yield_map_generator(*,
         glb_defect_pad_yield_min = min(glb_defect_pad_yield_min, np.nanmin(overlay_pad_yield_map_sub))
         glb_defect_pad_yield_max = max(glb_defect_pad_yield_max, np.nanmax(overlay_pad_yield_map_sub))
         die.glb_pad_yield_min_max_dict['Y_ovl'] = (glb_defect_pad_yield_min, glb_defect_pad_yield_max)
+        if cfg.plot_flag:
         # Draw the pad yield map
-        plt.figure(figsize=(8, 6))
-        plt.imshow(
-            overlay_pad_yield_map_sub, 
-            cmap='viridis', 
-            vmin=die.glb_pad_yield_min_max_dict['Y_ovl'][0],
-            vmax=die.glb_pad_yield_min_max_dict['Y_ovl'][1],
-            interpolation='nearest',
-            )
-        plt.colorbar(label='Pad Overlay Yield (Subsampled)')
-        plt.xlabel('Pad Column Index')
-        plt.ylabel('Pad Row Index')
-        plt.show()
+            plt.figure(figsize=(8, 6))
+            plt.imshow(
+                overlay_pad_yield_map_sub, 
+                cmap='viridis', 
+                vmin=die.glb_pad_yield_min_max_dict['Y_ovl'][0],
+                vmax=die.glb_pad_yield_min_max_dict['Y_ovl'][1],
+                interpolation='nearest',
+                )
+            plt.colorbar(label='Pad Overlay Yield (Subsampled)')
+            plt.xlabel('Pad Column Index')
+            plt.ylabel('Pad Row Index')
+            plt.show()
         
     return overlay_pad_yield_map_sub
