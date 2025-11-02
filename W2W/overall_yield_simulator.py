@@ -78,11 +78,14 @@ def overall_yield_simulator(
         die_esd_critical_pad_bitmap = pad_bitmap_collection["ESD_CRITICAL_PAD_BITMAP"]
         # Read the redundant net to bump ids mapping
         redundant_net_to_bumpids = pad_bitmap_collection["redundant_net_to_bumpids"]
-        valid_pad_mask = (pad_bitmap_collection['CRITICAL_PAD_BITMAP'] == 1) | (pad_bitmap_collection['REDUNDANT_PAD_BITMAP'] == 1)
+        valid_pad_mask = (pad_bitmap_collection['CRITICAL_PAD_BITMAP'] == 1) | (pad_bitmap_collection['REDUNDANT_PAD_BITMAP'] == 1) | (pad_bitmap_collection['DUMMY_PAD_BITMAP'] == 1)
         # Read the mapping from physical pad location to bump id
         mapping_physical_to_bumpid = pad_bitmap_collection["mapping_physical_to_bumpid"]
         critical_fail = 0
         redundant_fail = 0
+
+        die_pad_coords = wafer.base_pad_coords + die.die_center
+        valid_die_pad_coords = die.pad_coords[valid_pad_mask.flatten() == 1]
 
 
         for die_ind, die in enumerate(wafer.die_list):
@@ -231,19 +234,20 @@ def overall_yield_simulator(
             '''
             Check the Cu gap, a true Monte Carlo simulator
             '''
-            # TODO: add the roughness parameters to Cain's model
             # Check the Cu expansion
             top_dish, bot_dish = Cu_gap_simulator(TOP_DISH_MEAN_nm, TOP_DISH_STD_nm, BOT_DISH_MEAN_nm, BOT_DISH_STD_nm, int(die.num_pads))
-            Cu_gap = top_dish + bot_dish
-            Cu_gap = Cu_gap.reshape(cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL)
+            Cu_gap_in_valid_pads = top_dish + bot_dish
+            Cu_gap_map = np.full((PAD_ARR_ROW, PAD_ARR_COL), np.nan)
+            Cu_gap_map[valid_pad_mask == 1] = Cu_gap_in_valid_pads
+
             # Calculate the safe range for single pad Cu recess
-            die_pad_coords = wafer.base_pad_coords + die.die_center
-            dishing_bound_array = debond_dishing_bounds_calculator(cfg, die_pad_coords) # (num_pads, 2) array: (dishing_low_nm, dishing_high_nm)
-            zeta_1 = - dishing_bound_array[:, 0].reshape(cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL) * 2 # upper limits of the sum of top and bottom Cu heights
-            zeta_0 = - dishing_bound_array[:, 1].reshape(cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL) * 2 # lower limits of the sum of top and bottom Cu heights
-            zeta_0[valid_pad_mask == 0], zeta_1[valid_pad_mask == 0] = np.nan, np.nan
+            dishing_bound_array = debond_dishing_bounds_calculator(cfg, valid_die_pad_coords) # (num_valid_pads, 2) array: (dishing_low_nm, dishing_high_nm)
+            zeta_0 = np.full((PAD_ARR_ROW, PAD_ARR_COL), np.nan)
+            zeta_1 = np.full((PAD_ARR_ROW, PAD_ARR_COL), np.nan)
+            zeta_0[valid_pad_mask == 1] = - dishing_bound_array[:, 1] * 2 # lower limits of the sum of top and bottom Cu heights
+            zeta_1[valid_pad_mask == 1] = - dishing_bound_array[:, 0] * 2 # upper limits of the sum of top and bottom Cu heights
             # Check critical pad Cu gap
-            critical_pad_Cu_gap = Cu_gap * die_critical_pad_bitmap      # Shape: (PAD_ARR_ROW, PAD_ARR_COL)
+            critical_pad_Cu_gap = Cu_gap_map * die_critical_pad_bitmap      # Shape: (PAD_ARR_ROW, PAD_ARR_COL)
             if np.any(critical_pad_Cu_gap > zeta_1 * die_critical_pad_bitmap) or np.any(critical_pad_Cu_gap < zeta_0 * die_critical_pad_bitmap):
                 print("Die fails due to critical pad Cu gap failure.")
                 wafer.survival_die -= 1
@@ -251,7 +255,7 @@ def overall_yield_simulator(
                 continue
             
             # Check redundant pad Cu gap
-            redundant_pad_Cu_gap = Cu_gap * die_redundant_pad_bitmap    # Shape: (PAD_ARR_ROW, PAD_ARR_COL)
+            redundant_pad_Cu_gap = Cu_gap_map * die_redundant_pad_bitmap    # Shape: (PAD_ARR_ROW, PAD_ARR_COL)
             redundant_pad_fail_map[redundant_pad_Cu_gap > zeta_1 * die_redundant_pad_bitmap] = 1
             redundant_pad_fail_map[redundant_pad_Cu_gap < zeta_0 * die_redundant_pad_bitmap] = 1
             # Get the fail bump indices
@@ -276,7 +280,7 @@ def overall_yield_simulator(
             if np.abs(die_center_x) < die.DIE_W_um / 2 and np.abs(die_center_y) < die.DIE_L_um / 2:
                 # Assume dies in the center will be the first contact point and have higher ESD hazard
                 # Check critical pads specifically for the ESD failure mechanisms (ESD-critical pads)
-                first_contact_pad_idx, survive_bool = esd_failure_simulator(pad_coords_um=die.pad_coords,
+                first_contact_pad_idx, survive_bool = esd_failure_simulator(pad_coords_um=valid_die_pad_coords,
                                                 pad_size_um=PAD_TOP_R_um * 2,
                                                 top_die_w_um=die.DIE_W_um,
                                                 top_die_h_um=die.DIE_L_um,

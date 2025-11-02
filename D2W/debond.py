@@ -67,8 +67,9 @@ def __init_params(cfg):
                                         USE_PLOT
     
     # ---------- (A) Pad-scale: Geometry & Temps ----------
-    PITCH_UM      = cfg.PITCH_r_um**2       # pad pitch p [µm]
-    DIAM_UM       = cfg.PAD_TOP_R_um        # pad diameter d [µm]
+    if cfg.PAD_ARRANGE_PATTERN == 'checkerboard':
+        PITCH_UM = min(np.sqrt(cfg.PITCH_r_um ** 2 + cfg.PITCH_c_um ** 2), 2 * cfg.PITCH_r_um, 2 * cfg.PITCH_c_um)  # pad pitch p [µm]
+    DIAM_UM       = cfg.PAD_TOP_R_um * 2      # pad diameter d [µm]
     T_ANNEAL_C    = cfg.T_anl               # anneal temperature [°C]
     T_REF_C       = cfg.T_R                 # reference temperature [°C]
     DISHING_NM    = cfg.DISH_0_m * 1e9           # recess/dishing depth [nm] (runtime default; inversion overrides)
@@ -141,7 +142,7 @@ def __init_params(cfg):
     S_INIT_B_M = cfg.S_INIT_B_M
 
     # ---------- (J) Optional plotting ----------
-    USE_PLOT = False
+    USE_PLOT = True
 
 # =============================================================================
 # ============================== PAD-SCALE CORE ===============================
@@ -469,24 +470,29 @@ def build_effcrit_and_dishing_arrays(peel_dict: dict, coords_mm_np: np.ndarray, 
     # print("sigma_crit_SiO2 = {:.3f} MPa".format(sigma_crit_SiO2))
     # print(invert_dishing_sio2_given_sigma_eff(sigma_crit_SiO2 - 100.0))
     # print(invert_dishing_sio2_given_sigma_eff(sigma_crit_SiO2 - 200.0))
+    # print(invert_dishing_sio2_given_sigma_eff(sigma_crit_SiO2 - 280.0))
     # raise RuntimeError("Debugging stop.")
 
     for i in range(N):
         D_sio2_nm[i], _ = invert_dishing_sio2_given_sigma_eff(float(sigma_eff_SiO2[i]))
-        assert D_sio2_nm[i] >= 0.0, "Negative D_sio2_nm at index {}.".format(i)
+        if D_sio2_nm[i] > 50.0:
+            print("The edge cannot bond.".format(i))
+            D_sio2_nm[i] = - 1.0  # Indicate no bonding
         D_cu_nm[i],   _ = invert_dishing_cu_given_sigma_eff(float(sigma_eff_Cu[i]))
-        assert D_cu_nm[i] >= 0.0, "Negative D_cu_nm at index {}.".format(i)
+        if D_cu_nm[i] > 50.0:
+            print("The edge cannot bond.".format(i))
+            D_cu_nm[i] = - 1.0  # Indicate no bonding
 
-    # # Draw p_MPa, point size = 5
-    # plt.figure(figsize=(15, 10))
-    # plt.scatter(coords_mm_np[:, 0], coords_mm_np[:, 1], c=p_MPa, cmap='viridis', s=8)
-    # plt.colorbar(label='Peeling Stress p (MPa)')
-    # plt.xlabel('X (mm)')
-    # plt.ylabel('Y (mm)')
-    # plt.title('Peeling Stress Distribution')
-    # plt.axis('equal')
-    # plt.grid(True)
-    # plt.show()
+    # Draw p_MPa, point size = 5
+    plt.figure(figsize=(15, 10))
+    plt.scatter(coords_mm_np[:, 0], coords_mm_np[:, 1], c=p_MPa, cmap='viridis', s=8)
+    plt.colorbar(label='Peeling Stress p (MPa)')
+    plt.xlabel('X (mm)')
+    plt.ylabel('Y (mm)')
+    plt.title('Peeling Stress Distribution')
+    plt.axis('equal')
+    plt.grid(True)
+    plt.show()
 
     effcrit = np.column_stack([sigma_eff_Cu, sigma_eff_SiO2])      # (N,2)
     dishing = np.column_stack([D_cu_nm, D_sio2_nm])                # (N,2)
@@ -531,5 +537,4 @@ def debond_dishing_bounds_calculator(cfg, coords_um):
     # 4) Sort each row ascending (small first, large second) and SAVE to .npy
     # Adjust the format as -> (dishing_low_nm, dishing_high_nm)
     dishing_sorted = np.sort(dishing_array, axis=1)
-    
     return dishing_sorted

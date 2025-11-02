@@ -467,7 +467,13 @@ def build_effcrit_and_dishing_arrays(peel_dict: dict, coords_mm_np: np.ndarray, 
     D_cu_nm   = np.empty(N, dtype=np.float64)
     for i in range(N):
         D_sio2_nm[i], _ = invert_dishing_sio2_given_sigma_eff(float(sigma_eff_SiO2[i]))
+        if D_sio2_nm[i] > 50.0:
+            print("The edge cannot bond.".format(i))
+            D_sio2_nm[i] = - 1.0  # Indicate no bonding
         D_cu_nm[i],   _ = invert_dishing_cu_given_sigma_eff(float(sigma_eff_Cu[i]))
+        if D_cu_nm[i] > 50.0:
+            print("The edge cannot bond.".format(i))
+            D_cu_nm[i] = - 1.0  # Indicate no bonding
 
     effcrit = np.column_stack([sigma_eff_Cu, sigma_eff_SiO2])      # (N,2)
     dishing = np.column_stack([D_cu_nm, D_sio2_nm])                # (N,2)

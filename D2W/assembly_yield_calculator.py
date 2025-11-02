@@ -41,6 +41,8 @@ def Pad_Yield_Map_Generator(
         pad_yield_flag      =       cfg.pad_yield_flag,
     )
     die = die_list[0]
+    valid_pad_mask = (pad_bitmap_collection['CRITICAL_PAD_BITMAP'] == 1) | (pad_bitmap_collection['REDUNDANT_PAD_BITMAP'] == 1) | (pad_bitmap_collection['DUMMY_PAD_BITMAP'] == 1)
+    valid_die_pad_coords = die.pad_coords[valid_pad_mask.flatten() == 1]
     # fig, ax = plt.subplots(figsize=(4, 6))
     # die.draw_die(ax)
 
@@ -108,9 +110,9 @@ def Pad_Yield_Map_Generator(
 
     esd_start_time = time.time()
     # Calculate the ESD yield
-    esd_pad_yield_map, _, _ = pad_esd_yield_map_generator(
+    esd_valid_pad_yield_vec, _, _ = pad_esd_yield_map_generator(
         cfg                   = cfg,
-        pad_coords_um         = die.pad_coords,
+        pad_coords_um         = valid_die_pad_coords,
         pad_size_um           = cfg.PAD_TOP_R_um * 2,
         pad_pitch_um          = cfg.PITCH_r_um,
         top_die_w_um          = cfg.DIE_W_um,
@@ -126,8 +128,9 @@ def Pad_Yield_Map_Generator(
         bot_dish_mean_nm      = cfg.BOT_DISH_MEAN_nm,
         bot_dish_std_nm       = cfg.BOT_DISH_STD_nm,
     )
-    valid_pad_mask = (pad_bitmap_collection['CRITICAL_PAD_BITMAP'] == 1) | (pad_bitmap_collection['REDUNDANT_PAD_BITMAP'] == 1)
-    esd_pad_yield_map[~valid_pad_mask] = np.nan
+    
+    esd_pad_yield_map = np.full((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL), np.nan)
+    esd_pad_yield_map[valid_pad_mask == 1] = esd_valid_pad_yield_vec
     die.pad_yield_map['Y_esd'] = esd_pad_yield_map
     die.glb_pad_yield_min_max_dict['Y_esd'] = (np.nanmin(die.pad_yield_map['Y_esd']), np.nanmax(die.pad_yield_map['Y_esd']))
     if cfg.plot_flag:

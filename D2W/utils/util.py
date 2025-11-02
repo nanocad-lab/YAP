@@ -400,11 +400,11 @@ def convert_3dblox_to_pad_bitmap(cfg,
     bitmap_collection["mapping_physical_to_bumpid"] = mapping_physical_to_bumpid
     
     # Save the bitmap collection as npy file and mat file
-    np.save(cfg.OUTPUT_DIR + "bitmap_collection.npy", bitmap_collection)
+    np.save(cfg.OUTPUT_DIR + cfg.DESIGN + '/' + cfg.DESIGN + "_bitmap_collection.npy", bitmap_collection)
     # sio.savemat(cfg.OUTPUT_DIR + "bitmap_collection.mat", bitmap_collection)
 
     # # Draw the critical and redundant pad bitmaps in one figure (critical light red, redundant light blue, dummy light gray)
-    draw_pad_bitmap(cfg, bitmap_collection)
+    # draw_pad_bitmap(cfg, bitmap_collection)
 
     return bitmap_collection
 

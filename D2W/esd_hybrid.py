@@ -261,7 +261,7 @@ def pad_esd_yield_map_generator(
     p_fail_single = _compute_p_fail_for_die(top_die_w_um, top_die_h_um)
     
     # risk pad map
-    risk_map_vec = prob_vec * float(p_fail_single)
+    valid_pad_risk_map_vec = prob_vec * float(p_fail_single)
 
     # # 画图（按 pitch 为边长）
     # fig = plot_probability_over_pads_with_pitch(
@@ -272,9 +272,8 @@ def pad_esd_yield_map_generator(
     # )
     fig = None
 
-    risk_map_vec = risk_map_vec.reshape(cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL)
-    yield_map_vec = 1.0 - risk_map_vec
-    return yield_map_vec, fig, float(p_fail_single)
+    valid_pad_yield_map_vec = 1.0 - valid_pad_risk_map_vec
+    return valid_pad_yield_map_vec, fig, float(p_fail_single)
 
 
 # =========================

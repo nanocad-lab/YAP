@@ -40,7 +40,7 @@ def main():
     # Step 1: convert .bmap -> pad bitmap collection
     pad_bitmap_collection = convert_3dblox_to_pad_bitmap(cfg=cfg,
                                                         blox_bmap_path=blox_bmap_path,
-                                                        pad_arrange_pattern='checkerboard')
+                                                        pad_arrange_pattern=cfg.PAD_ARRANGE_PATTERN)
     # Step 2: run assembly yield simulator
     print("Running assembly yield simulator over {} dies...".format(cfg.NUM_DIES))
     start_time = time.time()

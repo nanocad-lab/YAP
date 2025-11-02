@@ -353,8 +353,8 @@ d2w_simulation:
   NUM_DIES: 1000                            # Number of Dies used in simulation
   PITCH_r_um: 55                            # Row pad pitch (µm) (In checkerboard layout, this is sqrt(2)/2 times of the real pitch)
   PITCH_c_um: 35                            # Column pad pitch (µm)  (In checkerboard layout, this is sqrt(2)/2 times of the real pitch)
-  DIE_W_um: 11100                          # Die width (µm)
-  DIE_L_um: 9300                          # Die length (µm)
+  DIE_W_um: 11095                          # Die width (µm)
+  DIE_L_um: 9350                           # Die length (µm)
   PAD_ARR_ROW: 169
   PAD_ARR_COL: 316
   PAD_BOT_R_um: 9                      # Bottom Cu pad radius (um)
@@ -365,6 +365,7 @@ d2w_simulation:
   dice_width: 100                      # Width of one die (µm)
   pad_yield_flag: True
   pad_yield_map_sub_factor: 1          # Subsampling factor for pad yield map (1: no subsampling, 10: rows/10 and cols/10)
+  PAD_ARRANGE_PATTERN: "checkerboard"
 
   # === Die Warpage Peeling Stress Mdodel ===
   # === Bottom Wafer Settings ===
@@ -513,6 +514,7 @@ d2w_simulation:
   # === Simulation Control ===
   simulation_times: 1                  # Number of simulation iterations
   approximate_set: 1                   # 1: enable overlay simulation approximation, 0: disable
+  plot_flag: False
 
 
 
@@ -522,14 +524,14 @@ d2w_simulation:
 d2w_modeling:
   # === General Settings ===
   MODE: "D2W_Hybrid_Bonding_Modeling"   # Name of the modeling
-  DEBUG: false                          # Enable debug mode
+  DEBUG: True                          # Enable debug mode
   OUTPUT_DIR: "output/"          # Output directory for simulation results
   DESIGN: "HBM_footprint_A_dummy_row_4"                      # Design name  
   # === Per Wafer Parameters ===
   PITCH_r_um: 55                            # Row pad pitch (µm) (In checkerboard layout, this is sqrt(2)/2 times of the real pitch)
   PITCH_c_um: 35                            # Column pad pitch (µm) (In checkerboard layout, this is sqrt(2)/2 times of the real pitch)
-  DIE_W_um: 11100                          # Die width (µm)
-  DIE_L_um: 9300                          # Die length (µm)
+  DIE_W_um: 11095                          # Die width (µm)
+  DIE_L_um: 9350                          # Die length (µm)
   PAD_ARR_ROW: 169
   PAD_ARR_COL: 316
   PAD_BOT_R_um: 9                      # Bottom Cu pad radius (um)
@@ -540,7 +542,7 @@ d2w_modeling:
   dice_width: 100                      # Dice width to separate dies (µm)
   pad_yield_flag: True                  # Enable pad yield map generation
   pad_yield_map_sub_factor: 1          # Subsampling factor for pad yield map (1: no subsampling, 10: rows/10 and cols/10)
-
+  PAD_ARRANGE_PATTERN: "checkerboard"
   # === Die Warpage Peeling Stress Mdodel ===
   # === Bottom Wafer Settings ===
   B_Chip_Cu_V: 0.40                     # Efficient chip layer Cu volume density
@@ -551,7 +553,7 @@ d2w_modeling:
   B_Sub_Sio2_V: 0.00                    # Efficient substrate layer Sio2 volume density
   B_Sub_Si_V: 0.90                      # Efficient substrate layer si volume density
   B_Sub_T: 775e-6                       # Efficient substrate layer thickness (m)
-  S_INIT_A_M: 25e-9                   # Pre-anneal warpages (m)
+  S_INIT_A_M: 150e-9                   # Pre-anneal warpages (m)
   # === Top Wafer Settings ===
   T_Chip_Cu_V: 0.30                     # Efficient chip layer Cu volume density
   T_Chip_Sio2_V: 0.70                   # Efficient chip layer Sio2 volume density
@@ -605,9 +607,9 @@ d2w_modeling:
   k_S: 2.7
 
   # === Cu Expansion / Dishing Parameters ===
-  TOP_DISH_MEAN_nm: -1.0                  # Top pad height mean (nm)
+  TOP_DISH_MEAN_nm: -2.0                  # Top pad height mean (nm)
   TOP_DISH_STD_nm: 0.6                     # Top pad height std (nm)
-  BOT_DISH_MEAN_nm: -1.0                  # Bottom pad height mean (nm)
+  BOT_DISH_MEAN_nm: -2.0                  # Bottom pad height mean (nm)
   BOT_DISH_STD_nm: 0.6                     # Bottom pad height std (nm)
   k_et: 0.053                           # Top Cu expansion coef (nm/K)
   k_eb: 0.053                           # Bottom Cu expansion coef (nm/K)
@@ -685,3 +687,6 @@ d2w_modeling:
   TILT_Y_STD_DEG: 0.01
   n_tilts_samples: 1                  # Number of tilt samples for ESD simulation
   n_dishes_samples: 1                # Number of dish samples for ESD simulation
+
+  # === Miscellaneous Parameters ===
+  plot_flag: True                      # Enable plotting of results

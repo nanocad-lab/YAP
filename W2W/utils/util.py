@@ -113,33 +113,36 @@ def draw_pad_bitmap(cfg, bitmap_collection):
 
     PAD_BITMAP[CRITICAL_PAD_BITMAP == 1] = 1  # red
     PAD_BITMAP[REDUNDANT_PAD_BITMAP == 1] = 2  # blue
-    PAD_BITMAP[DUMMY_PAD_BITMAP == 1] = 3  # gray
+    PAD_BITMAP[DUMMY_PAD_BITMAP == 1] = 3  # green
+    # Remaining zeros are non-pad areas
+    PAD_BITMAP[PAD_BITMAP == 0] = 4  # non-pad (light gray)
 
     plt.figure(figsize=(6, 6))
     cmap = ListedColormap([
         (1.0, 0.5, 0.5),    # 1 - critical (medium red)
         (0.4, 0.4, 0.9),    # 2 - redundant (medium blue)
-        (0.8, 0.8, 0.8),    # 3 - dummy (light gray)
+        (0.0, 0.6, 0.0),    # 3 - dummy (medium green)
+        (0.9, 0.9, 0.9),    # 4 - non-pad (light gray)
     ])
-    red_patch = patches.Patch(color=(1.0, 0.7, 0.7), label='Critical Pads')
-    blue_patch = patches.Patch(color=(0.7, 0.7, 1.0), label='Redundant Pads')
-    gray_patch = patches.Patch(color=(0.8, 0.8, 0.8), label='Dummy Pads')
+    red_patch = patches.Patch(color=(1.0, 0.5, 0.5), label='Critical Pads')
+    blue_patch = patches.Patch(color=(0.4, 0.4, 0.9), label='Redundant Pads')
+    green_patch = patches.Patch(color=(0.0, 0.6, 0.0), label='Dummy Pads')
+    light_gray_patch = patches.Patch(color=(0.9, 0.9, 0.9), label='Non-Pad Areas')
     plt.legend(
-        handles=[red_patch, blue_patch, gray_patch],
+        handles=[red_patch, blue_patch, green_patch, light_gray_patch],
         loc='upper center',
         bbox_to_anchor=(0.5, -0.07),
-        ncol=3,
+        ncol=4,
         frameon=False
     )
-    norm = BoundaryNorm([0.5, 1.5, 2.5, 3.5], cmap.N)
+    norm = BoundaryNorm(boundaries=[0.5, 1.5, 2.5, 3.5, 4.5], ncolors=cmap.N)
     plt.imshow(PAD_BITMAP, cmap=cmap, norm=norm)
     plt.title("Pad Block Bitmap")
 
 
     # Save the pad bitmaps
-    plt.savefig(cfg.OUTPUT_DIR + "pad_bitmap.png")
+    plt.savefig(cfg.OUTPUT_DIR + cfg.DESIGN + "/" + cfg.DESIGN + "_pad_bitmap.png")
     print("Pad bitmap collections info saved.")
-
     return
 
 
@@ -155,11 +158,16 @@ def criticality_generator(cfg,
     bump_set = set()
     for bump in bump_data:
         port = bump['port']
+        net = bump['net']
         if (bump['net'], port) in bump_set:
             continue
-        num_copies = len(redundant_net_to_bumpids[bump['net']])
-        mechanical_criticality = 1.0 / num_copies
-        esd_criticality = 1.0 / num_copies
+        if 'dummy' in net.lower():
+            esd_criticality = 0.0
+            mechanical_criticality = 0.0
+        else:
+            num_copies = len(redundant_net_to_bumpids[bump['net']])
+            mechanical_criticality = 1.0 / num_copies
+            esd_criticality = 1.0 / num_copies
 
         bump_criticality.append({
             "port": port,
@@ -167,10 +175,10 @@ def criticality_generator(cfg,
             "mechanical_criticality": mechanical_criticality
         })
         bump_set.add((bump['net'], port))
-    with open(cfg.OUTPUT_DIR + cfg.DESIGN + "_criticality.txt", 'w') as f:
+    with open(cfg.OUTPUT_DIR + cfg.DESIGN + "/" + cfg.DESIGN + "_criticality.txt", 'w') as f:
         for bump_crit in bump_criticality:
             f.write(f"{bump_crit['port']} {bump_crit['esd_criticality']:.6f} {bump_crit['mechanical_criticality']:.6f}\n")
-    print(cfg.DESIGN + " criticality file saved in ", cfg.OUTPUT_DIR + cfg.DESIGN + "_criticality.txt")
+    print("Criticality file saved in ", cfg.OUTPUT_DIR + cfg.DESIGN + "/" + cfg.DESIGN + "_criticality.txt")
     return
 
 
@@ -263,6 +271,8 @@ def convert_3dblox_to_pad_bitmap(cfg,
     CRITICAL_PAD_BLOCK_BITMAP = downsample_bitmap(CRITICAL_PAD_BITMAP, pad_block_size)
     REDUNDANT_PAD_BITMAP = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL), dtype=bool)
     REDUNDANT_PAD_BLOCK_BITMAP = downsample_bitmap(REDUNDANT_PAD_BITMAP, pad_block_size)
+    DUMMY_PAD_BITMAP = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL), dtype=bool)
+    DUMMY_PAD_BLOCK_BITMAP = downsample_bitmap(DUMMY_PAD_BITMAP, pad_block_size)
     ESD_CRITICAL_PAD_BITMAP = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL), dtype=bool)
     pad_coords = np.full((cfg.PAD_ARR_ROW * cfg.PAD_ARR_COL, 2), np.nan, dtype=np.float32)  # x, y coordinates of each bump
     # Build a mapping array from physical bump location (r, c) to bump id
@@ -280,16 +290,21 @@ def convert_3dblox_to_pad_bitmap(cfg,
             current_bump_net = bump['net']
             current_bump_port = bump['port']
             num_copies = len(redundant_net_to_bumpids[current_bump_net])
+            if 'dummy' in current_bump_net.lower():
+                DUMMY_PAD_BITMAP[row, col] = 1
+                continue
             if num_copies == 1:
                 CRITICAL_PAD_BITMAP[row, col] = 1
+                continue
             elif num_copies > 1 and ('vss' in current_bump_port.lower() or 'vcc' in current_bump_port.lower()): 
                 REDUNDANT_PAD_BITMAP[row, col] = 1
+                continue
             elif num_copies > 1 and ('vss' not in current_bump_port.lower() and 'vcc' not in current_bump_port.lower()):
                 REDUNDANT_PAD_BITMAP[row, col] = 1
                 ESD_CRITICAL_PAD_BITMAP[row, col] = 1   # TODO: Check this with Alex. If redundant pads are connected to the same transistor gate, then this is correct.
+                continue
     else:   
         raise NotImplementedError("Currently only support checkerboard pad arrangement pattern.")
-    DUMMY_PAD_BITMAP = ~(CRITICAL_PAD_BITMAP | REDUNDANT_PAD_BITMAP)
     # Count the number of pads
     num_critical_pads = np.sum(CRITICAL_PAD_BITMAP)
     num_redundant_pads = np.sum(REDUNDANT_PAD_BITMAP)
@@ -307,6 +322,7 @@ def convert_3dblox_to_pad_bitmap(cfg,
     bitmap_collection["REDUNDANT_PAD_BITMAP"] = REDUNDANT_PAD_BITMAP
     bitmap_collection["REDUNDANT_PAD_BLOCK_BITMAP"] = REDUNDANT_PAD_BLOCK_BITMAP
     bitmap_collection["DUMMY_PAD_BITMAP"] = DUMMY_PAD_BITMAP
+    bitmap_collection["DUMMY_PAD_BLOCK_BITMAP"] = DUMMY_PAD_BLOCK_BITMAP
     bitmap_collection["ESD_CRITICAL_PAD_BITMAP"] = ESD_CRITICAL_PAD_BITMAP
     bitmap_collection["is_redundant_copy_same_block"] = False
     bitmap_collection["num_critical_pads"] = num_critical_pads

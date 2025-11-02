@@ -23,6 +23,7 @@ w2w_simulation:
   pad_yield_flag: True
   pad_yield_map_sub_factor: 1          # Subsampling factor for pad yield map (1: no subsampling, 10: rows/10 and cols/10)
                                         # The pad yield map will be of size (ceil(PAD_ARR_ROW/sub_factor), ceil(PAD_ARR_COL/sub_factor))
+  PAD_ARRANGE_PATTERN: "checkerboard"
   # === Wafer Warpage Peeling Stress Mdodel ===
   # === Bottom Wafer Settings ===
   B_Chip_Cu_V: 0.40                     # Efficient chip layer Cu volume density
@@ -365,6 +366,7 @@ d2w_simulation:
   dice_width: 100                      # Width of one die (µm)
   pad_yield_flag: True
   pad_yield_map_sub_factor: 1          # Subsampling factor for pad yield map (1: no subsampling, 10: rows/10 and cols/10)
+  PAD_ARRANGE_PATTERN: "checkerboard"
 
   # === Die Warpage Peeling Stress Mdodel ===
   # === Bottom Wafer Settings ===
@@ -540,7 +542,8 @@ d2w_modeling:
   dice_width: 100                      # Dice width to separate dies (µm)
   pad_yield_flag: True                  # Enable pad yield map generation
   pad_yield_map_sub_factor: 1          # Subsampling factor for pad yield map (1: no subsampling, 10: rows/10 and cols/10)
-
+  PAD_ARRANGE_PATTERN: "checkerboard"
+  
   # === Die Warpage Peeling Stress Mdodel ===
   # === Bottom Wafer Settings ===
   B_Chip_Cu_V: 0.40                     # Efficient chip layer Cu volume density
