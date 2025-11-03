@@ -50,13 +50,16 @@ def overall_yield_simulator(
     # Get the valid pad mask
     valid_pad_mask = (pad_bitmap_collection['CRITICAL_PAD_BITMAP'] == 1) | (pad_bitmap_collection['REDUNDANT_PAD_BITMAP'] == 1) | (pad_bitmap_collection['DUMMY_PAD_BITMAP'] == 1)
     valid_die_pad_coords = die_list[0].pad_coords[valid_pad_mask.flatten() == 1]
-    if not os.path.exists(cfg.OUTPUT_DIR + cfg.DESIGN + '/' + cfg.DESIGN + "_dishing_bound_array.npy") or cfg.DEBUG:
-        start_time = time.time()
-        valid_pad_dishing_bound_array = debond_dishing_bounds_calculator(cfg, valid_die_pad_coords) # (num_pads, 2) array: (dishing_low_nm, dishing_high_nm)
-        print("Dishing bound calculation time: {:.2f} seconds".format(time.time() - start_time))
-        np.save(cfg.OUTPUT_DIR + cfg.DESIGN + '/' + cfg.DESIGN + "_dishing_bound_array.npy", valid_pad_dishing_bound_array)
-    else:
-        valid_pad_dishing_bound_array = np.load(cfg.OUTPUT_DIR + cfg.DESIGN + '/' + cfg.DESIGN + "_dishing_bound_array.npy")
+    # if not os.path.exists(cfg.OUTPUT_DIR + cfg.DESIGN + '/' + cfg.DESIGN + "_dishing_bound_array.npy") or cfg.DEBUG:
+    #     start_time = time.time()
+    #     valid_pad_dishing_bound_array = debond_dishing_bounds_calculator(cfg, valid_die_pad_coords) # (num_pads, 2) array: (dishing_low_nm, dishing_high_nm)
+    #     print("Dishing bound calculation time: {:.2f} seconds".format(time.time() - start_time))
+    #     np.save(cfg.OUTPUT_DIR + cfg.DESIGN + '/' + cfg.DESIGN + "_dishing_bound_array.npy", valid_pad_dishing_bound_array)
+    # else:
+    #     valid_pad_dishing_bound_array = np.load(cfg.OUTPUT_DIR + cfg.DESIGN + '/' + cfg.DESIGN + "_dishing_bound_array.npy")
+    start_time = time.time()
+    valid_pad_dishing_bound_array = debond_dishing_bounds_calculator(cfg, valid_die_pad_coords) # (num_pads, 2) array: (dishing_low_nm, dishing_high_nm)
+    print("Dishing bound calculation time: {:.2f} seconds".format(time.time() - start_time))
     for die_ind in range(NUM_DIES):
         # # check start time
         start_time = time.time()
