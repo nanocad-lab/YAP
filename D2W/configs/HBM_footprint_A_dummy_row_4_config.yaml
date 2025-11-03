@@ -524,7 +524,7 @@ d2w_simulation:
 d2w_modeling:
   # === General Settings ===
   MODE: "D2W_Hybrid_Bonding_Modeling"   # Name of the modeling
-  DEBUG: True                          # Enable debug mode
+  DEBUG: False                          # Enable debug mode
   OUTPUT_DIR: "output/"          # Output directory for simulation results
   DESIGN: "HBM_footprint_A_dummy_row_4"                      # Design name  
   # === Per Wafer Parameters ===
