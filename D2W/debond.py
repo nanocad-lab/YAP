@@ -148,7 +148,7 @@ def __init_params(cfg):
     S_INIT_B_M = cfg.S_INIT_B_M
 
     # ---------- (J) Optional plotting ----------
-    USE_PLOT = True
+    USE_PLOT = False
 
 # =============================================================================
 # ============================== PAD-SCALE CORE ===============================
@@ -485,16 +485,17 @@ def build_effcrit_and_dishing_arrays(peel_dict: dict, coords_mm_np: np.ndarray, 
         # _meta_c already applies min(root, H_single) or H_single; keep as-is
         D_cu_nm[i] = D_Cu
 
-    # Optional visualization of peeling stress field
-    plt.figure(figsize=(15, 10))
-    plt.scatter(coords_mm_np[:, 0], coords_mm_np[:, 1], c=p_MPa, cmap='viridis', s=8)
-    plt.colorbar(label='Peeling Stress p (MPa)')
-    plt.xlabel('X (mm)')
-    plt.ylabel('Y (mm)')
-    plt.title('Peeling Stress Distribution')
-    plt.axis('equal')
-    plt.grid(True)
-    plt.show()
+    if USE_PLOT:
+        # Optional visualization of peeling stress field
+        plt.figure(figsize=(15, 10))
+        plt.scatter(coords_mm_np[:, 0], coords_mm_np[:, 1], c=p_MPa, cmap='viridis', s=8)
+        plt.colorbar(label='Peeling Stress p (MPa)')
+        plt.xlabel('X (mm)')
+        plt.ylabel('Y (mm)')
+        plt.title('Peeling Stress Distribution')
+        plt.axis('equal')
+        plt.grid(True)
+        plt.show()
 
     effcrit = np.column_stack([sigma_eff_Cu, sigma_eff_SiO2])      # (N,2)
     dishing = np.column_stack([D_cu_nm, D_sio2_nm])                # (N,2)
