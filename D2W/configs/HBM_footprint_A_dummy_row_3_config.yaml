@@ -350,11 +350,11 @@ d2w_simulation:
   OUTPUT_DIR: "output/"          # Output directory for simulation results
   DESIGN: "HBM_footprint_A_dummy_row_3"                      # Design name  
   # === Die Settings ===
-  NUM_DIES: 1                            # Number of Dies used in simulation
+  NUM_DIES: 10000                            # Number of Dies used in simulation
   PITCH_r_um: 55                            # Row pad pitch (µm) (In checkerboard layout, this is sqrt(2)/2 times of the real pitch)
   PITCH_c_um: 35                            # Column pad pitch (µm)  (In checkerboard layout, this is sqrt(2)/2 times of the real pitch)
-  DIE_W_um: 11000                          # Die width (µm)
-  DIE_L_um: 9200                          # Die length (µm)
+  DIE_W_um: 11060                          # Die width (µm)
+  DIE_L_um: 9295                          # Die length (µm)
   PAD_ARR_ROW: 167
   PAD_ARR_COL: 314
   PAD_BOT_R_um: 9                      # Bottom Cu pad radius (um)
@@ -529,8 +529,8 @@ d2w_modeling:
   # === Per Wafer Parameters ===
   PITCH_r_um: 55                            # Row pad pitch (µm) (In checkerboard layout, this is sqrt(2)/2 times of the real pitch)
   PITCH_c_um: 35                            # Column pad pitch (µm) (In checkerboard layout, this is sqrt(2)/2 times of the real pitch)
-  DIE_W_um: 11000                          # Die width (µm)
-  DIE_L_um: 9200                          # Die length (µm)
+  DIE_W_um: 11060                          # Die width (µm)
+  DIE_L_um: 9295                          # Die length (µm)
   PAD_ARR_ROW: 167
   PAD_ARR_COL: 314
   PAD_BOT_R_um: 9                      # Bottom Cu pad radius (um)
