@@ -96,6 +96,7 @@ def _four_corners(cx: np.ndarray, cy: np.ndarray, half: float):
 def _compute_p_fail_for_die(top_die_w_um: float, top_die_h_um: float) -> float:
     area_mm2 = (float(top_die_w_um) * 1e-3) * (float(top_die_h_um) * 1e-3)
     I_peak   = _ipeak_from_die_voltage(area_mm2, float(V_CHARGING_V))
+    return _fail_prob_single(I_peak, float(WEIBULL_K), float(WEIBULL_LAMBDA), float(CUTOFF_MIN_A))
     
 def _choose_one_pad(pids: np.ndarray, rng: np.random.Generator) -> Optional[int]:
     """在多个 pad index 中随机选一个，若空返回 None。"""
