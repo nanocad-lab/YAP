@@ -40,7 +40,7 @@ def die_pad_misalignment(
 
 
 def max_allowed_misalignment_calculator(
-        PAD_TOP_R_um, PAD_BOT_R_um, PITCH_r_um, PITCH_c_um, CONTACT_AREA_CONSTRAINT, CRITICAL_DIST_CONSTRAINT
+        cfg, PAD_TOP_R_um, PAD_BOT_R_um, PITCH_r_um, PITCH_c_um, CONTACT_AREA_CONSTRAINT, CRITICAL_DIST_CONSTRAINT
     ):
         # Calculate the overlay misalignment that will fail the contact area constraint
         system_misalignment = sp.symbols("system_misalignment")
@@ -64,9 +64,11 @@ def max_allowed_misalignment_calculator(
         # plt.show()
 
         # Calculate the overlay misalignment that will fail the critical distance constraint
-        max_allowed_misalignment_for_cd = (1 - CRITICAL_DIST_CONSTRAINT) * min(PITCH_r_um, PITCH_c_um) - 0.5 * (2 * PAD_TOP_R_um) + (CRITICAL_DIST_CONSTRAINT - 0.5) * (2 * PAD_BOT_R_um)
-        
-        # print("The overlay misalignment that will fail the critical distance constraint is {} um.".format(max_allowed_misalignment_for_cd))
+        if cfg.PAD_ARRANGE_PATTERN == 'checkerboard':
+            EFF_PITCH_UM = min(np.sqrt(PITCH_r_um ** 2 + PITCH_c_um ** 2), 2 * PITCH_r_um, 2 * PITCH_c_um)
+        else:
+            EFF_PITCH_UM = min(PITCH_r_um, PITCH_c_um)
+        max_allowed_misalignment_for_cd = (1 - CRITICAL_DIST_CONSTRAINT) * EFF_PITCH_UM - 0.5 * (2 * PAD_TOP_R_um) + (CRITICAL_DIST_CONSTRAINT - 0.5) * (2 * PAD_BOT_R_um)
 
         MAX_ALLOWED_MISALIGNMENT_um = min(max_allowed_misalignment_for_ca[0], max_allowed_misalignment_for_cd)
         # print("The overlay misalignment that will fail the both constraints is {} um.".format(MAX_ALLOWED_MISALIGNMENT))
@@ -100,6 +102,7 @@ def overlay_yield_calculator(
     pad_yield_map_sub_factor: int = 1,
 ):    
     MAX_ALLOWED_MISALIGNMENT_um = max_allowed_misalignment_calculator(
+        cfg,
         PAD_TOP_R_um,
         PAD_BOT_R_um,
         PITCH_r_um,
@@ -107,7 +110,6 @@ def overlay_yield_calculator(
         CONTACT_AREA_CONSTRAINT,
         CRITICAL_DIST_CONSTRAINT,
     )
-    print("The maximum allowed misalignment is {} nm.".format(MAX_ALLOWED_MISALIGNMENT_um * 1e3))
     num_samples = num_samples
     system_translation_x_samples_um = np.random.normal(SYSTEM_TRANSLATION_X_MEAN_um, SYSTEM_TRANSLATION_X_STD_um, num_samples)
     system_translation_y_samples_um = np.random.normal(SYSTEM_TRANSLATION_Y_MEAN_um, SYSTEM_TRANSLATION_Y_STD_um, num_samples)
@@ -115,10 +117,10 @@ def overlay_yield_calculator(
     system_magnification_samples_ppm = np.random.normal(SYSTEM_MAGNIFICATION_MEAN_ppm, SYSTEM_MAGNIFICATION_STD_ppm, num_samples)
     overlay_die_yield_list = []
 
-    print(system_translation_x_samples_um.mean()*1e3, " nm")
-    print(system_translation_y_samples_um.mean()*1e3, " nm")
-    print(system_rotation_samples_rad.mean() * 150e+3 * 1e3, " nm")
-    print(system_magnification_samples_ppm.mean() * 150e+3 * 1e3, " nm")
+    # print(system_translation_x_samples_um.mean()*1e3, " nm")
+    # print(system_translation_y_samples_um.mean()*1e3, " nm")
+    # print(system_rotation_samples_rad.mean() * 150e+3 * 1e3, " nm")
+    # print(system_magnification_samples_ppm.mean() * 150e+3 * 1e3, " nm")
     
     # # Record the time
     # start_time = time.time()
@@ -200,6 +202,7 @@ def pad_overlay_yield_map_generator(
     pad_yield_map_sub_factor: int = 1,
 ) -> None:
     MAX_ALLOWED_MISALIGNMENT_um = max_allowed_misalignment_calculator(
+        cfg,
         PAD_TOP_R_um,
         PAD_BOT_R_um,
         PITCH_r_um,
@@ -214,10 +217,10 @@ def pad_overlay_yield_map_generator(
     system_rotation_samples_rad = np.random.normal(SYSTEM_ROTATION_MEAN_rad, SYSTEM_ROTATION_STD_rad, num_samples)
     system_magnification_samples_ppm = np.random.normal(SYSTEM_MAGNIFICATION_MEAN_ppm, SYSTEM_MAGNIFICATION_STD_ppm, num_samples)
 
-    print(system_translation_x_samples_um.mean()*1e3, " nm")
-    print(system_translation_y_samples_um.mean()*1e3, " nm")
-    print(system_rotation_samples_rad.mean() * 150e+3 * 1e3, " nm")
-    print(system_magnification_samples_ppm.mean() * 150e+3 * 1e3, " nm")
+    # print(system_translation_x_samples_um.mean()*1e3, " nm")
+    # print(system_translation_y_samples_um.mean()*1e3, " nm")
+    # print(system_rotation_samples_rad.mean() * 150e+3 * 1e3, " nm")
+    # print(system_magnification_samples_ppm.mean() * 150e+3 * 1e3, " nm")
     
     for die_id, die in enumerate(wafer.die_list):
         current_die_pad_array = wafer.base_pad_coords + die.die_center # Get the absolute coordinates of the pad array for the current die (to save memory, use a temporary variable)

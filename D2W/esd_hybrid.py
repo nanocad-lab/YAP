@@ -19,6 +19,7 @@ CUTOFF_MIN_A     = 0.0
 # =========================
 NM_TO_UM = 1e-3  # 1 nm = 1e-3 µm
 
+# Parameters for test
 # =========================
 # 默认 Top/Bottom die 与 pad 输入（可在 main 中覆盖）
 # =========================
@@ -158,6 +159,7 @@ def find_min_gap_points(
         if vmin_pad < min_val:
             min_val = vmin_pad
             recs = []
+        if vmin_pad <= min_val:
             hit_m, hit_k = np.where(gaps == vmin_pad)
             for m,k in zip(hit_m.tolist(), hit_k.tolist()):
                 recs.append({
@@ -257,6 +259,7 @@ def pad_esd_yield_map_generator(
 
     # 首触概率
     prob_vec = counts_vec.astype(np.float32) / float(total_runs)
+    
     # 该尺寸失效率
     p_fail_single = _compute_p_fail_for_die(top_die_w_um, top_die_h_um)
     
@@ -266,7 +269,7 @@ def pad_esd_yield_map_generator(
     # # 画图（按 pitch 为边长）
     # fig = plot_probability_over_pads_with_pitch(
     #     pad_coords_um=pad_coords_um,
-    #     prob_vec=risk_map_vec,
+    #     prob_vec=valid_pad_risk_map_vec,
     #     pitch_um=pad_pitch_um,
     #     title="Risk Pad Map = P(first-touch) × p_fail (square side = PITCH)"
     # )

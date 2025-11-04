@@ -50,6 +50,7 @@ def die_pad_misalignment(
     return pad_misalignment
 
 def overlay_term_simulator(
+    cfg,
     PAD_TOP_R_um: float,
     PAD_BOT_R_um: float,
     PITCH_r_um: float,
@@ -69,7 +70,7 @@ def overlay_term_simulator(
     M_0: float,
 ):
     def max_allowed_misalignment_calculator(
-        PAD_TOP_R_um, PAD_BOT_R_um, PITCH_r_um, PITCH_c_um, CONTACT_AREA_CONSTRAINT, CRITICAL_DIST_CONSTRAINT
+        cfg, PAD_TOP_R_um, PAD_BOT_R_um, PITCH_r_um, PITCH_c_um, CONTACT_AREA_CONSTRAINT, CRITICAL_DIST_CONSTRAINT
     ):
         # Calculate the overlay misalignment that will fail the contact area constraint
         system_misalignment = sp.symbols("system_misalignment")
@@ -93,7 +94,11 @@ def overlay_term_simulator(
         # plt.show()
 
         # Calculate the overlay misalignment that will fail the critical distance constraint
-        max_allowed_misalignment_for_cd = (1 - CRITICAL_DIST_CONSTRAINT) * min(PITCH_r_um, PITCH_c_um) - 0.5 * (2 * PAD_TOP_R_um) + (CRITICAL_DIST_CONSTRAINT - 0.5) * (2 * PAD_BOT_R_um)
+        if cfg.PAD_ARRANGE_PATTERN == 'checkerboard':
+            EFF_PITCH_UM = min(np.sqrt(PITCH_r_um ** 2 + PITCH_c_um ** 2), 2 * PITCH_r_um, 2 * PITCH_c_um)
+        else:
+            EFF_PITCH_UM = min(PITCH_r_um, PITCH_c_um)
+        max_allowed_misalignment_for_cd = (1 - CRITICAL_DIST_CONSTRAINT) * EFF_PITCH_UM - 0.5 * (2 * PAD_TOP_R_um) + (CRITICAL_DIST_CONSTRAINT - 0.5) * (2 * PAD_BOT_R_um)
         # print("The overlay misalignment that will fail the critical distance constraint is {} um.".format(max_allowed_misalignment_for_cd))
 
         MAX_ALLOWED_MISALIGNMENT_um = min(max_allowed_misalignment_for_ca[0], max_allowed_misalignment_for_cd)
@@ -103,7 +108,7 @@ def overlay_term_simulator(
     
     # Calculate the maximum allowed misalignment
     MAX_ALLOWED_MISALIGNMENT_um = max_allowed_misalignment_calculator(
-        PAD_TOP_R_um, PAD_BOT_R_um, PITCH_r_um, PITCH_c_um, CONTACT_AREA_CONSTRAINT, CRITICAL_DIST_CONSTRAINT
+        cfg, PAD_TOP_R_um, PAD_BOT_R_um, PITCH_r_um, PITCH_c_um, CONTACT_AREA_CONSTRAINT, CRITICAL_DIST_CONSTRAINT
     )
     
     # Calculate the systematic translation, rotation, and magnification

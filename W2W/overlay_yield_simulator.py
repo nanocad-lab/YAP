@@ -49,12 +49,11 @@ def die_pad_misalignment(
         dx = (system_translation_x_um - system_rotation_rad * die_pad_coords[:, 1] + system_magnification_ppm * die_pad_coords[:, 0])
         dy = (system_translation_y_um + system_rotation_rad * die_pad_coords[:, 0] + system_magnification_ppm * die_pad_coords[:, 1])
         pad_misalignment = np.sqrt(dx**2 + dy**2) + np.random.normal(RANDOM_MISALIGNMENT_MEAN_um, RANDOM_MISALIGNMENT_STD_um, len(die_pad_coords))
-        # end_time = time.time()
-        # print("Time taken to calculate pad misalignment: {:.2f} seconds".format(end_time - start_time))
 
     return pad_misalignment
 
 def overlay_term_simulator(
+    cfg,
     PAD_TOP_R_um: float,
     PAD_BOT_R_um: float,
     PITCH_r_um: float,
@@ -98,7 +97,11 @@ def overlay_term_simulator(
         # plt.show()
 
         # Calculate the overlay misalignment that will fail the critical distance constraint
-        MAX_ALLOWED_MISALIGNMENT_um_for_cd = (1 - CRITICAL_DIST_CONSTRAINT) * min(PITCH_r_um, PITCH_c_um) - 0.5 * (2 * PAD_TOP_R_um) + (CRITICAL_DIST_CONSTRAINT - 0.5) * (2 * PAD_BOT_R_um)
+        if cfg.PAD_ARRANGE_PATTERN == 'checkerboard':
+            EFF_PITCH_UM = min(np.sqrt(PITCH_r_um ** 2 + PITCH_c_um ** 2), 2 * PITCH_r_um, 2 * PITCH_c_um)
+        else:
+            EFF_PITCH_UM = min(PITCH_r_um, PITCH_c_um)
+        MAX_ALLOWED_MISALIGNMENT_um_for_cd = (1 - CRITICAL_DIST_CONSTRAINT) * EFF_PITCH_UM - 0.5 * (2 * PAD_TOP_R_um) + (CRITICAL_DIST_CONSTRAINT - 0.5) * (2 * PAD_BOT_R_um)
         # print("The overlay misalignment that will fail the critical distance constraint is {} um.".format(MAX_ALLOWED_MISALIGNMENT_um_for_cd))
 
         MAX_ALLOWED_MISALIGNMENT_um = min(MAX_ALLOWED_MISALIGNMENT_um_for_ca[0], MAX_ALLOWED_MISALIGNMENT_um_for_cd)

@@ -4,6 +4,7 @@
 #### Author: Zhichao Chen
 #### Date: Sep 26, 2024
 
+import os
 import sys
 import numpy as np
 from scipy.integrate import quad
@@ -84,11 +85,12 @@ def overall_yield_simulator(
         critical_fail = 0
         redundant_fail = 0
 
-        die_pad_coords = wafer.base_pad_coords + die.die_center
-        valid_die_pad_coords = die.pad_coords[valid_pad_mask.flatten() == 1]
+
 
 
         for die_ind, die in enumerate(wafer.die_list):
+            die_pad_coords = wafer.base_pad_coords + die.die_center
+            valid_die_pad_coords = die_pad_coords[valid_pad_mask.flatten() == 1]
             die_count += 1
             if die_count % 10 == 0:
                 print("Processing die {}/{}...".format(die_count, len(wafer.die_list)))
@@ -241,11 +243,17 @@ def overall_yield_simulator(
             Cu_gap_map[valid_pad_mask == 1] = Cu_gap_in_valid_pads
 
             # Calculate the safe range for single pad Cu recess
-            dishing_bound_array = debond_dishing_bounds_calculator(cfg, valid_die_pad_coords) # (num_valid_pads, 2) array: (dishing_low_nm, dishing_high_nm)
+            if not os.path.exists(cfg.OUTPUT_DIR + cfg.DESIGN + '/' + cfg.DESIGN + "_dishing_bound_array_die_{}.npy".format(die_ind)) or cfg.DEBUG:
+                start_time = time.time()
+                valid_pad_dishing_bound_array = debond_dishing_bounds_calculator(cfg, valid_die_pad_coords) # (num_pads, 2) array: (dishing_low_nm, dishing_high_nm)
+                print("Dishing bound calculation time: {:.2f} seconds".format(time.time() - start_time))
+                np.save(cfg.OUTPUT_DIR + cfg.DESIGN + '/' + cfg.DESIGN + "_dishing_bound_array_die_{}.npy".format(die_ind), valid_pad_dishing_bound_array)
+            else:
+                valid_pad_dishing_bound_array = np.load(cfg.OUTPUT_DIR + cfg.DESIGN + '/' + cfg.DESIGN + "_dishing_bound_array_die_{}.npy".format(die_ind))
             zeta_0 = np.full((PAD_ARR_ROW, PAD_ARR_COL), np.nan)
             zeta_1 = np.full((PAD_ARR_ROW, PAD_ARR_COL), np.nan)
-            zeta_0[valid_pad_mask == 1] = - dishing_bound_array[:, 1] * 2 # lower limits of the sum of top and bottom Cu heights
-            zeta_1[valid_pad_mask == 1] = - dishing_bound_array[:, 0] * 2 # upper limits of the sum of top and bottom Cu heights
+            zeta_0[valid_pad_mask == 1] = - valid_pad_dishing_bound_array[:, 1] * 2 # lower limits of the sum of top and bottom Cu heights
+            zeta_1[valid_pad_mask == 1] = - valid_pad_dishing_bound_array[:, 0] * 2 # upper limits of the sum of top and bottom Cu heights
             # Check critical pad Cu gap
             critical_pad_Cu_gap = Cu_gap_map * die_critical_pad_bitmap      # Shape: (PAD_ARR_ROW, PAD_ARR_COL)
             if np.any(critical_pad_Cu_gap > zeta_1 * die_critical_pad_bitmap) or np.any(critical_pad_Cu_gap < zeta_0 * die_critical_pad_bitmap):

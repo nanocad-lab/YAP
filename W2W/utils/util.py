@@ -20,14 +20,23 @@ def load_modeling_config(path, mode, debug=False):
         cfg.PAD_TOP_R_um = cfg.PAD_BOT_R_um * cfg.PAD_TOP_R_um_ratio if cfg.PAD_TOP_R_um is None else cfg.PAD_TOP_R_um  # top Cu pad radius (um)
         cfg.SYSTEM_MAGNIFICATION_MEAN_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_MEAN_um + cfg.M_0) / 1e6
         cfg.SYSTEM_MAGNIFICATION_STD_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_STD_um) ** 2 / 1e6
-        # TODO: You need to set pad_block_dim_x and pad_block_dim_y for pitch per row and pitch per column
         # Usually we set pad_block as a square block
         assert int(cfg.pad_block_dim_x / cfg.PITCH_c_um) == int(cfg.pad_block_dim_y / cfg.PITCH_r_um), \
                 "Currently only square pad blocks are supported. Please set pad_block_dim_x/pitch_c_um equal to pad_block_dim_y/pitch_r_um."
         cfg.pad_block_size = int(cfg.pad_block_dim_x / cfg.PITCH_c_um)  # pad block size (#rows or #columns of the pad block)
+    elif mode == "d2w_simulation" or mode == "d2w_modeling":
+        cfg.PAD_ARR_L_um = (cfg.PAD_ARR_ROW - 1) * cfg.PITCH_r_um  # pad array length (um)
+        cfg.PAD_ARR_W_um = (cfg.PAD_ARR_COL - 1) * cfg.PITCH_c_um  # pad array width (um)
+        cfg.PAD_BOT_R_um = min(cfg.PITCH_r_um, cfg.PITCH_c_um) / 2 * cfg.PAD_BOT_R_um_ratio if cfg.PAD_BOT_R_um is None else cfg.PAD_BOT_R_um # Bottom Cu pad radius
+        cfg.PAD_TOP_R_um = cfg.PAD_BOT_R_um * cfg.PAD_TOP_R_um_ratio if cfg.PAD_TOP_R_um is None else cfg.PAD_TOP_R_um  # Top Cu pad radius
+        cfg.SYSTEM_MAGNIFICATION_MEAN_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_MEAN_um + cfg.M_0) / 1e6
+        cfg.SYSTEM_MAGNIFICATION_STD_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_STD_um) ** 2 / 1e6
+        assert int(cfg.pad_block_dim_x / cfg.PITCH_c_um) == int(cfg.pad_block_dim_y / cfg.PITCH_r_um), \
+                "Currently only square pad blocks are supported. Please set pad_block_dim_x/pitch_c_um equal to pad_block_dim_y/pitch_r_um."
+        cfg.pad_block_size = int(cfg.pad_block_dim_x / cfg.PITCH_c_um)  # pad block size (#rows or #columns of the pad block)
+        cfg.eff_DIE_R = float(np.sqrt((cfg.DIE_W_um / 2) ** 2 + (cfg.DIE_L_um / 2) ** 2))  # Effective die radius (um)
     else:
-        # TODO: Implement D2W modeling & simulation configuration
-        raise NotImplementedError("D2W modeling is not implemented yet.")
+        raise ValueError(f"Unknown mode: {mode}. Supported modes are 'w2w_simulation', 'w2w_modeling', 'd2w_simulation', and 'd2w_modeling'.")
 
 
     if debug:
@@ -68,7 +77,21 @@ def update_config_items(cfg, mode):
         assert int(cfg.pad_block_dim_x / cfg.PITCH_c_um) == int(cfg.pad_block_dim_y / cfg.PITCH_r_um), \
                 "Currently only square pad blocks are supported. Please set pad_block_dim_x/pitch_c_um equal to pad_block_dim_y/pitch_r_um."
         cfg.pad_block_size = int(cfg.pad_block_dim_x / cfg.PITCH_c_um)  # pad block size (#rows or #columns of the pad block)
-
+    elif mode == "d2w_simulation" or mode == "d2w_modeling":
+        # cfg.PAD_ARR_ROW = int(np.floor(float(cfg.DIE_L_um / cfg.PITCH_um)))  # number of pads in a row of pad array
+        # cfg.PAD_ARR_COL = int(np.floor(float(cfg.DIE_W_um / cfg.PITCH_um)))  # number of pads in a column of pad array
+        cfg.PAD_ARR_L_um = (cfg.PAD_ARR_ROW - 1) * cfg.PITCH_r_um  # pad array length (um)
+        cfg.PAD_ARR_W_um = (cfg.PAD_ARR_COL - 1) * cfg.PITCH_c_um  # pad array width (um)
+        cfg.PAD_BOT_R_um = min(cfg.PITCH_r_um, cfg.PITCH_c_um) / 2 * cfg.PAD_BOT_R_um_ratio if cfg.PAD_BOT_R_um is None else cfg.PAD_BOT_R_um # Bottom Cu pad radius
+        cfg.PAD_TOP_R_um = cfg.PAD_BOT_R_um * cfg.PAD_TOP_R_um_ratio if cfg.PAD_TOP_R_um is None else cfg.PAD_TOP_R_um   # Top Cu pad radius
+        cfg.SYSTEM_MAGNIFICATION_MEAN_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_MEAN_um + cfg.M_0) / 1e6
+        cfg.SYSTEM_MAGNIFICATION_STD_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_STD_um) ** 2 / 1e6
+        assert int(cfg.pad_block_dim_x / cfg.PITCH_c_um) == int(cfg.pad_block_dim_y / cfg.PITCH_r_um), \
+                "Currently only square pad blocks are supported. Please set pad_block_dim_x/pitch_c_um equal to pad_block_dim_y/pitch_r_um."
+        cfg.pad_block_size = int(cfg.pad_block_dim_x / cfg.PITCH_c_um)  # pad block size (#rows or #columns of the pad block)
+        cfg.eff_DIE_R = float(np.sqrt((cfg.DIE_W_um / 2) ** 2 + (cfg.DIE_L_um / 2) ** 2))  # Effective die radius (um)
+    else:
+        raise ValueError(f"Unknown mode: {mode}. Supported modes are 'w2w_simulation', 'w2w_modeling', 'd2w_simulation', and 'd2w_modeling'.")
 
 def downsample_bitmap(bitmap, block_size):
     """
@@ -145,7 +168,41 @@ def draw_pad_bitmap(cfg, bitmap_collection):
     print("Pad bitmap collections info saved.")
     return
 
+def sort_pads_bmap(input_path, output_path):
+    """
+    Read pad data from .bmap file, from top-left to right-bottom order 
+    sorted by x ascending and y descending.
+    - x is the 3rd column (index 2)
+    - y is the 4th column (index 3)
+    """
 
+    pads = []
+    with open(input_path, 'r') as f:
+        for line in f:
+            parts = line.strip().split()
+            if len(parts) < 4:  # 至少需要 x, y 两列
+                continue
+            try:
+                x = float(parts[2])  # 第3列是x
+                y = float(parts[3])  # 第4列是y
+                pads.append((x, y, line.strip()))
+            except ValueError:
+                continue  # 跳过无法解析的行
+
+    # Transform to numpy array for sorting
+    data = np.array(pads, dtype=object)
+
+    # x ascending, y descending
+    idx = np.lexsort((data[:,0].astype(float), - data[:,1].astype(float)))
+    sorted_data = data[idx]
+
+    with open(output_path, 'w') as f:
+        for _, _, line in sorted_data:
+            f.write(line + '\n')
+
+    # print(f"Sorted the order as from top-left to right-bottom and saved in {output_path}")
+
+    
 def criticality_generator(cfg, 
                           bump_data: list,
                           redundant_net_to_bumpids: dict,
@@ -209,15 +266,15 @@ def risk_map_generator(cfg,
             "particle_failure_probability": 1 - pad_df_yield,
             "mechanical_failure_probability": 1 - pad_ce_yield,
         })
-    # with open(cfg.OUTPUT_DIR + cfg.DESIGN + "_die_{}_risk_map.map".format(die_id), 'w') as f:
-    #     for pad_risk in risk_map:
-    #         f.write(f"{pad_risk['pad_coords_x']} {pad_risk['pad_coords_y']} {pad_risk['esd_failure_probability']} {pad_risk['overlay_failure_probability']} {pad_risk['particle_failure_probability']} {pad_risk['mechanical_failure_probability']}\n")
-    # print(cfg.DESIGN + " die {} risk map file saved in ".format(die_id), cfg.OUTPUT_DIR + cfg.DESIGN + "_die_{}_risk_map.map".format(die_id))
+    with open(cfg.OUTPUT_DIR + cfg.DESIGN + "/" + cfg.DESIGN + "_die_{}_risk_map.map".format(die_id), 'w') as f:
+        for pad_risk in risk_map:
+            f.write(f"{pad_risk['pad_coords_x']} {pad_risk['pad_coords_y']} {pad_risk['esd_failure_probability']} {pad_risk['overlay_failure_probability']} {pad_risk['particle_failure_probability']} {pad_risk['mechanical_failure_probability']}\n")
+    print("Risk map file saved in ".format(die_id), cfg.OUTPUT_DIR + cfg.DESIGN + "/" + cfg.DESIGN + "_die_{}_risk_map.map".format(die_id))
     return
 
 def convert_3dblox_to_pad_bitmap(cfg, 
                                  blox_bmap_path: str, 
-                                 pad_arrange_pattern='checkerboard'):
+                                 pad_arrange_pattern: str):
     '''
     This module converts the 3DBlox .bmap file to pad bitmap for YAP to process.
         - pad_arrange_pattern: 'checkerboard' for UCIe standard and HBM
@@ -228,6 +285,8 @@ def convert_3dblox_to_pad_bitmap(cfg,
     redundant_pad_ratio = cfg.redundant_pad_ratio
     redundant_logical_pad_copy = cfg.redundant_logical_pad_copy
     redundant_logical_pad_dist = cfg.redundant_logical_pad_dist
+
+    sort_pads_bmap(blox_bmap_path, blox_bmap_path)
 
     # Read the bump data from the .bmap file
     bump_data = []
@@ -340,7 +399,7 @@ def convert_3dblox_to_pad_bitmap(cfg,
     
     
     # Save the bitmap collection as npy file and mat file
-    np.save(cfg.OUTPUT_DIR + "bitmap_collection.npy", bitmap_collection)
+    np.save(cfg.OUTPUT_DIR + cfg.DESIGN + "/" + cfg.DESIGN + "_bitmap_collection.npy", bitmap_collection)
     # sio.savemat(cfg.OUTPUT_DIR + "bitmap_collection.mat", bitmap_collection)
 
     # # Draw the critical and redundant pad bitmaps in one figure (critical light red, redundant light blue, dummy light gray)

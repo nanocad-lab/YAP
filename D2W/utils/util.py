@@ -281,8 +281,8 @@ def risk_map_generator(cfg,
 
 
 def convert_3dblox_to_pad_bitmap(cfg, 
-                                 blox_bmap_path='input/HBM_footprint_A.bmap', 
-                                 pad_arrange_pattern='checkerboard'):
+                                 blox_bmap_path: str,
+                                 pad_arrange_pattern: str):
     '''
     pad_arrange_pattern: 'checkerboard' for UCIe standard and HBM
     '''

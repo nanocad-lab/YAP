@@ -19,6 +19,7 @@ CUTOFF_MIN_A     = 0.0
 # =========================
 NM_TO_UM = 1e-3  # 1 nm = 1e-3 µm
 
+# Parameters for test
 # =========================
 # 默认 Top/Bottom die 与 pad 输入（可在 main 中覆盖）
 # =========================
@@ -263,20 +264,19 @@ def pad_esd_yield_map_generator(
     p_fail_single = _compute_p_fail_for_die(top_die_w_um, top_die_h_um)
 
     # risk pad map
-    risk_map_vec = prob_vec * float(p_fail_single)
+    valid_pad_risk_map_vec = prob_vec * float(p_fail_single)
 
-    # 画图（按 pitch 为边长）
-    fig = plot_probability_over_pads_with_pitch(
-        pad_coords_um=pad_coords_um,
-        prob_vec=risk_map_vec,
-        pitch_um=pad_pitch_um,
-        title="Risk Pad Map = P(first-touch) × p_fail (square side = PITCH)"
-    )
+    # # 画图（按 pitch 为边长）
+    # fig = plot_probability_over_pads_with_pitch(
+    #     pad_coords_um=pad_coords_um,
+    #     prob_vec=valid_pad_risk_map_vec,
+    #     pitch_um=pad_pitch_um,
+    #     title="Risk Pad Map = P(first-touch) × p_fail (square side = PITCH)"
+    # )
+    fig = None
 
-    risk_map_vec = risk_map_vec.reshape(cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL)
-    yield_map_vec = 1.0 - risk_map_vec
-    print(yield_map_vec)
-    return yield_map_vec, fig, float(p_fail_single)
+    valid_pad_yield_map_vec = 1.0 - valid_pad_risk_map_vec
+    return valid_pad_yield_map_vec, fig, float(p_fail_single)
 
 
 # =========================

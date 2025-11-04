@@ -2,15 +2,16 @@
 w2w_simulation:
   # === General Settings ===
   MODE: "W2W_Hybrid_Bonding_Simulation"  # Name of the simulation
-  OUTPUT_DIR: "pad_bitmap/"          # Output directory for simulation results
+  OUTPUT_DIR: "output/"          # Output directory for simulation results
   DEBUG: false                                      # Enable debug mode
-  DEISGN: "HBM_footprint_A"                      # Design name  
+  DESIGN: "HBM_footprint_A"                      # Design name
+  PAD_ARRANGE_PATTERN: "checkerboard"        # Pad arrangement pattern: "checkerboard" (HBM)
   # === Wafer and Die Settings ===
   NUM_WAFERS: 1                        # Number of wafers used in simulation
   PITCH_r_um: 55                            # Row pad pitch (µm)
   PITCH_c_um: 35                            # Column pad pitch (µm)
-  DIE_W_um: 11000                          # Die width (µm)
-  DIE_L_um: 9000                          # Die length (µm)
+  DIE_W_um: 10850                          # Die width (µm)
+  DIE_L_um: 8965                          # Die length (µm)
   WAF_R_um: 10000                         # Wafer radius (µm)
   PAD_ARR_ROW: 161
   PAD_ARR_COL: 308
@@ -182,13 +183,14 @@ w2w_modeling:
   # === General Settings ===
   MODE: "W2W_Hybrid_Bonding_Modeling"   # Name of the modeling
   DEBUG: false                          # Enable debug mode
-  OUTPUT_DIR: "pad_bitmap/"          # Output directory for simulation results
-  DEISGN: "HBM_footprint_A"                      # Design name  
+  OUTPUT_DIR: "output/"          # Output directory for simulation results
+  DESIGN: "HBM_footprint_A"                      # Design name
+  PAD_ARRANGE_PATTERN: "checkerboard"        # Pad arrangement pattern: "checkerboard" (HBM)
   # === Per Wafer Parameters ===
   PITCH_r_um: 55                             # Row pad PITCH_um (µm)
   PITCH_c_um: 35                              # Column pad PITCH_um (µm)
-  DIE_W_um: 11000                          # Die width (µm)
-  DIE_L_um: 9000                          # Die length (µm)
+  DIE_W_um: 10850                          # Die width (µm)
+  DIE_L_um: 8965                          # Die length (µm)
   WAF_R_um: 10000                         # Wafer radius (µm)
   PAD_BOT_R_um: 35                      # Bottom Cu pad radius (um)
   PAD_TOP_R_um: 35                      # Top Cu pad radius (um)

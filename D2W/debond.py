@@ -335,7 +335,7 @@ def _single_side_growth_height_nm() -> float:
 
 def invert_dishing_sio2_given_sigma_eff(sigma_eff_MPa: float) -> Tuple[float, dict]:
     target = float(sigma_eff_MPa)
-    lo, hi = -10.0, 50.0  # fixed search window per request
+    lo, hi = -10.0, 50.0  # fixed search window per request (dishing in nm)
     # σ_SiO2(D) is monotonically DECREASING vs D in this model
     D_raw = _bisect_mono(_sio2_stress_at, target, lo, hi, is_increasing=False)
     if D_raw is None:
@@ -345,7 +345,7 @@ def invert_dishing_sio2_given_sigma_eff(sigma_eff_MPa: float) -> Tuple[float, di
 
 def invert_dishing_cu_given_sigma_eff(sigma_eff_MPa: float) -> Tuple[float, dict]:
     target = float(sigma_eff_MPa)
-    lo, hi = -10.0, 50.0  # fixed search window per request
+    lo, hi = -10.0, 50.0  # fixed search window per request (dishing in nm)
     H_single = _single_side_growth_height_nm()  # independent of D
     # σ_Cu(D) is monotonically INCREASING vs D in this model (within range)
     D_raw = _bisect_mono(_cu_stress_at, target, lo, hi, is_increasing=True)

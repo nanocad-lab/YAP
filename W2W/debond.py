@@ -67,8 +67,11 @@ def __init_params(cfg):
                                         USE_PLOT
     
     # ---------- (A) Pad-scale: Geometry & Temps ----------
-    PITCH_UM      = cfg.PITCH_r_um**2       # pad pitch p [µm]
-    DIAM_UM       = cfg.PAD_TOP_R_um        # pad diameter d [µm]
+    if cfg.PAD_ARRANGE_PATTERN == 'checkerboard':
+        PITCH_UM = min(np.sqrt(cfg.PITCH_r_um ** 2 + cfg.PITCH_c_um ** 2), 2 * cfg.PITCH_r_um, 2 * cfg.PITCH_c_um)
+    else:
+        PITCH_UM = cfg.PITCH_r_um  
+    DIAM_UM       = cfg.PAD_TOP_R_um * 2       # pad diameter d [µm]
     T_ANNEAL_C    = cfg.T_anl               # anneal temperature [°C]
     T_REF_C       = cfg.T_R                 # reference temperature [°C]
     DISHING_NM    = cfg.DISH_0_m * 1e9           # recess/dishing depth [nm] (runtime default; inversion overrides)
@@ -182,6 +185,7 @@ def _tcu_of_T_exp(T_C, T_ref_C, TCU_BASE_UM, TCU_K_PER_C):
     return TCU_BASE_UM*(math.e**(TCU_K_PER_C*(T_C-T_ref_C)))
 
 def _apply_dish_gain_to_tcu_linear(tcu_um, D_nm):
+    # Still allow linear gain vs dishing for cool-down stage model
     return tcu_um*(1.0+KDISH_TCU_GAIN_PER_NM*max(0.0,float(D_nm)))
 
 def _delta_eq_two_pads(sigma_e,sigma_p,sigma_c,CU_E_GPA,CU_NU,T_CU_UM_eff,R_P,R_C):
@@ -191,31 +195,46 @@ def _delta_eq_two_pads(sigma_e,sigma_p,sigma_c,CU_E_GPA,CU_NU,T_CU_UM_eff,R_P,R_
     return 2.0*(k_e_eff*S)
 
 def _phi_cu(delta_eq_m, dishing_nm, ETA_GROWTH, PHI_CU0):
+    # Heat-dwell Cu contact ratio; depends on D for SIO2 path and Cu gating in cool model.
     U=_units(); delta_sat=2*dishing_nm*U['nm']
     if delta_eq_m<=delta_sat: return 0.0
     x=(delta_eq_m-delta_sat)/max(delta_sat,1e-12)
     return PHI_CU0+(1.0-PHI_CU0)*(x**ETA_GROWTH)
 
-def compute_sigma_peel_MPa():
+# ---------- New: purely D-independent heat-dwell delta_eq (for H_single) ----------
+def compute_delta_eq_nm_only():
     U=_units()
-    _,A_cu,A_ox=_geom_areas(PITCH_UM,DIAM_UM)
     sigma_m=_thermal_mismatch_sigma(CU_E_GPA,CU_NU,CU_ALPHA_PPM,OX_ALPHA_PPM,T_ANNEAL_C,T_REF_C)
     sigma_e,sigma_p,sigma_c=_split_sigma(sigma_m,SIGMA_Y_MPA,CREEP_FACTOR)
     T_CU_UM_eff=_tcu_of_T_exp(T_ANNEAL_C,T_REF_C,TCU_BASE_UM,TCU_K_PER_C)
     delta_eq=_delta_eq_two_pads(sigma_e,sigma_p,sigma_c,CU_E_GPA,CU_NU,T_CU_UM_eff,R_P,R_C)
-    phi_cu=_phi_cu(delta_eq,DISHING_NM,ETA_GROWTH,PHI_CU0)
+    return dict(
+        delta_eq_nm = delta_eq/U['nm'],
+        sigma_e_MPa = sigma_e/U['MPa'],
+        sigma_p_MPa = sigma_p/U['MPa'],
+        sigma_c_MPa = sigma_c/U['MPa'],
+        tcu_eff_um  = T_CU_UM_eff
+    )
+
+# ---------- Heat-dwell SiO2 peeling stress at given D ----------
+def compute_sigma_peel_MPa_at(D_nm: float):
+    U=_units()
+    _,A_cu,A_ox=_geom_areas(PITCH_UM,DIAM_UM)
+    # reuse the same sigma_e/p/c and TCU from D-independent path:
+    base = compute_delta_eq_nm_only()
+    delta_eq = base['delta_eq_nm']*U['nm']
+    phi_cu = _phi_cu(delta_eq, D_nm, ETA_GROWTH, PHI_CU0)
     k_n=_k_n_bar(CU_E_GPA,CU_NU,T_INT_NM)
     N_cu=k_n*delta_eq*(A_cu*phi_cu)
     sigma_peel=N_cu/A_ox
     return dict(
         sigma_peel_MPa=sigma_peel/U['MPa'],
         phi_cu=phi_cu,
-        delta_eq_nm=delta_eq/U['nm'],
-        tcu_eff_um=T_CU_UM_eff,
-        sigma_m_MPa=sigma_m/U['MPa'],
-        sigma_e_MPa=sigma_e/U['MPa'],
-        sigma_p_MPa=sigma_p/U['MPa'],
-        sigma_c_MPa=sigma_c/U['MPa'],
+        delta_eq_nm=base['delta_eq_nm'],
+        tcu_eff_um=base['tcu_eff_um'],
+        sigma_e_MPa=base['sigma_e_MPa'],
+        sigma_p_MPa=base['sigma_p_MPa'],
+        sigma_c_MPa=base['sigma_c_MPa'],
     )
 
 def _sigma_y_cool_MPa(sigma_p_heat_MPa, sigma_y_heat_MPa):
@@ -223,33 +242,43 @@ def _sigma_y_cool_MPa(sigma_p_heat_MPa, sigma_y_heat_MPa):
     hard=COOL_A_HARD_MPA*(1.0-math.exp(-COOL_K_HARD_PER_MPA*max(0.0,float(sigma_p_heat_MPa))))
     return min(sigma_y_heat_MPa, base+hard)
 
-def compute_cu_peel_cool_MPa():
+# ---------- Cool-down Cu peeling stress at given D ----------
+def compute_cu_peel_cool_MPa_at(D_nm: float):
     U=_units()
-    hot=compute_sigma_peel_MPa()
+    hot = compute_sigma_peel_MPa_at(D_nm)  # note: phi_cu now from D
     if hot['phi_cu']<=0.0:
         return dict(sigma_cu_peel_MPa=0.0, reason="no_contact_in_heat_dwell",
-                    sigma_y_cool_MPa=_sigma_y_cool_MPa(0.0, SIGMA_Y_MPA), delta_eff_nm=0.0)
+                    sigma_y_cool_MPa=_sigma_y_cool_MPa(0.0, SIGMA_Y_MPA), delta_eff_nm=0.0,
+                    phi_cu=hot['phi_cu'], delta_eq_nm=hot['delta_eq_nm'])
+
     sigma_m=_thermal_mismatch_sigma(CU_E_GPA,CU_NU,CU_ALPHA_PPM,OX_ALPHA_PPM,T_ANNEAL_C,T_REF_C)
     sigma_y_cool=_sigma_y_cool_MPa(hot['sigma_p_MPa'],SIGMA_Y_MPA); sigma_y_Pa=sigma_y_cool*1e6
     sigma_e_cool=max(-sigma_y_Pa,min(sigma_m,sigma_y_Pa))
     sigma_p_cool=sigma_m-sigma_e_cool
+    # S_heat uses D-independent sigma_e/p/c values we cached in hot:
     S_heat=(hot['sigma_e_MPa']*1e6)+R_P*(hot['sigma_p_MPa']*1e6)+R_C*(hot['sigma_c_MPa']*1e6)
     S_cool=sigma_e_cool+R_P*sigma_p_cool
-    T_CU_UM_eff_cool=_apply_dish_gain_to_tcu_linear(TCU_CONST_UM_COOL,DISHING_NM)
+
+    T_CU_UM_eff_cool=_apply_dish_gain_to_tcu_linear(TCU_CONST_UM_COOL,D_nm)
     t_cu=T_CU_UM_eff_cool*1e-6
     k_e_eff_cool=(2.0*CU_NU/(CU_E_GPA*1e9))*t_cu
     delta_eq_cool=2.0*(k_e_eff_cool*(S_cool-S_heat))
     delta_eff=max(0.0,delta_eq_cool)
     k_n_cool=_k_n_bar(CU_E_GPA,CU_NU,T_INT_NM)*KN_COOL_GAIN
+
+    # Use phi from heat at this D as the effective contact fraction (bounded)
     phi_eff=max(1e-3,min(1.0,float(hot['phi_cu'])))
     k_n_cool/=phi_eff
+
     f=_fill_fraction(PITCH_UM,DIAM_UM)
     visc_scale=1.0 - VISC_LAMBDA*(f**VISC_EXP)
     sigma_cu_peel=(k_n_cool*delta_eff*visc_scale)/1e6
     return dict(sigma_cu_peel_MPa=sigma_cu_peel,
                 sigma_y_cool_MPa=sigma_y_cool,
                 delta_eff_nm=delta_eff/1e-9,
-                tcu_eff_um=TCU_CONST_UM_COOL)
+                tcu_eff_um=TCU_CONST_UM_COOL,
+                phi_cu=hot['phi_cu'],
+                delta_eq_nm=hot['delta_eq_nm'])
 
 # =============================================================================
 # ============================ CRITICAL / INVERT ==============================
@@ -271,29 +300,15 @@ def compute_critical_peeling_all():
         }
     }
 
-class _TempDishing:
-    def __init__(self, D_nm: float): self.D_nm=float(D_nm); self._old=None
-    def __enter__(self):
-        global DISHING_NM; self._old=DISHING_NM; DISHING_NM=self.D_nm
-    def __exit__(self, *exc):
-        global DISHING_NM; DISHING_NM=self._old
-
-def _sio2_stress_at(D_nm: float) -> float:
-    with _TempDishing(D_nm):
-        return compute_sigma_peel_MPa()['sigma_peel_MPa']
-
-def _cu_stress_at(D_nm: float) -> float:
-    with _TempDishing(D_nm):
-        return compute_cu_peel_cool_MPa()['sigma_cu_peel_MPa']
-
-def _bisect_mono(f, target, lo, hi, is_increasing, tol=1e-6, maxit=80):
+# --- Helpers for monotone bisection within FIXED interval [-10, 50] only ---
+def _bisect_mono(f, target, lo, hi, is_increasing, tol=1e-5, maxit=80):
     f_lo, f_hi = f(lo), f(hi)
+    # Check if target lies within [f(lo), f(hi)] under monotonic assumption
     if is_increasing:
-        if target <= f_lo: return lo
-        if target >= f_hi: return hi
+        if not (f_lo <= target <= f_hi): return None
     else:
-        if target >= f_lo: return lo
-        if target <= f_hi: return hi
+        if not (f_hi <= target <= f_lo): return None
+    lo0, hi0 = lo, hi
     for _ in range(maxit):
         mid = 0.5*(lo+hi); fm = f(mid)
         if abs(fm - target) <= tol: return mid
@@ -303,49 +318,37 @@ def _bisect_mono(f, target, lo, hi, is_increasing, tol=1e-6, maxit=80):
             (lo, hi) = (mid, hi) if fm > target else (lo, mid)
     return 0.5*(lo+hi)
 
-def _expand_bracket(f, target, lo0, hi0, is_increasing, step=50.0, max_hi=100000.0):
-    lo, hi = lo0, hi0
-    f_lo, f_hi = f(lo), f(hi)
-    if (is_increasing and (f_lo <= target <= f_hi)) or ((not is_increasing) and (f_hi <= target <= f_lo)):
-        return lo, hi, True
-    for _ in range(40):
-        if is_increasing:
-            if target > f_hi: hi = min(max_hi, hi + step); f_hi = f(hi)
-            elif target < f_lo: lo = max(0.0, lo - step);   f_lo = f(lo)
-            else: return lo, hi, True
-        else:
-            if target < f_hi: hi = min(max_hi, hi + step); f_hi = f(hi)
-            elif target > f_lo: lo = max(0.0, lo - step);  f_lo = f(lo)
-            else: return lo, hi, True
-        step *= 1.8
-        if hi >= max_hi: break
-    return lo, hi, False
+def _sio2_stress_at(D_nm: float) -> float:
+    return compute_sigma_peel_MPa_at(D_nm)['sigma_peel_MPa']
+
+def _cu_stress_at(D_nm: float) -> float:
+    return compute_cu_peel_cool_MPa_at(D_nm)['sigma_cu_peel_MPa']
+
+# --- New: heat single-side growth height H_single (independent of dishing) ---
+def _single_side_growth_height_nm() -> float:
+    base = compute_delta_eq_nm_only()
+    return max(0.0, 0.5*float(base['delta_eq_nm']))
 
 def invert_dishing_sio2_given_sigma_eff(sigma_eff_MPa: float) -> Tuple[float, dict]:
     target = float(sigma_eff_MPa)
-    lo, hi, ok = _expand_bracket(_sio2_stress_at, target, 0.0, 50.0, is_increasing=False)
-    if not ok:
-        f0 = _sio2_stress_at(0.0)
-        if f0 < target: return 0.0, dict(mode="no_risk", sigma0=f0, target=target)
-        return hi, dict(mode="clamped_hi", D_hi=hi, sigma_hi=_sio2_stress_at(hi), target=target)
+    lo, hi = -10.0, 50.0  # fixed search window per request (dishing in nm)
+    # σ_SiO2(D) is monotonically DECREASING vs D in this model
     D_raw = _bisect_mono(_sio2_stress_at, target, lo, hi, is_increasing=False)
+    if D_raw is None:
+        # no solution in [-10,50] → return 0 (per request)
+        return 0.0, dict(mode="no_root_in_range", lo=lo, hi=hi, target=target)
     return max(0.0, D_raw), dict(mode="ok", lo=lo, hi=hi, target=target)
 
 def invert_dishing_cu_given_sigma_eff(sigma_eff_MPa: float) -> Tuple[float, dict]:
     target = float(sigma_eff_MPa)
-    hot = compute_sigma_peel_MPa()
-    D_contact_max = max(0.0, hot['delta_eq_nm'] * 0.5)
-    def f_clip(D_nm): return _cu_stress_at(min(D_nm, D_contact_max))
-    lo, hi0 = 0.0, min(20.0, max(1.0, D_contact_max))
-    lo, hi, ok = _expand_bracket(f_clip, target, lo, hi0, is_increasing=True, max_hi=D_contact_max if D_contact_max>0 else 1e5)
-    if not ok:
-        f0 = f_clip(0.0)
-        if f0 >= target: return 0.0, dict(mode="at_zero_exceeds", sigma0=f0, target=target)
-        fmax = f_clip(D_contact_max)
-        if fmax < target: return D_contact_max, dict(mode="bounded_by_contact", D_contact_max=D_contact_max, sigma_max=fmax, target=target)
-        return D_contact_max, dict(mode="clamped_contact")
-    D_raw = _bisect_mono(f_clip, target, lo, hi, is_increasing=True)
-    return max(0.0, min(D_raw, D_contact_max)), dict(mode="ok", lo=lo, hi=hi, target=target, D_contact_max=D_contact_max)
+    lo, hi = -10.0, 50.0  # fixed search window per request (dishing in nm)
+    H_single = _single_side_growth_height_nm()  # independent of D
+    # σ_Cu(D) is monotonically INCREASING vs D in this model (within range)
+    D_raw = _bisect_mono(_cu_stress_at, target, lo, hi, is_increasing=True)
+    if D_raw is None:
+        # no solution → return H_single (per request)
+        return H_single, dict(mode="no_root_in_range", lo=lo, hi=hi, target=target, H_single=H_single)
+    return min(D_raw, H_single), dict(mode="ok", lo=lo, hi=hi, target=target, H_single=H_single)
 
 # =============================================================================
 # ============================ WAFER-LEVEL STACK ==============================
@@ -426,7 +429,6 @@ def peeling_stress_at_points_vec_MPa(peel_dict: dict, coords_mm_np: np.ndarray, 
         raise ValueError("coords_mm_np must be shape (N,2).")
     xy_m = coords_mm_np.astype(np.float64, copy=False) * 1e-3
     r_m  = np.sqrt(xy_m[:,0]**2 + xy_m[:,1]**2)
-    # print(np.nanmin(r_m), np.nanmax(r_m))
     if np.any(r_m > R_m + 1e-15):
         idx = np.where(r_m > R_m + 1e-15)[0][:5]
         raise ValueError(f"{idx.size} points lie outside wafer radius R={R_m} m, e.g. indices {idx.tolist()}")
@@ -434,7 +436,7 @@ def peeling_stress_at_points_vec_MPa(peel_dict: dict, coords_mm_np: np.ndarray, 
     p_max = float(peel_dict["p_max_Pa"])
     beta  = float(peel_dict["beta"])
     p_pa  = p_max * np.exp(-beta*s) * (np.cos(beta*s) - np.sin(beta*s))
-    if USE_PLOT and np.nanmin(r_m) >= 7.3e-3:
+    if USE_PLOT:
         plt.figure()
         plt.scatter(r_m*1e3, p_pa/1e6, s=5)
         plt.xlabel("Radius r (mm)")
@@ -462,18 +464,34 @@ def build_effcrit_and_dishing_arrays(peel_dict: dict, coords_mm_np: np.ndarray, 
     sigma_eff_SiO2 = sigma_crit_SiO2 - p_MPa
     sigma_eff_Cu   = sigma_crit_Cu   - p_MPa
 
+    # Precompute H_single (same for all points; heat-stage single-side growth)
+    H_single = _single_side_growth_height_nm()
+
     N = p_MPa.shape[0]
     D_sio2_nm = np.empty(N, dtype=np.float64)
     D_cu_nm   = np.empty(N, dtype=np.float64)
+
     for i in range(N):
-        D_sio2_nm[i], _ = invert_dishing_sio2_given_sigma_eff(float(sigma_eff_SiO2[i]))
-        if D_sio2_nm[i] > 50.0:
-            print("The edge cannot bond.".format(i))
-            D_sio2_nm[i] = - 1.0  # Indicate no bonding
-        D_cu_nm[i],   _ = invert_dishing_cu_given_sigma_eff(float(sigma_eff_Cu[i]))
-        if D_cu_nm[i] > 50.0:
-            print("The edge cannot bond.".format(i))
-            D_cu_nm[i] = - 1.0  # Indicate no bonding
+        # SiO2 inversion in [-10, 50] → max(0, root) or 0 if no root
+        D_SiO2, _meta_s = invert_dishing_sio2_given_sigma_eff(float(sigma_eff_SiO2[i]))
+        D_sio2_nm[i] = D_SiO2
+
+        # Cu inversion in [-10, 50] → min(root, H_single) or H_single if no root
+        D_Cu, _meta_c = invert_dishing_cu_given_sigma_eff(float(sigma_eff_Cu[i]))
+        # _meta_c already applies min(root, H_single) or H_single; keep as-is
+        D_cu_nm[i] = D_Cu
+
+    if USE_PLOT:
+        # Optional visualization of peeling stress field
+        plt.figure(figsize=(15, 10))
+        plt.scatter(coords_mm_np[:, 0], coords_mm_np[:, 1], c=p_MPa, cmap='viridis', s=8)
+        plt.colorbar(label='Peeling Stress p (MPa)')
+        plt.xlabel('X (mm)')
+        plt.ylabel('Y (mm)')
+        plt.title('Peeling Stress Distribution')
+        plt.axis('equal')
+        plt.grid(True)
+        plt.show()
 
     effcrit = np.column_stack([sigma_eff_Cu, sigma_eff_SiO2])      # (N,2)
     dishing = np.column_stack([D_cu_nm, D_sio2_nm])                # (N,2)
@@ -515,8 +533,6 @@ def debond_dishing_bounds_calculator(cfg, coords_um):
         R_m=R_stack,
     )
 
-    # 4) Sort each row ascending (small first, large second) and SAVE to .npy
-    # Adjust the format as -> (dishing_low_nm, dishing_high_nm)
+    # 4) Sort each row ascending (small first, large second) and return
     dishing_sorted = np.sort(dishing_array, axis=1)
-    
     return dishing_sorted

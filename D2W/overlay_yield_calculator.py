@@ -37,6 +37,7 @@ def die_pad_misalignment(
     return pad_misalignment
 
 def max_allowed_misalignment_calculator(*,
+        cfg,
         PAD_TOP_R_um: float, 
         PAD_BOT_R_um: float, 
         PITCH_r_um: float,
@@ -66,7 +67,11 @@ def max_allowed_misalignment_calculator(*,
         # plt.show()
 
         # Calculate the overlay misalignment that will fail the critical distance constraint
-        max_allowed_misalignment_for_cd = (1 - CRITICAL_DIST_CONSTRAINT) * min(PITCH_r_um, PITCH_c_um) - 0.5 * (2 * PAD_TOP_R_um) + (CRITICAL_DIST_CONSTRAINT - 0.5) * (2 * PAD_BOT_R_um)
+        if cfg.PAD_ARRANGE_PATTERN == 'checkerboard':
+            PITCH_UM = min(np.sqrt(PITCH_r_um ** 2 + PITCH_c_um ** 2), 2 * PITCH_r_um, 2 * PITCH_c_um)
+        else:
+            PITCH_UM = min(PITCH_r_um, PITCH_c_um)
+        max_allowed_misalignment_for_cd = (1 - CRITICAL_DIST_CONSTRAINT) * PITCH_UM - 0.5 * (2 * PAD_TOP_R_um) + (CRITICAL_DIST_CONSTRAINT - 0.5) * (2 * PAD_BOT_R_um)
         # print("The overlay misalignment that will fail the critical distance constraint is {} um.".format(max_allowed_misalignment_for_cd))
 
         MAX_ALLOWED_MISALIGNMENT = min(max_allowed_misalignment_for_ca[0], max_allowed_misalignment_for_cd)
@@ -75,6 +80,7 @@ def max_allowed_misalignment_calculator(*,
         return MAX_ALLOWED_MISALIGNMENT
 
 def overlay_yield_calculator(*,
+    cfg,
     PAD_TOP_R_um: float,
     PAD_BOT_R_um: float,
     PAD_ARR_ROW: int,
@@ -100,6 +106,7 @@ def overlay_yield_calculator(*,
     pad_yield_map_sub_factor: int = 1,
 ):  
     MAX_ALLOWED_MISALIGNMENT = max_allowed_misalignment_calculator(
+        cfg,
         PAD_TOP_R_um=PAD_TOP_R_um,
         PAD_BOT_R_um=PAD_BOT_R_um,
         PITCH_r_um=PITCH_r_um,
@@ -196,6 +203,7 @@ def pad_overlay_yield_map_generator(*,
     pad_yield_map_sub_factor: int = 1,
 ):  
     MAX_ALLOWED_MISALIGNMENT = max_allowed_misalignment_calculator(
+        cfg,
         PAD_TOP_R_um=PAD_TOP_R_um,
         PAD_BOT_R_um=PAD_BOT_R_um,
         PITCH_r_um=PITCH_r_um,

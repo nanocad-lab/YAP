@@ -4,19 +4,19 @@ w2w_simulation:
   MODE: "W2W_Hybrid_Bonding_Simulation"  # Name of the simulation
   OUTPUT_DIR: "output/"          # Output directory for simulation results
   DEBUG: false                                      # Enable debug mode
-  DESIGN: "HBM_footprint_B"                      # Design name
+  DESIGN: "HBM_footprint_A_dummy_row_4
   PAD_ARRANGE_PATTERN: "checkerboard"        # Pad arrangement pattern: "checkerboard" (HBM)
   # === Wafer and Die Settings ===
   NUM_WAFERS: 1                        # Number of wafers used in simulation
   PITCH_r_um: 55                            # Row pad pitch (µm)
   PITCH_c_um: 35                            # Column pad pitch (µm)
-  DIE_W_um: 12250                          # Die width (µm)
-  DIE_L_um: 8965                          # Die length (µm)
+  DIE_W_um: 11130                          # Die width (µm)
+  DIE_L_um: 9405                          # Die length (µm)
   WAF_R_um: 10000                         # Wafer radius (µm)
-  PAD_ARR_ROW: 161
-  PAD_ARR_COL: 308
-  PAD_BOT_R_um: 35                      # Bottom Cu pad radius (um)
-  PAD_TOP_R_um: 35                      # Top Cu pad radius (um)
+  PAD_BOT_R_um: 9                      # Bottom Cu pad radius (um)
+  PAD_TOP_R_um: 9                      # Top Cu pad radius (um)
+  PAD_ARR_ROW: 169
+  PAD_ARR_COL: 316
   PAD_BOT_R_um_ratio: 0.5                  # Ratio of bottom pad dimension to the PITCH_um
   PAD_TOP_R_um_ratio: 0.667                # Ratio of top pad radius to bottom pad radius
   VOID_SHAPE: "circle"                  # Void shape: "circle" or "square"
@@ -180,31 +180,31 @@ w2w_simulation:
   # === Miscellaneous Parameters ===
   plot_flag: True                      # Enable plotting of results
 
-
 #### Modeling parameters for Wafer-to-Wafer (W2W) hybrid bonding simulation.
 w2w_modeling:
   # === General Settings ===
   MODE: "W2W_Hybrid_Bonding_Modeling"   # Name of the modeling
   DEBUG: false                          # Enable debug mode
   OUTPUT_DIR: "output/"          # Output directory for simulation results
-  DESIGN: "HBM_footprint_B"                      # Design name
-  PAD_ARRANGE_PATTERN: "checkerboard"        # Pad arrangement pattern: "checkerboard" (HBM)
+  DESIGN: "HBM_footprint_A_dummy_row_4"                      # Design name
+
   # === Per Wafer Parameters ===
   PITCH_r_um: 55                             # Row pad PITCH_um (µm)
   PITCH_c_um: 35                              # Column pad PITCH_um (µm)
-  DIE_W_um: 12250                          # Die width (µm)
-  DIE_L_um: 8965                          # Die length (µm)
+  DIE_W_um: 11130                          # Die width (µm)
+  DIE_L_um: 9405                          # Die length (µm)
   WAF_R_um: 10000                         # Wafer radius (µm)
-  PAD_BOT_R_um: 35                      # Bottom Cu pad radius (um)
-  PAD_TOP_R_um: 35                      # Top Cu pad radius (um)
-  PAD_ARR_ROW: 161
-  PAD_ARR_COL: 308
+  PAD_ARR_ROW: 169
+  PAD_ARR_COL: 316
+  PAD_BOT_R_um: 9                      # Bottom Cu pad radius (um)
+  PAD_TOP_R_um: 9                      # Top Cu pad radius (um)
   PAD_BOT_R_um_ratio: 0.5                  # Ratio of bottom pad dimension to the PITCH_um
   PAD_TOP_R_um_ratio: 0.667                # Ratio of top pad radius to bottom pad radius
   VOID_SHAPE: "circle"                  # Shape of void: "circle" or "square"
   dice_width: 100                      # Dice width to separate dies (µm)
   pad_yield_flag: True
   pad_yield_map_sub_factor: 1          # Subsampling factor for pad yield map (1: no subsampling, 10: rows/10 and cols/10)
+  PAD_ARRANGE_PATTERN: "checkerboard"        # Pad arrangement pattern: "checkerboard" (HBM)
 
   # === Wafer Warpage Peeling Stress Mdodel ===
   # === Bottom Wafer Settings ===

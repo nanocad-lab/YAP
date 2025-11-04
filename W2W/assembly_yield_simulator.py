@@ -48,6 +48,7 @@ def Assembly_Yield_Simulator(
         # raise NotImplementedError("Stop here for debug.")
         # Generate overlay terms
         system_translation_x_um, system_translation_y_um, system_rotation_rad, system_magnification_ppm, MAX_ALLOWED_MISALIGNMENT_um = overlay_term_simulator(
+            cfg                             =       cfg,
             PAD_TOP_R_um                    =       cfg.PAD_TOP_R_um,
             PAD_BOT_R_um                    =       cfg.PAD_BOT_R_um,
             PITCH_r_um                      =       cfg.PITCH_r_um,

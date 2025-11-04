@@ -10,6 +10,7 @@ from scipy.integrate import quad
 from scipy.stats import norm
 from debond import debond_dishing_bounds_calculator
 import matplotlib.pyplot as plt
+import time
 
 
 def pad_Cu_expansion_yield_map_generator(*,
@@ -23,16 +24,21 @@ def pad_Cu_expansion_yield_map_generator(*,
     ):
     glb_cu_expansion_pad_yield_min = 1.0  # Initialize to a high value
     glb_cu_expansion_pad_yield_max = 0.0  # Initialize to a low value
+    valid_pad_mask = (pad_bitmap_collection['CRITICAL_PAD_BITMAP'] == 1) | (pad_bitmap_collection['REDUNDANT_PAD_BITMAP'] == 1) | (pad_bitmap_collection['DUMMY_PAD_BITMAP'] == 1)
     for i, die in enumerate(wafer.die_list):
         die_pad_coords = wafer.base_pad_coords + die.die_center
-        dishing_bound_array = debond_dishing_bounds_calculator(cfg, die_pad_coords) # (num_pads, 2) array: (dishing_low_nm, dishing_high_nm)
-        upper_limits = - dishing_bound_array[:, 0] * 2 # - upper limits of the sum of top and bottom Cu heights
-        lower_limits = - dishing_bound_array[:, 1] * 2 # - lower limits of the sum of top and bottom Cu heights
-        pos_pads = norm.cdf(upper_limits, loc=TOP_DISH_MEAN_nm + BOT_DISH_MEAN_nm, scale=np.sqrt(TOP_DISH_STD_nm**2 + BOT_DISH_STD_nm**2)) - \
-                   norm.cdf(lower_limits, loc=TOP_DISH_MEAN_nm + BOT_DISH_MEAN_nm, scale=np.sqrt(TOP_DISH_STD_nm**2 + BOT_DISH_STD_nm**2))
-        pad_yield_map = pos_pads.reshape(cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL)
-        mask = (pad_bitmap_collection['CRITICAL_PAD_BITMAP'] == 1) | (pad_bitmap_collection['REDUNDANT_PAD_BITMAP'] == 1)
-        pad_yield_map[~mask] = np.nan
+        valid_die_pad_coords = die_pad_coords[valid_pad_mask.flatten() == 1]
+        start_time = time.time()
+        valid_dishing_bound_array = debond_dishing_bounds_calculator(cfg, valid_die_pad_coords) # (num_pads, 2) array: (dishing_low_nm, dishing_high_nm)
+        print("Dishing bound calculation time for die {}: {:.2f} seconds".format(i, time.time() - start_time))
+        
+        upper_limits_valid_pads = - valid_dishing_bound_array[:, 0] * 2 # - upper limits of the sum of top and bottom Cu heights
+        lower_limits_valid_pads = - valid_dishing_bound_array[:, 1] * 2 # - lower limits of the sum of top and bottom Cu heights
+        pos_valid_pads = norm.cdf(upper_limits_valid_pads, loc=TOP_DISH_MEAN_nm + BOT_DISH_MEAN_nm, scale=np.sqrt(TOP_DISH_STD_nm**2 + BOT_DISH_STD_nm**2)) - \
+                   norm.cdf(lower_limits_valid_pads, loc=TOP_DISH_MEAN_nm + BOT_DISH_MEAN_nm, scale=np.sqrt(TOP_DISH_STD_nm**2 + BOT_DISH_STD_nm**2))
+        pad_yield_map = np.full((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL), np.nan)
+        pad_yield_map[valid_pad_mask == 1] = pos_valid_pads
+        
         glb_cu_expansion_pad_yield_min = min(glb_cu_expansion_pad_yield_min, np.nanmin(pad_yield_map))
         glb_cu_expansion_pad_yield_max = max(glb_cu_expansion_pad_yield_max, np.nanmax(pad_yield_map))
         die.pad_yield_map['Y_ce'] = pad_yield_map

@@ -45,9 +45,11 @@ def Pad_Yield_Map_Generator(
     )
     
     wafer = single_waf_list[0]
-    # Save wafer info
-    with gzip.open('wafer_info.pkl.gz', 'wb') as f:
-        pickle.dump(wafer, f, protocol=pickle.HIGHEST_PROTOCOL)
+    valid_pad_mask = (pad_bitmap_collection['CRITICAL_PAD_BITMAP'] == 1) | (pad_bitmap_collection['REDUNDANT_PAD_BITMAP'] == 1) | (pad_bitmap_collection['DUMMY_PAD_BITMAP'] == 1)
+
+    # # Save wafer info
+    # with gzip.open('wafer_info.pkl.gz', 'wb') as f:
+    #     pickle.dump(wafer, f, protocol=pickle.HIGHEST_PROTOCOL)
     # raise Exception("Wafer info saved. Stop execution here for debugging.")
     print(len(wafer.die_list), "dies initialized on the wafer.")
     wafer_init_time = time.time() - start_time
@@ -118,7 +120,7 @@ def Pad_Yield_Map_Generator(
         TOP_DISH_STD_nm         = cfg.TOP_DISH_STD_nm,
         BOT_DISH_MEAN_nm        = cfg.BOT_DISH_MEAN_nm,
         BOT_DISH_STD_nm         = cfg.BOT_DISH_STD_nm,
-        pad_bitmap_collection       = pad_bitmap_collection,
+        pad_bitmap_collection   = pad_bitmap_collection,
     )
 
     # Cu_expansion_yield_time = time.time() - start_time - wafer_init_time - overlay_yield_time - defect_yield_time
@@ -126,13 +128,18 @@ def Pad_Yield_Map_Generator(
     # wafer.draw_wafer_die(fig_size=(10, 10), draw_pad_yield_map_option='Y_ce')
 
     # Calculate the ESD yield
+    glb_esd_pad_yield_min = 1.0  # Initialize to a high value
+    glb_esd_pad_yield_max = 0.0  # Initialize to a low value
     for die_ind, die in enumerate(wafer.die_list):
         die_center_x, die_center_y = die.die_center[0], die.die_center[1]
+        esd_pad_yield_map = np.full((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL), np.nan)
         if np.abs(die_center_x) < die.DIE_W_um / 2 and np.abs(die_center_y) < die.DIE_L_um / 2:
             # Assume dies in the center will be the first contact point and have higher ESD hazard
-            esd_pad_yield_map, _, _ = pad_esd_yield_map_generator(
+            die_pad_coords = wafer.base_pad_coords + die.die_center
+            valid_die_pad_coords = die_pad_coords[valid_pad_mask.flatten() == 1]
+            esd_valid_pad_yield_vec, _, _ = pad_esd_yield_map_generator(
                 cfg                   = cfg,
-                pad_coords_um         = wafer.base_pad_coords + die.die_center,
+                pad_coords_um         = valid_die_pad_coords,
                 pad_size_um           = cfg.PAD_TOP_R_um * 2,
                 pad_pitch_um          = cfg.PITCH_r_um,
                 top_die_w_um          = cfg.DIE_W_um,
@@ -148,11 +155,14 @@ def Pad_Yield_Map_Generator(
                 bot_dish_mean_nm      = cfg.BOT_DISH_MEAN_nm,
                 bot_dish_std_nm       = cfg.BOT_DISH_STD_nm,
             )
+            esd_pad_yield_map[valid_pad_mask == 1] = esd_valid_pad_yield_vec
         else:
             # For dies not in the center, assign full yield (1.0)
-            esd_pad_yield_map = np.ones((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL), dtype=np.float32)
+            esd_pad_yield_map[valid_pad_mask == 1] = 1.0
         die.pad_yield_map['Y_esd'] = esd_pad_yield_map
-
+        glb_esd_pad_yield_min = min(glb_esd_pad_yield_min, np.nanmin(die.pad_yield_map['Y_esd']))
+        glb_esd_pad_yield_max = max(glb_esd_pad_yield_max, np.nanmax(die.pad_yield_map['Y_esd']))
+    wafer.glb_pad_yield_min_max_dict['Y_esd'] = (glb_esd_pad_yield_min, glb_esd_pad_yield_max)
     # esd_yield_time = time.time() - start_time - wafer_init_time - overlay_yield_time - defect_yield_time - Cu_expansion_yield_time
     # print("ESD yield calculation time: {} seconds.".format(esd_yield_time))
 
