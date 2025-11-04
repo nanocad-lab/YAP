@@ -106,7 +106,7 @@ def overlay_yield_calculator(*,
     pad_yield_map_sub_factor: int = 1,
 ):  
     MAX_ALLOWED_MISALIGNMENT = max_allowed_misalignment_calculator(
-        cfg,
+        cfg=cfg,
         PAD_TOP_R_um=PAD_TOP_R_um,
         PAD_BOT_R_um=PAD_BOT_R_um,
         PITCH_r_um=PITCH_r_um,
@@ -203,7 +203,7 @@ def pad_overlay_yield_map_generator(*,
     pad_yield_map_sub_factor: int = 1,
 ):  
     MAX_ALLOWED_MISALIGNMENT = max_allowed_misalignment_calculator(
-        cfg,
+        cfg=cfg,
         PAD_TOP_R_um=PAD_TOP_R_um,
         PAD_BOT_R_um=PAD_BOT_R_um,
         PITCH_r_um=PITCH_r_um,
