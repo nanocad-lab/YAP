@@ -301,7 +301,7 @@ def compute_critical_peeling_all():
     }
 
 # --- Helpers for monotone bisection within FIXED interval [-10, 50] only ---
-def _bisect_mono(f, target, lo, hi, is_increasing, tol=1e-5, maxit=80):
+def _bisect_mono(f, target, lo, hi, is_increasing, tol=1e-1, maxit=80):
     f_lo, f_hi = f(lo), f(hi)
     # Check if target lies within [f(lo), f(hi)] under monotonic assumption
     if is_increasing:

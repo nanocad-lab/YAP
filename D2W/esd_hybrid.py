@@ -253,18 +253,23 @@ def pad_esd_yield_map_generator(
                 bot_dish_um=bot_dish_um,
                 verbose=False
             )
+            print("out", out)
             pids = out.get("pad_ids_min_equal", np.zeros((0,), dtype=int))
             if pids.size > 0:
                 np.add.at(counts_vec, pids, 1)
 
     # 首触概率
     prob_vec = counts_vec.astype(np.float32) / float(total_runs)
+
+    print("Prob_vec min/max: {:.6f} / {:.6f}".format(float(prob_vec.min()), float(prob_vec.max())))
     
     # 该尺寸失效率
     p_fail_single = _compute_p_fail_for_die(top_die_w_um, top_die_h_um)
     
     # risk pad map
     valid_pad_risk_map_vec = prob_vec * float(p_fail_single)
+
+    print("Risk map min/max: {:.6e} / {:.6e}".format(float(valid_pad_risk_map_vec.min()), float(valid_pad_risk_map_vec.max())))
 
     # # 画图（按 pitch 为边长）
     # fig = plot_probability_over_pads_with_pitch(
