@@ -96,7 +96,13 @@ def _four_corners(cx: np.ndarray, cy: np.ndarray, half: float):
 def _compute_p_fail_for_die(top_die_w_um: float, top_die_h_um: float) -> float:
     area_mm2 = (float(top_die_w_um) * 1e-3) * (float(top_die_h_um) * 1e-3)
     I_peak   = _ipeak_from_die_voltage(area_mm2, float(V_CHARGING_V))
-    return _fail_prob_single(I_peak, float(WEIBULL_K), float(WEIBULL_LAMBDA), float(CUTOFF_MIN_A))
+    
+def _choose_one_pad(pids: np.ndarray, rng: np.random.Generator) -> Optional[int]:
+    """在多个 pad index 中随机选一个，若空返回 None。"""
+    if pids is None or pids.size == 0:
+        return None
+    idx = rng.integers(0, pids.size)
+    return int(pids[idx])
 
 
 # =========================
@@ -186,6 +192,73 @@ def find_min_gap_points(
     }
 
 
+
+# =========================
+# 赢家类型与“等分减小角度”细化器
+# =========================
+def _winner_kind(out: dict) -> str:
+    """返回 'pad' 或 'die'。"""
+    pad_eq = out.get("counts", {}).get("pad_corner", 0)
+    return "pad" if pad_eq > 0 else "die"
+
+def _refine_by_equal_division(
+    *,
+    pad_coords_um: np.ndarray,
+    pad_size_um: float,
+    top_die_w_um: float,
+    top_die_h_um: float,
+    z_top_um: float,
+    tilt_x_init_deg: float,
+    tilt_y_init_deg: float,
+    top_dish_um_raw: np.ndarray,
+    bot_dish_um: np.ndarray,
+    n_steps_refine: int,
+) -> Tuple[float, float, dict]:
+    """
+    等分减小角度：每一步把角度减少 tilt_init / N_STEPS_REFINE，向 0° 收敛。
+    一旦某个 pad 成为最小点即返回；否则到 0° 还无 pad，就返回最后状态（die）。
+    """
+    tx0 = float(tilt_x_init_deg)
+    ty0 = float(tilt_y_init_deg)
+    N = max(int(n_steps_refine), 0)
+
+    # 初次评估
+    out0 = find_min_gap_points(
+        pad_coords_um=pad_coords_um, pad_size_um=pad_size_um,
+        top_die_w_um=top_die_w_um, top_die_h_um=top_die_h_um,
+        z_top_um=z_top_um,
+        tilt_x_deg=tx0, tilt_y_deg=ty0,
+        top_dish_um_raw=top_dish_um_raw, bot_dish_um=bot_dish_um,
+        verbose=False
+    )
+    if _winner_kind(out0) == "pad" or N == 0:
+        return tx0, ty0, out0
+
+    # 等分减小角度，向 0° 逼近
+    last_tx, last_ty, last_out = tx0, ty0, out0
+    for i in range(1, N + 1):
+        factor = 1.0 - (i / float(N))   # i=N 时正好到 0
+        tx = tx0 * factor
+        ty = ty0 * factor
+
+        out = find_min_gap_points(
+            pad_coords_um=pad_coords_um, pad_size_um=pad_size_um,
+            top_die_w_um=top_die_w_um, top_die_h_um=top_die_h_um,
+            z_top_um=z_top_um,
+            tilt_x_deg=tx, tilt_y_deg=ty,
+            top_dish_um_raw=top_dish_um_raw, bot_dish_um=bot_dish_um,
+            verbose=False
+        )
+        if _winner_kind(out) == "pad":
+            return tx, ty, out
+
+        last_tx, last_ty, last_out = tx, ty, out
+
+    return last_tx, last_ty, last_out
+
+
+
+
 # =========================
 # demo1: risk pad map 生成器
 # =========================
@@ -224,13 +297,15 @@ def pad_esd_yield_map_generator(
     total_runs = int(n_tilts) * int(n_dishes)
 
     for t in range(n_tilts):
-        tilt_x = float(rng_tilt.normal(tilt_x_mean_deg, tilt_x_std_deg))
-        tilt_y = float(rng_tilt.normal(tilt_y_mean_deg, tilt_y_std_deg))
+        tx0 = float(rng_tilt.normal(tilt_x_mean_deg, tilt_x_std_deg))
+        ty0 = float(rng_tilt.normal(tilt_y_mean_deg, tilt_y_std_deg))
 
         for d in range(n_dishes):
             seed = base_seed + (t * n_dishes + d)
             rng_top = np.random.default_rng(seed ^ 0x9E3779B1)
             rng_bot = np.random.default_rng(seed ^ 0x85EBCA77)
+             # 选 pad 的随机器（确定性）
+            rng_pick = np.random.default_rng(seed ^ 0xDEADBEEF)
 
             top_dish_um_raw = rng_top.normal(
                 loc=float(top_dish_mean_nm)*NM_TO_UM,
@@ -243,20 +318,26 @@ def pad_esd_yield_map_generator(
                 size=(Npad,)
             ).astype(np.float32)
 
-            # 直接一步（你要“入围后进行旋转”）：不做多步 refine，仅取当前倾角一次最小值
-            out = find_min_gap_points(
-                pad_coords_um=pad_coords_um, pad_size_um=pad_size_um,
-                top_die_w_um=top_die_w_um, top_die_h_um=top_die_h_um,
+           # 等分细化
+            _, _, out = _refine_by_equal_division(
+                pad_coords_um=pad_coords_um,
+                pad_size_um=pad_size_um,
+                top_die_w_um=top_die_w_um,
+                top_die_h_um=top_die_h_um,
                 z_top_um=z_top_um,
-                tilt_x_deg=tilt_x, tilt_y_deg=tilt_y,
+                tilt_x_init_deg=tx0,
+                tilt_y_init_deg=ty0,
                 top_dish_um_raw=top_dish_um_raw,
                 bot_dish_um=bot_dish_um,
-                verbose=False
+                n_steps_refine=int(n_steps_refine),
             )
-            print("out", out)
-            pids = out.get("pad_ids_min_equal", np.zeros((0,), dtype=int))
-            if pids.size > 0:
-                np.add.at(counts_vec, pids, 1)
+
+            # 只统计 pad 赢；并在可能的多个 pad 中随机挑选一个
+            if _winner_kind(out) == "pad":
+                pids = out.get("pad_ids_min_equal", np.zeros((0,), dtype=int))
+                pick = _choose_one_pad(pids, rng_pick)
+                if pick is not None:
+                    counts_vec[pick] += 1
 
     # 首触概率
     prob_vec = counts_vec.astype(np.float32) / float(total_runs)
@@ -301,6 +382,7 @@ def esd_failure_simulator(
     tilt_y_std_deg: float,
     base_seed: int = 20251006,
     z_top_um: float = 100.0,
+    n_steps_refine: int = 10,
 ) -> Tuple[Optional[int], bool]:
     """
     仅随机选取一组 tilt 角度，做一次实验。
@@ -315,32 +397,39 @@ def esd_failure_simulator(
         "The length of pad_coords_um, top_dish_nm_ext and bot_dish_nm_ext must be equal."
 
     rng = np.random.default_rng(base_seed ^ 0xA5A5A5A5)
+    rng_pick = np.random.default_rng((base_seed ^ 0xA5A5A5A5) ^ 0xDEADBEEF)
+
     tilt_x = float(rng.normal(tilt_x_mean_deg, tilt_x_std_deg))
     tilt_y = float(rng.normal(tilt_y_mean_deg, tilt_y_std_deg))
 
     top_dish_um_raw = (top_dish_nm_ext.astype(np.float32)) * NM_TO_UM
     bot_dish_um     = (bot_dish_nm_ext.astype(np.float32)) * NM_TO_UM
 
-    out = find_min_gap_points(
-        pad_coords_um=pad_coords_um, pad_size_um=pad_size_um,
-        top_die_w_um=top_die_w_um, top_die_h_um=top_die_h_um,
+    _, _, out = _refine_by_equal_division(
+        pad_coords_um=pad_coords_um,
+        pad_size_um=pad_size_um,
+        top_die_w_um=top_die_w_um,
+        top_die_h_um=top_die_h_um,
         z_top_um=z_top_um,
-        tilt_x_deg=tilt_x, tilt_y_deg=tilt_y,
+        tilt_x_init_deg=tilt_x,
+        tilt_y_init_deg=tilt_y,
         top_dish_um_raw=top_dish_um_raw,
         bot_dish_um=bot_dish_um,
-        verbose=False
+        n_steps_refine=int(n_steps_refine),
     )
-    pids = out.get("pad_ids_min_equal", np.zeros((0,), dtype=int))
-    pad_idx_list = pids.tolist() if pids.size > 0 else None
-    first_contact_pad_idx = pad_idx_list[0] if pad_idx_list is not None else None
+
+    pad_index: Optional[int] = None
+    if _winner_kind(out) == "pad":
+        pids = out.get("pad_ids_min_equal", np.zeros((0,), dtype=int))
+        pad_index = _choose_one_pad(pids, rng_pick)
 
     p_fail_single = _compute_p_fail_for_die(top_die_w_um, top_die_h_um)
     random_float = np.random.uniform(0.0, 1.0)      # Used to decide if failure occurs
-    if first_contact_pad_idx is not None and random_float < p_fail_single:
+    if pad_index is not None and random_float < p_fail_single:
         survive_bool = False
     else:
         survive_bool = True
-    return first_contact_pad_idx, survive_bool
+    return pad_index, survive_bool
 
 
 # =========================
