@@ -173,6 +173,8 @@ d2w_simulation:
   simulation_times: 1                  # Number of simulation iterations
   approximate_set: 1                   # 1: enable overlay simulation approximation, 0: disable
 
+  # === Miscellaneous Parameters ===
+  plot_flag: True                      # Enable plotting of results
 
 
 #### ==================================================================== ####
@@ -345,3 +347,6 @@ d2w_modeling:
   TILT_Y_STD_DEG: 0.01
   n_tilts_samples: 100                  # Number of tilt samples for ESD simulation
   n_dishes_samples: 100                # Number of dish samples for ESD simulation
+
+  # === Miscellaneous Parameters ===
+  plot_flag: True                      # Enable plotting of results
