@@ -17,8 +17,6 @@ d2w_simulation:
   PAD_ARR_COL: 316
   PAD_BOT_R_um: 9                      # Bottom Cu pad radius (um)
   PAD_TOP_R_um: 9                      # Top Cu pad radius (um)
-  PAD_BOT_R_um_ratio: 0.5                  # Ratio of bottom pad dimension to the PITCH_um
-  PAD_TOP_R_um_ratio: 0.667                # Ratio of top pad radius to bottom pad radius
   VOID_SHAPE: "circle"                  # Void shape: "circle" or "square"
   dice_width: 100                      # Width of one die (µm)
   pad_yield_flag: True
@@ -47,17 +45,7 @@ d2w_simulation:
   T_Sub_T: 775e-6                       # Efficient substrate layer thickness (m)
   S_INIT_B_M: 0.0e-6                    # Pre-anneal warpages (m)
 
-  # === Fault-Tolerance Parameters ===
-  redundant_flag: True                  # Enable redundant pads
-  critical_pad_ratio: 0.9999               # Critical pad ratio per die
-  redundant_pad_ratio: 0.0001              # Redundant pad ratio per die
-  pad_block_dim_x: 35                  # Pad block width dimension (µm)
-  pad_block_dim_y: 55                  # Pad block height dimension (µm)
-  redundant_logical_pad_ratio: 0.005      # Ratio of redundant logical pads
-  redundant_logical_pad_copy: 2         # Number of copies for each redundant logical pad
-  redundant_logical_pad_dist: 2.0      # Distance between redundant logical pads (PITCH_um)
-  multi2one_flag: false                 # Enable multi-to-one mapping
-  multi2one_ratio: 80                   # Ratio for multi-to-one mapping (e.g., 80:1 replicas)
+ 
 
   CONTACT_AREA_CONSTRAINT: 0.5         # Minimum allowed contact area ratio
   CRITICAL_DIST_CONSTRAINT: 0.5        # Minimum distance constraint for critical pads
@@ -194,8 +182,6 @@ d2w_modeling:
   PAD_ARR_COL: 316
   PAD_BOT_R_um: 9                      # Bottom Cu pad radius (um)
   PAD_TOP_R_um: 9                      # Top Cu pad radius (um)
-  PAD_BOT_R_um_ratio: 0.5                  # Ratio of bottom pad dimension to the PITCH_um
-  PAD_TOP_R_um_ratio: 0.667                # Ratio of top pad radius to bottom pad radius
   VOID_SHAPE: "circle"                  # Shape of void: "circle" or "square"
   dice_width: 100                      # Dice width to separate dies (µm)
   pad_yield_flag: True                  # Enable pad yield map generation
@@ -223,17 +209,7 @@ d2w_modeling:
   T_Sub_T: 775e-6                       # Efficient substrate layer thickness (m)
   S_INIT_B_M: 0.0e-6                    # Pre-anneal warpages (m)
 
-  # === Fault Tolerance Parameters ===
-  redundant_flag: True                  # Enable redundant pads
-  critical_pad_ratio: 1.0               # Critical pad ratio per die
-  redundant_pad_ratio: 0.0              # Redundant pad ratio per die
-  pad_block_dim_x: 35                  # Pad block width dimension (µm)
-  pad_block_dim_y: 55                  # Pad block height dimension (µm)
-  redundant_logical_pad_ratio: 0.005    # Ratio of redundant logical pads
-  redundant_logical_pad_copy: 2         # Number of copies for each redundant logical pad
-  redundant_logical_pad_dist: 2.0      # Distance between redundant logical pads (PITCH_um)
-  multi2one_flag: false                 # Enable multi-to-one mapping
-  multi2one_ratio: 80                   # Ratio for multi-to-one mapping (e.g., 80:1 replicas)
+ 
 
   CONTACT_AREA_CONSTRAINT: 0.5         # Minimum allowed contact area ratio
   CRITICAL_DIST_CONSTRAINT: 0.5        # Minimum distance constraint for critical pads
