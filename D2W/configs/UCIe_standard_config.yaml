@@ -8,15 +8,15 @@ d2w_simulation:
   OUTPUT_DIR: "pad_bitmap/"          # Output directory for simulation results
   DESIGN: "UCIe_standard"                      # Design name
   # === Die Settings ===
-  NUM_DIES: 1                            # Number of Dies used in simulation
+  NUM_DIES: 10000                            # Number of Dies used in simulation
   PITCH_r_um: 115                            # Row pad pitch (µm)
   PITCH_c_um: 115                            # Column pad pitch (µm)
   DIE_W_um: 1400                          # Die width (µm)
   DIE_L_um: 1630                          # Die length (µm)
   PAD_ARR_ROW: 14
   PAD_ARR_COL: 12
-  PAD_BOT_R_um: 50                      # Bottom Cu pad radius (um)
-  PAD_TOP_R_um: 50                      # Top Cu pad radius (um)
+  PAD_BOT_R_um: 30                      # Bottom Cu pad radius (um)
+  PAD_TOP_R_um: 30                      # Top Cu pad radius (um)
   VOID_SHAPE: "circle"                  # Void shape: "circle" or "square"
   dice_width: 100                      # Width of one die (µm)
   pad_yield_flag: True
@@ -33,7 +33,7 @@ d2w_simulation:
   B_Sub_Sio2_V: 0.00                    # Efficient substrate layer Sio2 volume density
   B_Sub_Si_V: 0.90                      # Efficient substrate layer si volume density
   B_Sub_T: 775e-6                       # Efficient substrate layer thickness (m)
-  S_INIT_A_M: 0.4e-9                     # Pre-anneal warpages (m)
+  S_INIT_A_M: 0.1e-9                     # Pre-anneal warpages (m)
   # === Top Wafer Settings ===
   T_Chip_Cu_V: 0.30                     # Efficient chip layer Cu volume density
   T_Chip_Sio2_V: 0.70                   # Efficient chip layer Sio2 volume density
@@ -181,8 +181,8 @@ d2w_modeling:
   DIE_L_um: 10000                          # Die length (µm)
   PAD_ARR_ROW: 14
   PAD_ARR_COL: 12
-  PAD_BOT_R_um: 50                      # Bottom Cu pad radius (um)
-  PAD_TOP_R_um: 50                      # Top Cu pad radius (um)
+  PAD_BOT_R_um: 30                      # Bottom Cu pad radius (um)
+  PAD_TOP_R_um: 30                      # Top Cu pad radius (um)
   VOID_SHAPE: "circle"                  # Shape of void: "circle" or "square"
   dice_width: 1000                      # Dice width to separate dies (µm)
   pad_yield_flag: True                  # Enable pad yield map generation
@@ -211,17 +211,6 @@ d2w_modeling:
   T_Sub_T: 775e-6                       # Efficient substrate layer thickness (m)
   S_INIT_B_M: 0.0e-6                    # Pre-anneal warpages (m)
 
-  # === Fault Tolerance Parameters ===
-  redundant_flag: True                  # Enable redundant pads
-  critical_pad_ratio: 1.0               # Critical pad ratio per die
-  redundant_pad_ratio: 0.0              # Redundant pad ratio per die
-  pad_block_dim_x: 115                  # Pad block width dimension (µm)
-  pad_block_dim_y: 115                  # Pad block height dimension (µm)
-  redundant_logical_pad_ratio: 0.005    # Ratio of redundant logical pads
-  redundant_logical_pad_copy: 2         # Number of copies for each redundant logical pad
-  redundant_logical_pad_dist: 2.0      # Distance between redundant logical pads (PITCH_um)
-  multi2one_flag: false                 # Enable multi-to-one mapping
-  multi2one_ratio: 80                   # Ratio for multi-to-one mapping (e.g., 80:1 replicas)
 
   CONTACT_AREA_CONSTRAINT: 0.5         # Minimum allowed contact area ratio
   CRITICAL_DIST_CONSTRAINT: 0.5        # Minimum distance constraint for critical pads

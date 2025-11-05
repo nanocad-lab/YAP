@@ -41,7 +41,6 @@ def overall_yield_simulator(
     RANDOM_MISALIGNMENT_MEAN_um: float,
     RANDOM_MISALIGNMENT_STD_um: float,
     approximate_set: int,
-    redundant_flag: int,
     pad_bitmap_collection: dict,
 ):
     yield_list = []
@@ -96,7 +95,6 @@ def overall_yield_simulator(
                                                     RANDOM_MISALIGNMENT_MEAN_um=RANDOM_MISALIGNMENT_MEAN_um,
                                                     RANDOM_MISALIGNMENT_STD_um=RANDOM_MISALIGNMENT_STD_um,
                                                     approximate_set=approximate_set,
-                                                    redundant_flag=redundant_flag,
                                                     )
         if approximate_set == 1:
             # die fail criteria: any pad_misalignment >= MAX_ALLOWED_MISALIGNMENT_um
@@ -220,9 +218,9 @@ def overall_yield_simulator(
         # Calculate the safe range for single pad Cu recess
         zeta_0 = np.full((PAD_ARR_ROW, PAD_ARR_COL), np.nan)
         zeta_1 = np.full((PAD_ARR_ROW, PAD_ARR_COL), np.nan)
+
         zeta_0[valid_pad_mask == 1] = - valid_pad_dishing_bound_array[:, 1] * 2 # lower limits of the sum of top and bottom Cu heights
         zeta_1[valid_pad_mask == 1] = - valid_pad_dishing_bound_array[:, 0] * 2 # upper limits of the sum of top and bottom Cu heights
-
         # Check critical pad Cu gap
         critical_pad_Cu_gap = Cu_gap_map * die_critical_pad_bitmap  # shape: (PAD_ARR_ROW, PAD_ARR_COL)
         if np.any(critical_pad_Cu_gap > zeta_1 * die_critical_pad_bitmap) or np.any(critical_pad_Cu_gap < zeta_0 * die_critical_pad_bitmap):

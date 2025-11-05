@@ -442,7 +442,7 @@ def peeling_stress_at_points_vec_MPa(peel_dict: dict, coords_mm_np: np.ndarray, 
     p_pa  = p_max * np.exp(-beta*s) * (np.cos(beta*s) - np.sin(beta*s))
     if USE_PLOT:
         plt.figure()
-        plt.scatter(r_m*1e3, p_pa/1e6, s=5)
+        plt.scatter(r_m*1e3, p_pa/1e6, s=10)
         plt.xlabel("Radius r (mm)")
         plt.ylabel("Peeling Stress p (MPa)")
         plt.title("Peeling Stress vs Radius")
@@ -488,7 +488,7 @@ def build_effcrit_and_dishing_arrays(peel_dict: dict, coords_mm_np: np.ndarray, 
     if USE_PLOT:
         # Optional visualization of peeling stress field
         plt.figure(figsize=(15, 10))
-        plt.scatter(coords_mm_np[:, 0], coords_mm_np[:, 1], c=p_MPa, cmap='viridis', s=8)
+        plt.scatter(coords_mm_np[:, 0], coords_mm_np[:, 1], c=p_MPa, cmap='viridis', s=100)
         plt.colorbar(label='Peeling Stress p (MPa)')
         plt.xlabel('X (mm)')
         plt.ylabel('Y (mm)')
