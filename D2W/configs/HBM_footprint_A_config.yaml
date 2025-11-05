@@ -342,8 +342,8 @@ d2w_modeling:
   TILT_X_STD_DEG: 0.01
   TILT_Y_MEAN_DEG: 0.000
   TILT_Y_STD_DEG: 0.01
-  n_tilts_samples: 1                  # Number of tilt samples for ESD simulation
-  n_dishes_samples: 1                # Number of dish samples for ESD simulation
+  n_tilts_samples: 100                  # Number of tilt samples for ESD simulation
+  n_dishes_samples: 100             # Number of dish samples for ESD simulation
 
   # === Miscellaneous Parameters ===
   plot_flag: True                      # Enable plotting of results
