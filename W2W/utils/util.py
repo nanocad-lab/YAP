@@ -16,24 +16,13 @@ def load_modeling_config(path, mode, debug=False):
     if mode == "w2w_simulation" or mode == "w2w_modeling":
         cfg.PAD_ARR_L_um = (cfg.PAD_ARR_ROW - 1) * cfg.PITCH_r_um  # pad array length (um)
         cfg.PAD_ARR_W_um = (cfg.PAD_ARR_COL - 1) * cfg.PITCH_c_um  # pad array width (um)
-        cfg.PAD_BOT_R_um = min(cfg.PITCH_r_um, cfg.PITCH_c_um) / 2 * cfg.PAD_BOT_R_um_ratio if cfg.PAD_BOT_R_um is None else cfg.PAD_BOT_R_um # bottom Cu pad radius (um)
-        cfg.PAD_TOP_R_um = cfg.PAD_BOT_R_um * cfg.PAD_TOP_R_um_ratio if cfg.PAD_TOP_R_um is None else cfg.PAD_TOP_R_um  # top Cu pad radius (um)
         cfg.SYSTEM_MAGNIFICATION_MEAN_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_MEAN_um + cfg.M_0) / 1e6
         cfg.SYSTEM_MAGNIFICATION_STD_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_STD_um) ** 2 / 1e6
-        # Usually we set pad_block as a square block
-        assert int(cfg.pad_block_dim_x / cfg.PITCH_c_um) == int(cfg.pad_block_dim_y / cfg.PITCH_r_um), \
-                "Currently only square pad blocks are supported. Please set pad_block_dim_x/pitch_c_um equal to pad_block_dim_y/pitch_r_um."
-        cfg.pad_block_size = int(cfg.pad_block_dim_x / cfg.PITCH_c_um)  # pad block size (#rows or #columns of the pad block)
     elif mode == "d2w_simulation" or mode == "d2w_modeling":
         cfg.PAD_ARR_L_um = (cfg.PAD_ARR_ROW - 1) * cfg.PITCH_r_um  # pad array length (um)
         cfg.PAD_ARR_W_um = (cfg.PAD_ARR_COL - 1) * cfg.PITCH_c_um  # pad array width (um)
-        cfg.PAD_BOT_R_um = min(cfg.PITCH_r_um, cfg.PITCH_c_um) / 2 * cfg.PAD_BOT_R_um_ratio if cfg.PAD_BOT_R_um is None else cfg.PAD_BOT_R_um # Bottom Cu pad radius
-        cfg.PAD_TOP_R_um = cfg.PAD_BOT_R_um * cfg.PAD_TOP_R_um_ratio if cfg.PAD_TOP_R_um is None else cfg.PAD_TOP_R_um  # Top Cu pad radius
         cfg.SYSTEM_MAGNIFICATION_MEAN_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_MEAN_um + cfg.M_0) / 1e6
         cfg.SYSTEM_MAGNIFICATION_STD_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_STD_um) ** 2 / 1e6
-        assert int(cfg.pad_block_dim_x / cfg.PITCH_c_um) == int(cfg.pad_block_dim_y / cfg.PITCH_r_um), \
-                "Currently only square pad blocks are supported. Please set pad_block_dim_x/pitch_c_um equal to pad_block_dim_y/pitch_r_um."
-        cfg.pad_block_size = int(cfg.pad_block_dim_x / cfg.PITCH_c_um)  # pad block size (#rows or #columns of the pad block)
         cfg.eff_DIE_R = float(np.sqrt((cfg.DIE_W_um / 2) ** 2 + (cfg.DIE_L_um / 2) ** 2))  # Effective die radius (um)
     else:
         raise ValueError(f"Unknown mode: {mode}. Supported modes are 'w2w_simulation', 'w2w_modeling', 'd2w_simulation', and 'd2w_modeling'.")
@@ -68,62 +57,19 @@ def update_config_items(cfg, mode):
         # cfg.PAD_ARR_COL = int(np.floor(float(cfg.DIE_W_um / cfg.PITCH_c_um)))  # number of pads in a column of pad array
         cfg.PAD_ARR_L_um = (cfg.PAD_ARR_ROW - 1) * cfg.PITCH_r_um  # pad array length (um)
         cfg.PAD_ARR_W_um = (cfg.PAD_ARR_COL - 1) * cfg.PITCH_c_um  # pad array width (um)
-        cfg.PAD_BOT_R_um = min(cfg.PITCH_r_um, cfg.PITCH_c_um) / 2 * cfg.PAD_BOT_R_um_ratio if cfg.PAD_BOT_R_um is None else cfg.PAD_BOT_R_um # bottom Cu pad radius (um)
-        cfg.PAD_TOP_R_um = cfg.PAD_BOT_R_um * cfg.PAD_TOP_R_um_ratio if cfg.PAD_TOP_R_um is None else cfg.PAD_TOP_R_um  # top Cu pad radius (um)
         cfg.SYSTEM_MAGNIFICATION_MEAN_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_MEAN_um + cfg.M_0) / 1e6
         cfg.SYSTEM_MAGNIFICATION_STD_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_STD_um) ** 2 / 1e6
-        # TODO: You need to set pad_block_dim_x and pad_block_dim_y for pitch per row and pitch per column
-        # Usually we set pad_block as a square block
-        assert int(cfg.pad_block_dim_x / cfg.PITCH_c_um) == int(cfg.pad_block_dim_y / cfg.PITCH_r_um), \
-                "Currently only square pad blocks are supported. Please set pad_block_dim_x/pitch_c_um equal to pad_block_dim_y/pitch_r_um."
-        cfg.pad_block_size = int(cfg.pad_block_dim_x / cfg.PITCH_c_um)  # pad block size (#rows or #columns of the pad block)
     elif mode == "d2w_simulation" or mode == "d2w_modeling":
         # cfg.PAD_ARR_ROW = int(np.floor(float(cfg.DIE_L_um / cfg.PITCH_um)))  # number of pads in a row of pad array
         # cfg.PAD_ARR_COL = int(np.floor(float(cfg.DIE_W_um / cfg.PITCH_um)))  # number of pads in a column of pad array
         cfg.PAD_ARR_L_um = (cfg.PAD_ARR_ROW - 1) * cfg.PITCH_r_um  # pad array length (um)
         cfg.PAD_ARR_W_um = (cfg.PAD_ARR_COL - 1) * cfg.PITCH_c_um  # pad array width (um)
-        cfg.PAD_BOT_R_um = min(cfg.PITCH_r_um, cfg.PITCH_c_um) / 2 * cfg.PAD_BOT_R_um_ratio if cfg.PAD_BOT_R_um is None else cfg.PAD_BOT_R_um # Bottom Cu pad radius
-        cfg.PAD_TOP_R_um = cfg.PAD_BOT_R_um * cfg.PAD_TOP_R_um_ratio if cfg.PAD_TOP_R_um is None else cfg.PAD_TOP_R_um   # Top Cu pad radius
         cfg.SYSTEM_MAGNIFICATION_MEAN_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_MEAN_um + cfg.M_0) / 1e6
         cfg.SYSTEM_MAGNIFICATION_STD_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_STD_um) ** 2 / 1e6
-        assert int(cfg.pad_block_dim_x / cfg.PITCH_c_um) == int(cfg.pad_block_dim_y / cfg.PITCH_r_um), \
-                "Currently only square pad blocks are supported. Please set pad_block_dim_x/pitch_c_um equal to pad_block_dim_y/pitch_r_um."
-        cfg.pad_block_size = int(cfg.pad_block_dim_x / cfg.PITCH_c_um)  # pad block size (#rows or #columns of the pad block)
         cfg.eff_DIE_R = float(np.sqrt((cfg.DIE_W_um / 2) ** 2 + (cfg.DIE_L_um / 2) ** 2))  # Effective die radius (um)
     else:
         raise ValueError(f"Unknown mode: {mode}. Supported modes are 'w2w_simulation', 'w2w_modeling', 'd2w_simulation', and 'd2w_modeling'.")
 
-def downsample_bitmap(bitmap, block_size):
-    """
-    Downsamples a binary bitmap by taking max value in each block.
-    For binary image, this is equivalent to OR pooling.
-    """
-    if bitmap.ndim == 2:
-        h, w = bitmap.shape
-        h_new = h // block_size
-        w_new = w // block_size
-
-        # Trim to divisible shape
-        bitmap = bitmap[:h_new * block_size, :w_new * block_size]
-
-        # Reshape and apply max pooling
-        bitmap_down = bitmap.reshape(h_new, block_size, w_new, block_size)
-        bitmap_down = bitmap_down.max(axis=(1, 3))
-    elif bitmap.ndim == 3:
-        n, h, w = bitmap.shape
-        h_new = h // block_size
-        w_new = w // block_size
-
-        # Trim to divisible shape
-        bitmap = bitmap[:, :h_new * block_size, :w_new * block_size]
-
-        # Reshape and apply max pooling
-        bitmap_down = bitmap.reshape(n, h_new, block_size, w_new, block_size)
-        bitmap_down = bitmap_down.max(axis=(2, 4))
-    else:
-        raise ValueError("Bitmap must be 2D or 3D.")
-
-    return bitmap_down
 
 
 def draw_pad_bitmap(cfg, bitmap_collection):
@@ -279,12 +225,6 @@ def convert_3dblox_to_pad_bitmap(cfg,
     This module converts the 3DBlox .bmap file to pad bitmap for YAP to process.
         - pad_arrange_pattern: 'checkerboard' for UCIe standard and HBM
     '''
-    # Extract configuration parameters
-    pad_block_size = cfg.pad_block_size     # In UCIe standard, pad block size is 1 (no downsampling)
-    critical_pad_ratio = cfg.critical_pad_ratio
-    redundant_pad_ratio = cfg.redundant_pad_ratio
-    redundant_logical_pad_copy = cfg.redundant_logical_pad_copy
-    redundant_logical_pad_dist = cfg.redundant_logical_pad_dist
 
     sort_pads_bmap(blox_bmap_path, blox_bmap_path)
 
@@ -327,11 +267,8 @@ def convert_3dblox_to_pad_bitmap(cfg,
     # Initialize the pad bitmap
     # TODO: You need to modify the simulator to support different pad arrangement patterns
     CRITICAL_PAD_BITMAP = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL), dtype=bool)
-    CRITICAL_PAD_BLOCK_BITMAP = downsample_bitmap(CRITICAL_PAD_BITMAP, pad_block_size)
     REDUNDANT_PAD_BITMAP = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL), dtype=bool)
-    REDUNDANT_PAD_BLOCK_BITMAP = downsample_bitmap(REDUNDANT_PAD_BITMAP, pad_block_size)
     DUMMY_PAD_BITMAP = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL), dtype=bool)
-    DUMMY_PAD_BLOCK_BITMAP = downsample_bitmap(DUMMY_PAD_BITMAP, pad_block_size)
     ESD_CRITICAL_PAD_BITMAP = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL), dtype=bool)
     pad_coords = np.full((cfg.PAD_ARR_ROW * cfg.PAD_ARR_COL, 2), np.nan, dtype=np.float32)  # x, y coordinates of each bump
     # Build a mapping array from physical bump location (r, c) to bump id
@@ -377,22 +314,13 @@ def convert_3dblox_to_pad_bitmap(cfg,
     bitmap_collection = {}
     bitmap_collection["bump_data"] = bump_data
     bitmap_collection["CRITICAL_PAD_BITMAP"] = CRITICAL_PAD_BITMAP
-    bitmap_collection["CRITICAL_PAD_BLOCK_BITMAP"] = CRITICAL_PAD_BLOCK_BITMAP
     bitmap_collection["REDUNDANT_PAD_BITMAP"] = REDUNDANT_PAD_BITMAP
-    bitmap_collection["REDUNDANT_PAD_BLOCK_BITMAP"] = REDUNDANT_PAD_BLOCK_BITMAP
     bitmap_collection["DUMMY_PAD_BITMAP"] = DUMMY_PAD_BITMAP
-    bitmap_collection["DUMMY_PAD_BLOCK_BITMAP"] = DUMMY_PAD_BLOCK_BITMAP
     bitmap_collection["ESD_CRITICAL_PAD_BITMAP"] = ESD_CRITICAL_PAD_BITMAP
     bitmap_collection["is_redundant_copy_same_block"] = False
     bitmap_collection["num_critical_pads"] = num_critical_pads
     bitmap_collection["num_redundant_pads"] = num_redundant_pads
     bitmap_collection["num_dummy_pads"] = num_dummy_pads
-
-    bitmap_collection["critical_pad_ratio"] = critical_pad_ratio
-    bitmap_collection["redundant_pad_ratio"] = redundant_pad_ratio
-    bitmap_collection["redundant_logical_pad_copy"] = redundant_logical_pad_copy
-    bitmap_collection["redundant_logical_pad_dist"] = redundant_logical_pad_dist
-    bitmap_collection["pad_block_size"] = pad_block_size
     bitmap_collection["redundant_net_to_bumpids"] = redundant_net_to_bumpids
     bitmap_collection["pad_coords"] = pad_coords
     bitmap_collection["mapping_physical_to_bumpid"] = mapping_physical_to_bumpid

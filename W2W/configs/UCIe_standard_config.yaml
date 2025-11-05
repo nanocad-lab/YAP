@@ -17,8 +17,6 @@ w2w_simulation:
   PAD_ARR_COL: 12
   PAD_BOT_R_um: 50                      # Bottom Cu pad radius (um)
   PAD_TOP_R_um: 50                      # Top Cu pad radius (um)
-  PAD_BOT_R_um_ratio: 0.5                  # Ratio of bottom pad dimension to the PITCH_um
-  PAD_TOP_R_um_ratio: 0.667                # Ratio of top pad radius to bottom pad radius
   VOID_SHAPE: "circle"                  # Void shape: "circle" or "square"
   dice_width: 100                      # Width of one die (µm)
   pad_yield_flag: True
@@ -49,18 +47,6 @@ w2w_simulation:
   S_INIT_B_M: 0.0e-6                    # Pre-anneal warpages (m)
 
 
-  # === Fault-Tolerance Parameters ===
-  redundant_flag: True                  # Enable redundant pads
-  critical_pad_ratio: 0.998               # Critical pad ratio per die
-  redundant_pad_ratio: 0.002              # Redundant pad ratio per die
-  redundant_block_interval: 2           # Interval between redundant pad blocks
-  pad_block_dim_x: 115                  # Pad block width dimension (µm)
-  pad_block_dim_y: 115                  # Pad block height dimension (µm)
-  redundant_logical_pad_ratio: 0.3      # Ratio of redundant logical pads
-  redundant_logical_pad_copy: 2         # Number of copies for each redundant logical pad
-  redundant_logical_pad_dist: 2.0      # Distance between redundant logical pads (PITCH_um)
-  multi2one_flag: false                 # Enable multi-to-one mapping
-  multi2one_ratio: 80                   # Ratio for multi-to-one mapping (e.g., 80:1 replicas)
 
   CONTACT_AREA_CONSTRAINT: 0.5         # Minimum allowed contact area ratio
   CRITICAL_DIST_CONSTRAINT: 0.5        # Minimum distance constraint for critical pads
@@ -201,8 +187,6 @@ w2w_modeling:
   PAD_TOP_R_um: 50                      # Top Cu pad radius (um)
   PAD_ARR_ROW: 14
   PAD_ARR_COL: 12
-  PAD_BOT_R_um_ratio: 0.5                  # Ratio of bottom pad dimension to the PITCH_um
-  PAD_TOP_R_um_ratio: 0.667                # Ratio of top pad radius to bottom pad radius
   VOID_SHAPE: "circle"                  # Shape of void: "circle" or "square"
   dice_width: 100                      # Dice width to separate dies (µm)
   pad_yield_flag: True
