@@ -11,12 +11,8 @@ This module contains functions to calculate die-level and pad-level defect-induc
 
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-import sympy as sp
 import os
 import math
-from scipy.integrate import quad
-from pad_bitmap_generation import A_critical_r_mv
 
 def get_bitmap_bounds(*,
                       bitmap: np.ndarray,

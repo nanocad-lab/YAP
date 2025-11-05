@@ -19,7 +19,6 @@ CUTOFF_MIN_A     = 0.0
 # =========================
 NM_TO_UM = 1e-3  # 1 nm = 1e-3 µm
 
-# Parameters for test
 # =========================
 # 默认 Top/Bottom die 与 pad 输入（可在 main 中覆盖）
 # =========================
@@ -31,14 +30,6 @@ PAD_PITCH_UM: float = 100.0    # 可视化像素边长
 
 # 如你有自己的 PAD_COORDS_UM，可以直接赋值覆盖
 PAD_COORDS_UM: List[Tuple[float, float]] = []
-
-# PAD_COORDS_UM = [
-#     ( -250.0,  300.0),  # index 0
-#     (    0.0,    0.0),  # index 1
-#     (  420.0, -150.0),  # index 2
-# ]
-
-
 
 # =========================
 # Dishing 分布（demo1 用；demo2 外部传入）
@@ -54,12 +45,10 @@ TILT_X_STD_DEG  = 0.01
 TILT_Y_MEAN_DEG = 0.000
 TILT_Y_STD_DEG  = 0.01
 
-# 采样设置（demo1 用；demo2 只做一次）
-N_TILTS         = 5
-N_DISHES        = 5
-N_STEPS_REFINE  = 10
+# 采样设置
+N_TILTS         = 5    # demo1: 倾角样本数
+N_DISHES        = 5    # demo1: dishing 样本数
 BASE_SEED       = 20251006
-
 
 # =========================
 # Helpers
@@ -75,7 +64,6 @@ def _z_linear_coeffs(ax_deg: float, ay_deg: float):
     return float(A), float(B), float(C)
 
 def _ipeak_from_die_voltage(area_mm2: float, v_chg: float) -> float:
-    # 你的缩放版公式
     return 0.0045 * (float(area_mm2) ** 0.35) * math.sqrt(float(v_chg))
 
 def _weibull_cdf(I: float, k: float, lam: float) -> float:
@@ -87,107 +75,198 @@ def _fail_prob_single(I: float, k: float, lam: float, cutoff: float) -> float:
         return 0.0
     return _weibull_cdf(I, k, lam)
 
+def _compute_p_fail_for_die(top_die_w_um: float, top_die_h_um: float) -> float:
+    area_mm2 = (float(top_die_w_um) * 1e-3) * (float(top_die_h_um) * 1e-3)
+    I_peak   = _ipeak_from_die_voltage(area_mm2, float(V_CHARGING_V))
+    return _fail_prob_single(I_peak, float(WEIBULL_K), float(WEIBULL_LAMBDA), float(CUTOFF_MIN_A))
+
 def _four_corners(cx: np.ndarray, cy: np.ndarray, half: float):
     """返回四角：LL, LR, UR, UL  → 形状 (N,4)"""
     x4 = np.stack([cx - half, cx + half, cx + half, cx - half], axis=1)
     y4 = np.stack([cy - half, cy - half, cy + half, cy + half], axis=1)
     return x4, y4
 
-def _compute_p_fail_for_die(top_die_w_um: float, top_die_h_um: float) -> float:
-    area_mm2 = (float(top_die_w_um) * 1e-3) * (float(top_die_h_um) * 1e-3)
-    I_peak   = _ipeak_from_die_voltage(area_mm2, float(V_CHARGING_V))
-    return _fail_prob_single(I_peak, float(WEIBULL_K), float(WEIBULL_LAMBDA), float(CUTOFF_MIN_A))
-
-
 # =========================
-# 几何核心：按坐标+边长，筛选 & 求最小间隙
+# 一次性收集 die 四角 + 入围 pad 四角 → 一起旋转并找最小
 # =========================
-def find_min_gap_points(
+def _collect_corners_and_baselines(
     *,
-    pad_coords_um: np.ndarray,   # (Npad,2)
-    pad_size_um: float,          # 正方形边长
+    pad_coords_um: np.ndarray,          # (Npad,2)
+    pad_size_um: float,                 # pad 正方形边长
     top_die_w_um: float,
     top_die_h_um: float,
-    z_top_um: float,             # 旋转前 top面基准高度（足够大）
-    tilt_x_deg: float,
-    tilt_y_deg: float,
-    top_dish_um_raw: np.ndarray, # (Npad,) —— 原始值（未取反）
-    bot_dish_um: np.ndarray,     # (Npad,)
-    verbose: bool = False,
-) -> dict:
+    top_dish_um_raw: np.ndarray,        # (Npad,)  原始 top dishing (µm)
+    bot_dish_um: np.ndarray,            # (Npad,)  bottom dishing (µm)
+    z_top_um: float
+):
     """
-    确认点：
-    (1) 入围筛选使用 raw：top_dish_raw + bot_dish >= 0。
-    (2) 旋转高度里 top dishing 取反：top_dish_eff = -top_dish_raw。
-    (3) 旋转绕 top die 面心（die中心），top基准高度 z0=100µm，bottom面=0µm。
+    返回：
+      x_all, y_all: (M,)  所有候选角坐标
+      top_eff_all: (M,)  对应的 top 有效高度项（die 角为 0，pad 角取 -top_raw）
+      bot_loc_all: (M,)  对应的底部局部高度（die 角为 0，pad 角取 bot_dish）
+      is_pad_all:  (M,)  是否来自 pad 角
+      pad_id_all:  (M,)  pad 索引（die 角记为 -1）
+    其中 M = 4（die四角） + 4 * N_sel（入围 pad 数 * 4）
     """
-    z0 = float(z_top_um)
-    A, B, C = _z_linear_coeffs(tilt_x_deg, tilt_y_deg)
-
-    # die 四角（bottom 面高度=0）
+    # die 四角
     hw, hh = 0.5*float(top_die_w_um), 0.5*float(top_die_h_um)
-    die_x = np.array([-hw,  hw,  hw, -hw], dtype=np.float32)
-    die_y = np.array([-hh, -hh,  hh,  hh], dtype=np.float32)
-    z_top_die = z0 + A*die_x + B*die_y
-    gaps_die  = z_top_die  # - 0
-    min_val = float(np.nanmin(gaps_die))
-    recs = [{"kind":"die_corner","corner_index":int(i),
-             "x_um":float(die_x[i]),"y_um":float(die_y[i]),
-             "gap_um":float(gaps_die[i])}
-            for i in np.where(gaps_die == min_val)[0].tolist()]
+    die_x = np.array([-hw,  hw,  hw, -hw], dtype=np.float64)
+    die_y = np.array([-hh, -hh,  hh,  hh], dtype=np.float64)
+    M_die = die_x.shape[0]
 
-    # pad 四角
-    Npad = pad_coords_um.shape[0]
-    cx = pad_coords_um[:,0].astype(np.float32)
-    cy = pad_coords_um[:,1].astype(np.float32)
-
-    # (1) 入围：raw 值
+    # 入围 pad
     mask = (top_dish_um_raw + bot_dish_um) >= 0.0
-    if np.any(mask):
-        sel = np.where(mask)[0]
+    sel  = np.where(mask)[0]
+    N_sel = sel.size
+
+    if N_sel > 0:
+        cx = pad_coords_um[sel, 0].astype(np.float64)
+        cy = pad_coords_um[sel, 1].astype(np.float64)
         half = 0.5*float(pad_size_um)
-        x4, y4 = _four_corners(cx[sel], cy[sel], half)
+        x4, y4 = _four_corners(cx, cy, half)    # (N_sel,4)
+        x_pad = x4.reshape(-1)
+        y_pad = y4.reshape(-1)
 
-        # (2) 旋转高度里 top dishing 取反
-        top_eff = (-top_dish_um_raw[sel])[:,None]
-        bot_loc =  (bot_dish_um[sel])[:,None]
+        # top 有效高度（取反号）；bottom 局部高度
+        top_eff_pad = (-top_dish_um_raw[sel])[:, None].repeat(4, axis=1).reshape(-1).astype(np.float64)
+        bot_loc_pad = ( bot_dish_um[sel])[:, None].repeat(4, axis=1).reshape(-1).astype(np.float64)
 
-        z_top = z0 + A*x4 + B*y4 + C*top_eff
-        gaps  = z_top - bot_loc
-
-        vmin_pad = float(np.nanmin(gaps))
-        if vmin_pad < min_val:
-            min_val = vmin_pad
-            recs = []
-        if vmin_pad <= min_val:
-            hit_m, hit_k = np.where(gaps == vmin_pad)
-            for m,k in zip(hit_m.tolist(), hit_k.tolist()):
-                recs.append({
-                    "kind":"pad_corner",
-                    "pad_id": int(sel[m]),
-                    "corner_index": int(k),
-                    "x_um": float(x4[m,k]),
-                    "y_um": float(y4[m,k]),
-                    "gap_um": float(vmin_pad),
-                })
+        is_pad_pad = np.ones_like(x_pad, dtype=bool)
+        pad_id_pad = np.repeat(sel.astype(np.int64), 4)
+    else:
+        x_pad = y_pad = top_eff_pad = bot_loc_pad = np.zeros((0,), dtype=np.float64)
+        is_pad_pad = np.zeros((0,), dtype=bool)
+        pad_id_pad = np.zeros((0,), dtype=np.int64)
 
     # 汇总
-    die_eq = [r for r in recs if r["kind"]=="die_corner" and r["gap_um"]==min_val]
-    pad_eq = [r for r in recs if r["kind"]=="pad_corner" and r["gap_um"]==min_val]
-    pad_ids = np.unique(np.array([r["pad_id"] for r in pad_eq], dtype=int)) if pad_eq else np.zeros((0,),dtype=int)
+    x_all = np.concatenate([die_x, x_pad])
+    y_all = np.concatenate([die_y, y_pad])
 
-    if verbose:
-        print(f"[MinGap] min={min_val:.6e} µm; die_eq={len(die_eq)}; pad_eq={len(pad_eq)}")
+    top_eff_die = np.zeros((M_die,), dtype=np.float64)
+    bot_loc_die = np.zeros((M_die,), dtype=np.float64)
 
-    return {
-        "min_value_um": float(min_val),
-        "pad_ids_min_equal": pad_ids,
-        "counts": {"die_corner": len(die_eq), "pad_corner": len(pad_eq)},
-    }
+    top_eff_all = np.concatenate([top_eff_die, top_eff_pad])
+    bot_loc_all = np.concatenate([bot_loc_die, bot_loc_pad])
 
+    is_pad_die = np.zeros((M_die,), dtype=bool)
+    is_pad_all = np.concatenate([is_pad_die, is_pad_pad])
+
+    pad_id_die = -np.ones((M_die,), dtype=np.int64)
+    pad_id_all = np.concatenate([pad_id_die, pad_id_pad])
+
+    return x_all, y_all, top_eff_all, bot_loc_all, is_pad_all, pad_id_all
+
+def _rotate_and_min_choice(
+    *,
+    x_all: np.ndarray,
+    y_all: np.ndarray,
+    top_eff_all: np.ndarray,
+    bot_loc_all: np.ndarray,
+    tilt_x_deg: float,
+    tilt_y_deg: float,
+    z_top_um: float,
+    is_pad_all: np.ndarray,
+    pad_id_all: np.ndarray,
+    rng_pick: np.random.Generator,
+    atol: float = 1e-12
+) -> Tuple[Optional[int], bool, float]:
+    """
+    旋转 + 统一求最小间隙。
+    返回：
+      (chosen_pad_index_or_None, is_die_only_min, min_gap_value)
+    选择规则：
+      - 找到全局最小 gap；
+      - 若最小集合里包含任意 pad 角（无论是否混有 die 角），从该集合里的 **pad_id** 去重后随机挑一个返回；
+      - 若最小集合只有 die 角 → 返回 (None, True, min).
+    """
+    A, B, C = _z_linear_coeffs(tilt_x_deg, tilt_y_deg)
+    z_top = float(z_top_um) + A*x_all + B*y_all + C*top_eff_all
+    gaps  = z_top - bot_loc_all
+
+    min_val = float(np.min(gaps))
+    is_min  = np.isclose(gaps, min_val, rtol=0.0, atol=atol)
+    # 在最小集合里，挑 pad 的候选
+    cand_mask = is_min & is_pad_all
+    if np.any(cand_mask):
+        # 候选 pad 的唯一 id 集合
+        cand_pad_ids = np.unique(pad_id_all[cand_mask])
+        idx = rng_pick.integers(0, cand_pad_ids.size)
+        return int(cand_pad_ids[idx]), False, min_val
+    else:
+        # 全是 die 角
+        return None, True, min_val
+
+def _binary_halving_until_pad(
+    *,
+    pad_coords_um: np.ndarray,
+    pad_size_um: float,
+    top_die_w_um: float,
+    top_die_h_um: float,
+    z_top_um: float,
+    tilt_x_init_deg: float,
+    tilt_y_init_deg: float,
+    top_dish_um_raw: np.ndarray,   # (Npad,) µm
+    bot_dish_um: np.ndarray,       # (Npad,) µm
+    rng_pick: np.random.Generator,
+    atol_gap: float = 1e-12,
+    atol_tilt_deg: float = 1e-12,
+    max_iter_guard: int = 10000,
+) -> Tuple[Optional[int], float, float, float]:
+    """
+    把 die 四角 + 入围 pad 四角放在一起，一次性旋转并找最小。
+    若最小集合包含 pad，则在其中等概率随机选一个 pad_id 返回；
+    否则（二者都是 die 角）对 (tilt_x, tilt_y) 进行二分（每次 /2），
+    反复计算，直到出现 pad 为止。
+
+    返回：(pad_index or None, final_tilt_x, final_tilt_y, final_min_gap_um)
+    - 若倾角已到极小（或超过保护迭代次数）仍全是 die 角，返回 None。
+    """
+    # 先收集所有角
+    x_all, y_all, top_eff_all, bot_loc_all, is_pad_all, pad_id_all = _collect_corners_and_baselines(
+        pad_coords_um=pad_coords_um, pad_size_um=pad_size_um,
+        top_die_w_um=top_die_w_um, top_die_h_um=top_die_h_um,
+        top_dish_um_raw=top_dish_um_raw, bot_dish_um=bot_dish_um,
+        z_top_um=z_top_um
+    )
+
+    if not np.any(is_pad_all):
+        A, B, C = _z_linear_coeffs(tilt_x_init_deg, tilt_y_init_deg)
+        z_top = float(z_top_um) + A*x_all + B*y_all + C*top_eff_all
+        min_gap = float(np.min(z_top - bot_loc_all))
+        return None, float(tilt_x_init_deg), float(tilt_y_init_deg), min_gap
+
+    tx, ty = float(tilt_x_init_deg), float(tilt_y_init_deg)
+
+    # 第一次判定
+    pad_choice, die_only, min_gap = _rotate_and_min_choice(
+        x_all=x_all, y_all=y_all, top_eff_all=top_eff_all, bot_loc_all=bot_loc_all,
+        tilt_x_deg=tx, tilt_y_deg=ty, z_top_um=z_top_um,
+        is_pad_all=is_pad_all, pad_id_all=pad_id_all,
+        rng_pick=rng_pick, atol=atol_gap
+    )
+    if not die_only:
+        return pad_choice, tx, ty, min_gap
+
+    # 二分化：每次 /2，直到出现 pad
+    it = 0
+    while die_only:
+        tx *= 0.5
+        ty *= 0.5
+        pad_choice, die_only, min_gap = _rotate_and_min_choice(
+            x_all=x_all, y_all=y_all, top_eff_all=top_eff_all, bot_loc_all=bot_loc_all,
+            tilt_x_deg=tx, tilt_y_deg=ty, z_top_um=z_top_um,
+            is_pad_all=is_pad_all, pad_id_all=pad_id_all,
+            rng_pick=rng_pick, atol=atol_gap
+        )
+        it += 1
+        # 安全保护
+        if (abs(tx) <= atol_tilt_deg and abs(ty) <= atol_tilt_deg) or (it >= max_iter_guard):
+            return None, tx, ty, min_gap
+
+    return pad_choice, tx, ty, min_gap
 
 # =========================
-# demo1: risk pad map 生成器
+# demo1: risk pad map 生成器（统一列表 + 二分直到 pad）
 # =========================
 def pad_esd_yield_map_generator(
     *,
@@ -207,80 +286,76 @@ def pad_esd_yield_map_generator(
     top_dish_std_nm: float,
     bot_dish_mean_nm: float,
     bot_dish_std_nm: float,
-    n_steps_refine: int = 10,
     base_seed: int = 20251006,
     z_top_um: float = 100.0,
-) -> Tuple[np.ndarray, plt.Figure, float]:
-    """
-    输出：
-      - risk_map_vec: 每个 pad 的 [首触概率 × p_fail_single] 值（长度 = Npad）
-      - fig: 可视化（pitch 方块）
-      - p_fail_single: 该 die 尺寸下的失效率（便于复用）
-    """
+) -> Tuple[np.ndarray, Optional[plt.Figure], float]:
     Npad = pad_coords_um.shape[0]
     counts_vec = np.zeros((Npad,), dtype=np.int64)
 
     rng_tilt = np.random.default_rng(base_seed ^ 0xC001FEED)
     total_runs = int(n_tilts) * int(n_dishes)
 
+    progress_counter = 0
     for t in range(n_tilts):
-        tilt_x = float(rng_tilt.normal(tilt_x_mean_deg, tilt_x_std_deg))
-        tilt_y = float(rng_tilt.normal(tilt_y_mean_deg, tilt_y_std_deg))
+        tx0 = float(rng_tilt.normal(tilt_x_mean_deg, tilt_x_std_deg))
+        ty0 = float(rng_tilt.normal(tilt_y_mean_deg, tilt_y_std_deg))
 
         for d in range(n_dishes):
+            progress_counter += 1
+            if (progress_counter % 1000) == 0 or (progress_counter == total_runs):
+                print(f"[ESD Sim] Progress: {progress_counter} / {total_runs} runs completed.")
             seed = base_seed + (t * n_dishes + d)
-            rng_top = np.random.default_rng(seed ^ 0x9E3779B1)
-            rng_bot = np.random.default_rng(seed ^ 0x85EBCA77)
+            rng_top  = np.random.default_rng(seed ^ 0x9E3779B1)
+            rng_bot  = np.random.default_rng(seed ^ 0x85EBCA77)
+            rng_pick = np.random.default_rng(seed ^ 0xDEADBEEF)
 
             top_dish_um_raw = rng_top.normal(
                 loc=float(top_dish_mean_nm)*NM_TO_UM,
                 scale=max(float(top_dish_std_nm),0.0)*NM_TO_UM,
                 size=(Npad,)
-            ).astype(np.float32)
+            ).astype(np.float64)
             bot_dish_um     = rng_bot.normal(
                 loc=float(bot_dish_mean_nm)*NM_TO_UM,
                 scale=max(float(bot_dish_std_nm),0.0)*NM_TO_UM,
                 size=(Npad,)
-            ).astype(np.float32)
+            ).astype(np.float64)
 
-            # 直接一步（你要“入围后进行旋转”）：不做多步 refine，仅取当前倾角一次最小值
-            out = find_min_gap_points(
-                pad_coords_um=pad_coords_um, pad_size_um=pad_size_um,
-                top_die_w_um=top_die_w_um, top_die_h_um=top_die_h_um,
+            pad_choice, _, _, _ = _binary_halving_until_pad(
+                pad_coords_um=pad_coords_um,
+                pad_size_um=pad_size_um,
+                top_die_w_um=top_die_w_um,
+                top_die_h_um=top_die_h_um,
                 z_top_um=z_top_um,
-                tilt_x_deg=tilt_x, tilt_y_deg=tilt_y,
+                tilt_x_init_deg=tx0,
+                tilt_y_init_deg=ty0,
                 top_dish_um_raw=top_dish_um_raw,
                 bot_dish_um=bot_dish_um,
-                verbose=False
+                rng_pick=rng_pick
             )
-            pids = out.get("pad_ids_min_equal", np.zeros((0,), dtype=int))
-            if pids.size > 0:
-                np.add.at(counts_vec, pids, 1)
 
-    # 首触概率
-    prob_vec = counts_vec.astype(np.float32) / float(total_runs)
+            if pad_choice is not None:
+                counts_vec[pad_choice] += 1
 
-    # 该尺寸失效率
+    prob_vec = counts_vec.astype(np.float64) / float(total_runs)
+    print("Prob_vec min/max: {:.6f} / {:.6f}".format(float(prob_vec.min()), float(prob_vec.max())))
+
     p_fail_single = _compute_p_fail_for_die(top_die_w_um, top_die_h_um)
-
-    # risk pad map
     valid_pad_risk_map_vec = prob_vec * float(p_fail_single)
+    print("Risk map min/max: {:.6e} / {:.6e}".format(float(valid_pad_risk_map_vec.min()),
+                                                     float(valid_pad_risk_map_vec.max())))
 
-    # # 画图（按 pitch 为边长）
-    # fig = plot_probability_over_pads_with_pitch(
-    #     pad_coords_um=pad_coords_um,
-    #     prob_vec=valid_pad_risk_map_vec,
-    #     pitch_um=pad_pitch_um,
-    #     title="Risk Pad Map = P(first-touch) × p_fail (square side = PITCH)"
-    # )
-    fig = None
+    fig = plot_probability_over_pads_with_pitch(
+        pad_coords_um=pad_coords_um,
+        prob_vec=valid_pad_risk_map_vec,
+        pitch_um=pad_pitch_um,
+        title="Risk Pad Map = P(first-touch) × p_fail (square side = PITCH)"
+    )
 
     valid_pad_yield_map_vec = 1.0 - valid_pad_risk_map_vec
     return valid_pad_yield_map_vec, fig, float(p_fail_single)
 
-
 # =========================
-# demo2: 单次外部数组模拟
+# demo2: 单次外部数组模拟（统一列表 + 二分直到 pad）
 # =========================
 def esd_failure_simulator(
     *,
@@ -300,43 +375,41 @@ def esd_failure_simulator(
     """
     仅随机选取一组 tilt 角度，做一次实验。
     返回：
-      - pad_idx_list 或 None
-      - 当前尺寸的 ESD failure rate（p_fail_single）
-    说明：
-      - 输入的 dishing 数组单位为 nm，这里统一转换为 µm 使用；
-      - 入围筛选使用 raw 值；旋转时 top dishing 取反。
+      - pad_idx 或 None
+      - survive_bool：用 die 级 p_fail_single 做一次伯努利
     """
     assert pad_coords_um.shape[0] == top_dish_nm_ext.shape[0] == bot_dish_nm_ext.shape[0], \
         "The length of pad_coords_um, top_dish_nm_ext and bot_dish_nm_ext must be equal."
 
     rng = np.random.default_rng(base_seed ^ 0xA5A5A5A5)
+    rng_pick = np.random.default_rng((base_seed ^ 0xA5A5A5A5) ^ 0xDEADBEEF)
+
     tilt_x = float(rng.normal(tilt_x_mean_deg, tilt_x_std_deg))
     tilt_y = float(rng.normal(tilt_y_mean_deg, tilt_y_std_deg))
 
-    top_dish_um_raw = (top_dish_nm_ext.astype(np.float32)) * NM_TO_UM
-    bot_dish_um     = (bot_dish_nm_ext.astype(np.float32)) * NM_TO_UM
+    top_dish_um_raw = (top_dish_nm_ext.astype(np.float64)) * NM_TO_UM
+    bot_dish_um     = (bot_dish_nm_ext.astype(np.float64)) * NM_TO_UM
 
-    out = find_min_gap_points(
-        pad_coords_um=pad_coords_um, pad_size_um=pad_size_um,
-        top_die_w_um=top_die_w_um, top_die_h_um=top_die_h_um,
+    pad_choice, _, _, _ = _binary_halving_until_pad(
+        pad_coords_um=pad_coords_um,
+        pad_size_um=pad_size_um,
+        top_die_w_um=top_die_w_um,
+        top_die_h_um=top_die_h_um,
         z_top_um=z_top_um,
-        tilt_x_deg=tilt_x, tilt_y_deg=tilt_y,
+        tilt_x_init_deg=tilt_x,
+        tilt_y_init_deg=tilt_y,
         top_dish_um_raw=top_dish_um_raw,
         bot_dish_um=bot_dish_um,
-        verbose=False
+        rng_pick=rng_pick
     )
-    pids = out.get("pad_ids_min_equal", np.zeros((0,), dtype=int))
-    pad_idx_list = pids.tolist() if pids.size > 0 else None
-    first_contact_pad_idx = pad_idx_list[0] if pad_idx_list is not None else None
 
     p_fail_single = _compute_p_fail_for_die(top_die_w_um, top_die_h_um)
-    random_float = np.random.uniform(0.0, 1.0)      # Used to decide if failure occurs
-    if first_contact_pad_idx is not None and random_float < p_fail_single:
+    random_float = np.random.uniform(0.0, 1.0)
+    if (pad_choice is not None) and (random_float < p_fail_single):
         survive_bool = False
     else:
         survive_bool = True
-    return first_contact_pad_idx, survive_bool
-
+    return pad_choice, survive_bool
 
 # =========================
 # 可视化：按 pitch 为边长的小方块
@@ -382,9 +455,8 @@ def plot_probability_over_pads_with_pitch(
     sm = mpl.cm.ScalarMappable(cmap="viridis", norm=mpl.colors.Normalize(vmin=0.0, vmax=vmax))
     sm.set_array([])
     cbar = plt.colorbar(sm, ax=ax)
-    cbar.set_label("Risk = P_first_touch × p_fail_single")
+    cbar.set_label("Risk = P_first-touch × p_fail_single")
     return fig
-
 
 # =========================
 # Main（演示）
@@ -397,10 +469,11 @@ if __name__ == "__main__":
         ys = np.arange( halfH - PAD_PITCH_UM*0.5, -halfH, -PAD_PITCH_UM)
         X, Y = np.meshgrid(xs, ys)
         PAD_COORDS_UM = list(zip(X.ravel().tolist(), Y.ravel().tolist()))
-    pad_coords = np.asarray(PAD_COORDS_UM, dtype=np.float32).reshape(-1, 2)
+    pad_coords = np.asarray(PAD_COORDS_UM, dtype=np.float64).reshape(-1, 2)
 
-    # print("=== DEMO1: risk pad map ===")
-    # risk_vec, fig, p_fail_single = pad_esd_yield_map_generator(
+    # # ===== DEMO1：风险/良率图 =====
+    # print("=== DEMO1: risk pad map (with unified-corner + binary-halving search) ===")
+    # yield_vec, fig, p_fail_single = pad_esd_yield_map_generator(
     #     pad_coords_um=pad_coords,
     #     pad_size_um=PAD_SIZE_UM,
     #     pad_pitch_um=PAD_PITCH_UM,
@@ -416,28 +489,23 @@ if __name__ == "__main__":
     #     top_dish_std_nm=TOP_DISH_STD_NM,
     #     bot_dish_mean_nm=BOT_DISH_MEAN_NM,
     #     bot_dish_std_nm=BOT_DISH_STD_NM,
-    #     n_steps_refine=N_STEPS_REFINE,
     #     base_seed=BASE_SEED,
     #     z_top_um=100.0,
     # )
     # print(f"p_fail_single (this die size) = {p_fail_single:.6f}")
-    # print(f"risk map: nonzero pads = {(risk_vec>0).sum()} / {risk_vec.size}")
+    # print(f"yield map: min/max = {float(yield_vec.min()):.6f} / {float(yield_vec.max()):.6f}")
+
+    # # 展示图
     # plt.show()
 
-    print("\n=== DEMO2: single-run with external dishing arrays ===")
-    # 构造一组“外部”dishing（你在真实调用时直接传入自己的数组即可，单位 nm）
+    # ===== DEMO2：单次外部数组判定 =====
+    print("\n=== DEMO2: single-run with external dishing arrays (unified-corner + binary-halving) ===")
     rng = np.random.default_rng(BASE_SEED ^ 0x13579BDF)
     Npad = pad_coords.shape[0]
-    top_ext_nm = rng.normal(TOP_DISH_MEAN_NM, TOP_DISH_STD_NM, size=Npad).astype(np.float32)
-    bot_ext_nm = rng.normal(BOT_DISH_MEAN_NM, BOT_DISH_STD_NM, size=Npad).astype(np.float32)
+    top_ext_nm = rng.normal(TOP_DISH_MEAN_NM, TOP_DISH_STD_NM, size=Npad).astype(np.float64)
+    bot_ext_nm = rng.normal(BOT_DISH_MEAN_NM, BOT_DISH_STD_NM, size=Npad).astype(np.float64)
 
-
-    # 外部 dishing（单位 nm），长度要等于 Npad=3
-    # top_ext_nm = np.array([-5.2, -3.8, 1.0], dtype=np.float32)   # top raw
-    # bot_ext_nm = np.array([-4.0, -4.0, -4.0], dtype=np.float32)  # bottom raw
-
-
-    pad_idx_list, p_fail_single_2 = esd_failure_simulator(
+    pad_idx, survive = esd_failure_simulator(
         pad_coords_um=pad_coords,
         pad_size_um=PAD_SIZE_UM,
         top_die_w_um=TOP_DIE_W_UM,
@@ -451,5 +519,5 @@ if __name__ == "__main__":
         base_seed=BASE_SEED,
         z_top_um=100.0,
     )
-    print(f"first-touch pad index list: {pad_idx_list}")
-    print(f"p_fail_single (this die size) = {p_fail_single_2:.6f}")
+    print(f"first-touch pad index: {pad_idx}")
+    print(f"survive? {survive}")

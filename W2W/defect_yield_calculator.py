@@ -13,10 +13,6 @@ import numpy as np
 import sympy as sp
 import math
 import os
-from scipy.integrate import quad
-import matplotlib.pyplot as plt
-from scipy.integrate import dblquad
-from pad_bitmap_generation import A_critical_l_across_theta
 
 
 def get_bitmap_bounds(*,
