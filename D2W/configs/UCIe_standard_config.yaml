@@ -421,7 +421,7 @@ d2w_simulation:
   M_0: 0                                # Magnification offset
 
   # === Defect Parameters ===
-  first_contact: 'center'            # First contact location: 'center' or 'edge' or 'corner (left-top)'
+  first_contact: 'horizontal-edge'            # First contact location: 'center' or 'edge' or 'corner (left-top)'
   D0: 1e-9                              # Particle density (1/µm²)
   z: 3                                  # Particle thickness distribution exponent
   t_0: 0.1                                # Minimum particle thickness (µm)
@@ -596,7 +596,7 @@ d2w_modeling:
   M_0: 0                                # Magnification offset
 
   # === Defect Parameters ===
-  first_contact: 'center'            # First contact location: 'center' or 'vertical-edge' or 'horizontal-edge' or 'corner' (left-bottom)
+  first_contact: 'horizontal-edge'            # First contact location: 'center' or 'vertical-edge' or 'horizontal-edge' or 'corner' (left-bottom)
   D0: 1e-9                              # Particle density (1/µm²)
   z: 3                                  # Thickness distribution exponent factor
   t_0: 0.1                              # Minimum particle thickness (µm)

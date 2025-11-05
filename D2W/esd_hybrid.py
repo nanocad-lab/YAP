@@ -202,11 +202,15 @@ def pad_esd_yield_map_generator(
     rng_tilt = np.random.default_rng(base_seed ^ 0xC001FEED)
     total_runs = int(n_tilts) * int(n_dishes)
 
+    progress_counter = 0
     for t in range(n_tilts):
         tx = float(rng_tilt.normal(tilt_x_mean_deg, tilt_x_std_deg))
         ty = float(rng_tilt.normal(tilt_y_mean_deg, tilt_y_std_deg))
 
         for d in range(n_dishes):
+            progress_counter += 1
+            if (progress_counter % 1000) == 0 or (progress_counter == total_runs):
+                print(f"[ESD Sim] Progress: {progress_counter} / {total_runs} runs completed.")
             seed = base_seed + (t * n_dishes + d)
             rng_top  = np.random.default_rng(seed ^ 0x9E3779B1)
             rng_bot  = np.random.default_rng(seed ^ 0x85EBCA77)
