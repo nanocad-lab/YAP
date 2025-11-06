@@ -27,28 +27,13 @@ def die_pad_misalignment(
     RANDOM_MISALIGNMENT_MEAN_um: float,
     RANDOM_MISALIGNMENT_STD_um: float,
     approximate_set: int,
-    redundant_flag: bool = False,
 ) -> np.ndarray:
-    if approximate_set != 1:
-        # Consider pad misalignment pads at the outer edge of the die
-        if redundant_flag == True:
-            pad_misalignment = np.zeros(len(die.ovl_critical_pad_boundary_coords))
-            dx = (system_translation_x_um - system_rotation_rad * die.ovl_critical_pad_boundary_coords[:, 1] + system_magnification_ppm * die.ovl_critical_pad_boundary_coords[:, 0])
-            dy = (system_translation_y_um + system_rotation_rad * die.ovl_critical_pad_boundary_coords[:, 0] + system_magnification_ppm * die.ovl_critical_pad_boundary_coords[:, 1])
-            pad_misalignment = np.sqrt(dx**2 + dy**2) + np.random.normal(RANDOM_MISALIGNMENT_MEAN_um, RANDOM_MISALIGNMENT_STD_um, len(die.ovl_critical_pad_boundary_coords))
-        else:
-            pad_misalignment = np.zeros(len(die.pad_array_box))
-            dx = (system_translation_x_um - system_rotation_rad * die.pad_array_box[:, 1] + system_magnification_ppm * die.pad_array_box[:, 0])
-            dy = (system_translation_y_um + system_rotation_rad * die.pad_array_box[:, 0] + system_magnification_ppm * die.pad_array_box[:, 1])
-            pad_misalignment = np.sqrt(dx**2 + dy**2) + np.random.normal(RANDOM_MISALIGNMENT_MEAN_um, RANDOM_MISALIGNMENT_STD_um, len(die.pad_array_box))
-    else:
-        # start_time = time.time()
-        # Consider pad misalignment for all pads
-        die_pad_coords = base_pad_coords + die.die_center
-        pad_misalignment = np.zeros(len(die_pad_coords))
-        dx = (system_translation_x_um - system_rotation_rad * die_pad_coords[:, 1] + system_magnification_ppm * die_pad_coords[:, 0])
-        dy = (system_translation_y_um + system_rotation_rad * die_pad_coords[:, 0] + system_magnification_ppm * die_pad_coords[:, 1])
-        pad_misalignment = np.sqrt(dx**2 + dy**2) + np.random.normal(RANDOM_MISALIGNMENT_MEAN_um, RANDOM_MISALIGNMENT_STD_um, len(die_pad_coords))
+    # Consider pad misalignment for all pads
+    die_pad_coords = base_pad_coords + die.die_center
+    pad_misalignment = np.zeros(len(die_pad_coords))
+    dx = (system_translation_x_um - system_rotation_rad * die_pad_coords[:, 1] + system_magnification_ppm * die_pad_coords[:, 0])
+    dy = (system_translation_y_um + system_rotation_rad * die_pad_coords[:, 0] + system_magnification_ppm * die_pad_coords[:, 1])
+    pad_misalignment = np.sqrt(dx**2 + dy**2) + np.random.normal(RANDOM_MISALIGNMENT_MEAN_um, RANDOM_MISALIGNMENT_STD_um, len(die_pad_coords))
 
     return pad_misalignment
 

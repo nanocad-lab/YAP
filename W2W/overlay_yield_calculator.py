@@ -197,7 +197,7 @@ def pad_overlay_yield_map_generator(
     RANDOM_MISALIGNMENT_MEAN_um: float,
     RANDOM_MISALIGNMENT_STD_um: float,
     wafer,    
-    redundant_flag: bool,
+    pad_bitmap_collection,
     pad_yield_flag: bool = False,
     pad_yield_map_sub_factor: int = 1,
 ) -> None:
@@ -221,7 +221,7 @@ def pad_overlay_yield_map_generator(
     # print(system_translation_y_samples_um.mean()*1e3, " nm")
     # print(system_rotation_samples_rad.mean() * 150e+3 * 1e3, " nm")
     # print(system_magnification_samples_ppm.mean() * 150e+3 * 1e3, " nm")
-    
+    valid_pad_mask = (pad_bitmap_collection['CRITICAL_PAD_BITMAP'] == 1) | (pad_bitmap_collection['REDUNDANT_PAD_BITMAP'] == 1) | (pad_bitmap_collection['DUMMY_PAD_BITMAP'] == 1)
     for die_id, die in enumerate(wafer.die_list):
         current_die_pad_array = wafer.base_pad_coords + die.die_center # Get the absolute coordinates of the pad array for the current die (to save memory, use a temporary variable)
         if pad_yield_flag == True:
@@ -232,12 +232,15 @@ def pad_overlay_yield_map_generator(
             # When calculate the pad yield, we ignore the whether the pad is critical or not.
             nr = math.ceil(PAD_ARR_ROW / pad_yield_map_sub_factor)
             nc = math.ceil(PAD_ARR_COL / pad_yield_map_sub_factor)
-            overlay_pad_yield_map = np.zeros((nr, nc))
+            overlay_pad_yield_map = np.full((nr, nc), np.nan)
             for kr in range(nr):
                 r = round(kr * (PAD_ARR_ROW - 1) / (nr - 1))
                 for kc in range(nc):
                     c = round(kc * (PAD_ARR_COL - 1) / (nc - 1))
                     i = r * PAD_ARR_COL + c
+                    if valid_pad_mask[r, c] == 0:
+                        overlay_pad_yield_map[kr, kc] = np.nan
+                        continue
                     dx_array_samples_i = (system_translation_x_samples_um - system_rotation_samples_rad * current_die_pad_array[i, 1] + system_magnification_samples_ppm * current_die_pad_array[i, 0])
                     dy_array_samples_i = (system_translation_y_samples_um + system_rotation_samples_rad * current_die_pad_array[i, 0] + system_magnification_samples_ppm * current_die_pad_array[i, 1])
                     pad_misalignment_samples_i = np.sqrt(dx_array_samples_i**2 + dy_array_samples_i**2)

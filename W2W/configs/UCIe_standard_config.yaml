@@ -15,8 +15,8 @@ w2w_simulation:
   WAF_R_um: 10000                         # Wafer radius (µm)
   PAD_ARR_ROW: 14
   PAD_ARR_COL: 12
-  PAD_BOT_R_um: 50                      # Bottom Cu pad radius (um)
-  PAD_TOP_R_um: 50                      # Top Cu pad radius (um)
+  PAD_BOT_R_um: 30                      # Bottom Cu pad radius (um)
+  PAD_TOP_R_um: 30                      # Top Cu pad radius (um)
   VOID_SHAPE: "circle"                  # Void shape: "circle" or "square"
   dice_width: 100                      # Width of one die (µm)
   pad_yield_flag: True
@@ -183,8 +183,8 @@ w2w_modeling:
   DIE_W_um: 1400                          # Die width (µm)
   DIE_L_um: 1650                          # Die length (µm)
   WAF_R_um: 10000                         # Wafer radius (µm)
-  PAD_BOT_R_um: 50                      # Bottom Cu pad radius (um)
-  PAD_TOP_R_um: 50                      # Top Cu pad radius (um)
+  PAD_BOT_R_um: 30                      # Bottom Cu pad radius (um)
+  PAD_TOP_R_um: 30                      # Top Cu pad radius (um)
   PAD_ARR_ROW: 14
   PAD_ARR_COL: 12
   VOID_SHAPE: "circle"                  # Shape of void: "circle" or "square"
@@ -215,18 +215,6 @@ w2w_modeling:
   T_Sub_T: 775e-6                       # Efficient substrate layer thickness (m)
   S_INIT_B_M: 0.0e-6                    # Pre-anneal warpages (m)
 
-  # === Fault Tolerance Parameters ===
-  redundant_flag: True                  # Enable redundant pads
-  critical_pad_ratio: 0.9               # Critical pad ratio per die
-  redundant_pad_ratio: 0.1              # Redundant pad ratio per die
-  redundant_block_interval: 2           # Interval between redundant pad blocks
-  pad_block_dim_x: 400                  # Pad block width dimension (µm)
-  pad_block_dim_y: 400                  # Pad block height dimension (µm)
-  redundant_logical_pad_ratio: 0.3      # Ratio of redundant logical pads
-  redundant_logical_pad_copy: 2         # Number of copies for each redundant logical pad
-  redundant_logical_pad_dist: 40.0      # Distance between redundant logical pads (PITCH_um)
-  multi2one_flag: False                 # Enable multi-to-one mapping
-  multi2one_ratio: 20                   # Ratio for multi-to-one mapping (e.g., 80:1 replicas)
 
   CONTACT_AREA_CONSTRAINT: 0.5         # Minimum allowed contact area ratio
   CRITICAL_DIST_CONSTRAINT: 0.5        # Minimum distance constraint for critical pads

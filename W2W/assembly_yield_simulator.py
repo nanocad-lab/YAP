@@ -116,7 +116,6 @@ def Assembly_Yield_Simulator(
             RANDOM_MISALIGNMENT_MEAN_um     =       cfg.RANDOM_MISALIGNMENT_MEAN_um,
             RANDOM_MISALIGNMENT_STD_um      =       cfg.RANDOM_MISALIGNMENT_STD_um,
             approximate_set                 =       cfg.approximate_set,
-            redundant_flag                  =       cfg.redundant_flag,
             pad_bitmap_collection           =       pad_bitmap_collection,
         )
         single_config_yield_list.append(yield_list)

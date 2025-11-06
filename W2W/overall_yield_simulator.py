@@ -61,7 +61,6 @@ def overall_yield_simulator(
     RANDOM_MISALIGNMENT_MEAN_um,
     RANDOM_MISALIGNMENT_STD_um,
     approximate_set,
-    redundant_flag,
     pad_bitmap_collection,
 ):
     yield_list = []
@@ -111,7 +110,6 @@ def overall_yield_simulator(
                                                         RANDOM_MISALIGNMENT_MEAN_um=RANDOM_MISALIGNMENT_MEAN_um,
                                                         RANDOM_MISALIGNMENT_STD_um=RANDOM_MISALIGNMENT_STD_um,
                                                         approximate_set=approximate_set,
-                                                        redundant_flag=redundant_flag,
                                                         )
             if approximate_set == 1:
                 # pad fail criteria: pad_misalignment >= MAX_ALLOWED_MISALIGNMENT_um
