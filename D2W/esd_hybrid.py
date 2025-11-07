@@ -22,7 +22,8 @@ NM_TO_UM = 1e-3  # 1 nm = 1e-3 µm
 # =========================
 # 默认 Top/Bottom die 与 pad 输入（可在 main 中覆盖）
 # =========================
-TOP_WAFER_RADIUS_UM: float = 75_000.0  # 300mm wafer 半径
+TOP_DIE_W_UM: float = 10_000.0
+TOP_DIE_H_UM: float = 10_000.0
 
 PAD_SIZE_UM:  float = 50.0     # pad 真正边长
 PAD_PITCH_UM: float = 100.0    # 可视化像素边长
@@ -273,7 +274,8 @@ def pad_esd_yield_map_generator(
     pad_coords_um: np.ndarray,
     pad_size_um: float,
     pad_pitch_um: float,
-    top_wafer_radius_um: float,
+    top_die_w_um: float,
+    top_die_h_um: float,
     n_tilts: int,
     n_dishes: int,
     tilt_x_mean_deg: float,
@@ -321,8 +323,8 @@ def pad_esd_yield_map_generator(
             pad_choice, _, _, _ = _binary_halving_until_pad(
                 pad_coords_um=pad_coords_um,
                 pad_size_um=pad_size_um,
-                top_die_w_um=top_wafer_radius_um,
-                top_die_h_um=top_wafer_radius_um,
+                top_die_w_um=top_die_w_um,
+                top_die_h_um=top_die_h_um,
                 z_top_um=z_top_um,
                 tilt_x_init_deg=tx0,
                 tilt_y_init_deg=ty0,
@@ -337,7 +339,7 @@ def pad_esd_yield_map_generator(
     prob_vec = counts_vec.astype(np.float64) / float(total_runs)
     print("Prob_vec min/max: {:.6f} / {:.6f}".format(float(prob_vec.min()), float(prob_vec.max())))
 
-    p_fail_single = _compute_p_fail_for_die(top_wafer_radius_um, top_wafer_radius_um)
+    p_fail_single = _compute_p_fail_for_die(top_die_w_um, top_die_h_um)
     valid_pad_risk_map_vec = prob_vec * float(p_fail_single)
     print("Risk map min/max: {:.6e} / {:.6e}".format(float(valid_pad_risk_map_vec.min()),
                                                      float(valid_pad_risk_map_vec.max())))
@@ -359,7 +361,8 @@ def esd_failure_simulator(
     *,
     pad_coords_um: np.ndarray,
     pad_size_um: float,
-    top_wafer_radius_um: float,
+    top_die_w_um: float,
+    top_die_h_um: float,
     top_dish_nm_ext: np.ndarray,  # 外部给定，上层每个 pad 的 dishing（nm）
     bot_dish_nm_ext: np.ndarray,  # 外部给定，下层每个 pad 的 dishing（nm）
     tilt_x_mean_deg: float,
@@ -390,8 +393,8 @@ def esd_failure_simulator(
     pad_choice, _, _, _ = _binary_halving_until_pad(
         pad_coords_um=pad_coords_um,
         pad_size_um=pad_size_um,
-        top_die_w_um=top_wafer_radius_um,
-        top_die_h_um=top_wafer_radius_um,
+        top_die_w_um=top_die_w_um,
+        top_die_h_um=top_die_h_um,
         z_top_um=z_top_um,
         tilt_x_init_deg=tilt_x,
         tilt_y_init_deg=tilt_y,
@@ -400,7 +403,7 @@ def esd_failure_simulator(
         rng_pick=rng_pick
     )
 
-    p_fail_single = _compute_p_fail_for_die(top_wafer_radius_um, top_wafer_radius_um)
+    p_fail_single = _compute_p_fail_for_die(top_die_w_um, top_die_h_um)
     random_float = np.random.uniform(0.0, 1.0)
     if (pad_choice is not None) and (random_float < p_fail_single):
         survive_bool = False
@@ -440,7 +443,7 @@ def plot_probability_over_pads_with_pitch(
         rect.set_edgecolor('none')
 
     ax.set_aspect('equal', adjustable='box')
-    halfW, halfH = TOP_WAFER_RADIUS_UM, TOP_WAFER_RADIUS_UM
+    halfW, halfH = TOP_DIE_W_UM/2, TOP_DIE_H_UM/2
     ax.set_xlim(-halfW, halfW)
     ax.set_ylim(-halfH, halfH)
     ax.invert_yaxis()
@@ -461,7 +464,7 @@ def plot_probability_over_pads_with_pitch(
 if __name__ == "__main__":
     # 若未提供坐标，生成一个 pitch 网格做 demo
     if not PAD_COORDS_UM:
-        halfW, halfH = TOP_WAFER_RADIUS_UM, TOP_WAFER_RADIUS_UM
+        halfW, halfH = TOP_DIE_W_UM/2, TOP_DIE_H_UM/2
         xs = np.arange(-halfW + PAD_PITCH_UM*0.5, halfW, PAD_PITCH_UM)
         ys = np.arange( halfH - PAD_PITCH_UM*0.5, -halfH, -PAD_PITCH_UM)
         X, Y = np.meshgrid(xs, ys)
@@ -474,7 +477,8 @@ if __name__ == "__main__":
     #     pad_coords_um=pad_coords,
     #     pad_size_um=PAD_SIZE_UM,
     #     pad_pitch_um=PAD_PITCH_UM,
-    #     top_wafer_radius_um=TOP_WAFER_RADIUS_UM,
+    #     top_die_w_um=TOP_DIE_W_UM,
+    #     top_die_h_um=TOP_DIE_H_UM,
     #     n_tilts=N_TILTS,
     #     n_dishes=N_DISHES,
     #     tilt_x_mean_deg=TILT_X_MEAN_DEG,
@@ -504,7 +508,8 @@ if __name__ == "__main__":
     pad_idx, survive = esd_failure_simulator(
         pad_coords_um=pad_coords,
         pad_size_um=PAD_SIZE_UM,
-        top_wafer_radius_um=TOP_WAFER_RADIUS_UM,
+        top_die_w_um=TOP_DIE_W_UM,
+        top_die_h_um=TOP_DIE_H_UM,
         top_dish_nm_ext=top_ext_nm,
         bot_dish_nm_ext=bot_ext_nm,
         tilt_x_mean_deg=TILT_X_MEAN_DEG,
