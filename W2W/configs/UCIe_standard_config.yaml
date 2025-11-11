@@ -167,7 +167,7 @@ w2w_simulation:
 
   # === Miscellaneous Parameters ===
   plot_flag: True                      # Enable plotting of results
-  spatial_correlation_flag: True        # Enable spatial correlation in overlay error simulation
+ 
 
 
   
@@ -331,4 +331,4 @@ w2w_modeling:
 
   # === Miscellaneous Parameters ===
   plot_flag: True                      # Enable plotting of results
-  spatial_correlation_flag: True        # Enable spatial correlation in overlay error simulation
+ 

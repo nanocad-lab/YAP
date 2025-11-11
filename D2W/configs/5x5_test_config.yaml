@@ -163,7 +163,7 @@ d2w_simulation:
 
   # === Miscellaneous Parameters ===
   plot_flag: True                      # Enable plotting of results
-  spatial_correlation_flag: True        # Enable spatial correlation in overlay error simulation
+ 
 
 #### ==================================================================== ####
 #### Modeling parameters for Die-to-Wafer (W2W) hybrid bonding simulation.
@@ -326,4 +326,4 @@ d2w_modeling:
 
   # === Miscellaneous Parameters ===
   plot_flag: True                      # Enable plotting of results
-  spatial_correlation_flag: True        # Enable spatial correlation in overlay error simulation
+ 

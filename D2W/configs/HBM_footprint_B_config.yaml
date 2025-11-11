@@ -160,7 +160,7 @@ d2w_simulation:
 
   # === Miscellaneous Parameters ===
   plot_flag: True                      # Enable plotting of results
-  spatial_correlation_flag: True        # Enable spatial correlation in overlay error simulation
+ 
 
 
 #### ==================================================================== ####
