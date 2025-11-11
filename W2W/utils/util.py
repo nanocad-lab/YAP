@@ -218,7 +218,7 @@ def risk_map_generator(cfg,
     avg_ce_pad_yield_map /= num_dies
     avg_esd_pad_yield_map /= num_dies
     avg_bond_pad_yield_map /= num_dies
-    
+
     # # Draw the pad yield map as a heatmap
     # plt.figure(figsize=(10, 6))
     # plt.imshow(avg_ovl_pad_yield_map, cmap='viridis', vmin=np.nanmin(avg_ovl_pad_yield_map), vmax=np.nanmax(avg_ovl_pad_yield_map))
@@ -273,7 +273,9 @@ def risk_map_generator(cfg,
 
 def convert_3dblox_to_pad_bitmap(cfg, 
                                  blox_bmap_path: str, 
-                                 pad_arrange_pattern: str):
+                                 criticality_path: str,
+                                 pad_arrange_pattern: str,
+                                 ):
     '''
     This module converts the 3DBlox .bmap file to pad bitmap for YAP to process.
         - pad_arrange_pattern: 'checkerboard' for UCIe standard and HBM
@@ -333,7 +335,7 @@ def convert_3dblox_to_pad_bitmap(cfg,
     '''
     # criticality_generator(cfg, bump_data, redundant_net_to_bumpids)
     criticality_info = dict()
-    with open(cfg.INPUT_DIR + cfg.DESIGN + "_criticality.txt", 'r') as f:
+    with open(criticality_path, 'r') as f:
         lines = f.readlines()
         for line in lines:
             parts = line.strip().split()

@@ -234,6 +234,7 @@ def risk_map_generator(cfg,
 
 def convert_3dblox_to_pad_bitmap(cfg, 
                                  blox_bmap_path: str,
+                                 criticality_path: str,
                                  pad_arrange_pattern: str):
     '''
     pad_arrange_pattern: 'checkerboard' for UCIe standard and HBM
@@ -295,7 +296,7 @@ def convert_3dblox_to_pad_bitmap(cfg,
     '''
     # criticality_generator(cfg, bump_data, redundant_net_to_bumpids)
     criticality_info = dict()
-    with open(cfg.INPUT_DIR + cfg.DESIGN + "_criticality.txt", 'r') as f:
+    with open(criticality_path, 'r') as f:
         lines = f.readlines()
         for line in lines:
             parts = line.strip().split()
