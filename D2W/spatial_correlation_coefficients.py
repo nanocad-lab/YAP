@@ -289,14 +289,15 @@ def get_spatial_correlation_coefficients(
 
         print("{} correlation statistics saved in ".format(mech) + cfg.OUTPUT_DIR + cfg.DESIGN + "/{}_pad_fail_correlation_stats.txt".format(mech))
 
-        plt.figure(figsize=(10,6))
-        plt.plot(global_dist_list, overall_phi_dict[mech], marker='o', linestyle='-')
-        plt.xlabel("Pad-to-Pad Distance (µm)")
-        plt.ylabel("{} Pad Failure Correlation Coefficient (ϕ)".format(mech.capitalize()))
-        plt.title("{} Pad Failure Correlation vs Distance".format(mech.capitalize()))
-        plt.grid(True)
-        plt.xticks(np.arange(Rmin, Rmax + 1, dist_interval_um))
-        # plt.savefig(cfg.OUTPUT_DIR + cfg.DESIGN + "/{}_phi_vs_distance.png".format(mech), dpi=300)
-        plt.show()
+        if cfg.DEBUG:
+            plt.figure(figsize=(10,6))
+            plt.plot(global_dist_list, overall_phi_dict[mech], marker='o', linestyle='-')
+            plt.xlabel("Pad-to-Pad Distance (µm)")
+            plt.ylabel("{} Pad Failure Correlation Coefficient (ϕ)".format(mech.capitalize()))
+            plt.title("{} Pad Failure Correlation vs Distance".format(mech.capitalize()))
+            plt.grid(True)
+            plt.xticks(np.arange(Rmin, Rmax + 1, dist_interval_um))
+            # plt.savefig(cfg.OUTPUT_DIR + cfg.DESIGN + "/{}_phi_vs_distance.png".format(mech), dpi=300)
+            plt.show()
 
     

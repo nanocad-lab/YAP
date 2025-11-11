@@ -47,13 +47,20 @@ def main():
     # Step 2: run assembly yield simulator
     print("Running spatial correlation coefficient precalculation...")
     start_time = time.time()
-    cfg.NUM_DIES = 10  # For correlation coefficient precalculation, only 1 die is needed
-    cfg.SYSTEM_ROTATION_MEAN_rad = 7e-4
+    if 'HBM' in cfg.DESIGN:
+        cfg.NUM_DIES = 100  # For correlation coefficient precalculation, only 1 die is needed
+        cfg.SYSTEM_ROTATION_MEAN_rad = 7e-4
+        cfg.D0 = 1e-7
+    elif 'UCIe' in cfg.DESIGN:
+        cfg.NUM_DIES = 1000  # For correlation coefficient precalculation, only 1 die is needed
+    else:
+        cfg.NUM_DIES = 10  # Default value
+        cfg.SYSTEM_ROTATION_MEAN_rad = 7e-2
+        cfg.D0 = 1e-6
     cfg.TOP_DISH_MEAN_nm = -0.0 
     cfg.TOP_DISH_STD_nm = 0.3 
     cfg.BOT_DISH_MEAN_nm = -0.0
     cfg.BOT_DISH_STD_nm = 0.3 
-    cfg.D0 = 1e-7
     Spatial_Correlation_Coefficients_Precalculate(
         cfg=cfg,
         pad_bitmap_collection=pad_bitmap_collection,                                               
