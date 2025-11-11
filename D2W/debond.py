@@ -22,6 +22,7 @@ import math
 import matplotlib.pyplot as plt
 import numpy as np
 from roughness_coefficients import get_eff_contact_area_ratio
+from matplotlib.ticker import MultipleLocator
 
 # =============================================================================
 # =============================== PARAMETERS ==================================
@@ -442,7 +443,7 @@ def peeling_stress_at_points_vec_MPa(peel_dict: dict, coords_mm_np: np.ndarray, 
     p_pa  = p_max * np.exp(-beta*s) * (np.cos(beta*s) - np.sin(beta*s))
     if USE_PLOT:
         plt.figure()
-        plt.scatter(r_m*1e3, p_pa/1e6, s=10)
+        plt.scatter(r_m*1e3, p_pa/1e6, s=8)
         plt.xlabel("Radius r (mm)")
         plt.ylabel("Peeling Stress p (MPa)")
         plt.title("Peeling Stress vs Radius")
@@ -486,15 +487,57 @@ def build_effcrit_and_dishing_arrays(peel_dict: dict, coords_mm_np: np.ndarray, 
         D_cu_nm[i] = D_Cu
 
     if USE_PLOT:
-        # Optional visualization of peeling stress field
-        plt.figure(figsize=(15, 10))
-        plt.scatter(coords_mm_np[:, 0], coords_mm_np[:, 1], c=p_MPa, cmap='viridis', s=100)
-        plt.colorbar(label='Peeling Stress p (MPa)')
-        plt.xlabel('X (mm)')
-        plt.ylabel('Y (mm)')
+        # # Optional visualization of peeling stress field
+        # plt.figure(figsize=(8, 6))
+        # plt.scatter(coords_mm_np[:, 0], coords_mm_np[:, 1], c=p_MPa, cmap='viridis', s=8)
+        # plt.colorbar(label='Peeling Stress p (MPa)')
+        # plt.xlabel('X (um)')
+        # plt.ylabel('Y (um)')
+        # plt.title('Peeling Stress Distribution')
+        # plt.axis('equal')
+        # plt.minorticks_on()
+
+        # ax = plt.gca()
+        # ax.xaxis.set_major_locator(MultipleLocator(1.0))
+        # ax.yaxis.set_major_locator(MultipleLocator(1.0))
+        # ax.xaxis.set_minor_locator(MultipleLocator(0.5))  # 次刻度间隔 0.25 mm
+        # ax.yaxis.set_minor_locator(MultipleLocator(0.5))
+        # ax.set_xticks(np.arange(-2.5, 2.51, 1))
+        # ax.set_yticks(np.arange(-2.5, 2.51, 1))
+        # ax.tick_params(which='both', direction='in', top=True, right=True)
+        # ax.tick_params(which='major', length=6, labelsize=12)
+        # ax.tick_params(which='minor', length=3)
+        # ax.grid(which='major', linestyle='-', linewidth=0.8, alpha=0.6)
+        # ax.grid(which='minor', linestyle='--', linewidth=0.4, alpha=0.4)
+        # plt.show()
+        coords_um_np = coords_mm_np * 1000
+
+        x = np.unique(coords_um_np[:, 0])
+        y = np.unique(coords_um_np[:, 1])
+        X, Y = np.meshgrid(x, y)
+
+        # 将 p_MPa 重塑为与坐标匹配的网格形状
+        Z = p_MPa.reshape(len(y), len(x))
+
+        plt.figure(figsize=(8, 6), dpi=100)
+        mesh = plt.pcolormesh(X, Y, Z, cmap='viridis', shading='auto')
+        plt.colorbar(mesh, label='Peeling Stress p (MPa)')
+        plt.xlabel('X (μm)')
+        plt.ylabel('Y (μm)')
         plt.title('Peeling Stress Distribution')
         plt.axis('equal')
-        plt.grid(True)
+
+        ax = plt.gca()
+        ax.xaxis.set_major_locator(MultipleLocator(1000))
+        ax.yaxis.set_major_locator(MultipleLocator(1000))
+        ax.xaxis.set_minor_locator(MultipleLocator(500))
+        ax.yaxis.set_minor_locator(MultipleLocator(500))
+        ax.tick_params(which='both', direction='in', top=True, right=True)
+        ax.tick_params(which='major', length=6, labelsize=12)
+        ax.tick_params(which='minor', length=3)
+        ax.grid(which='major', linestyle='-', linewidth=0.8, alpha=0.6)
+        ax.grid(which='minor', linestyle='--', linewidth=0.4, alpha=0.4)
+
         plt.show()
 
     effcrit = np.column_stack([sigma_eff_Cu, sigma_eff_SiO2])      # (N,2)

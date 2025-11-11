@@ -8,7 +8,7 @@ d2w_simulation:
   OUTPUT_DIR: "output/"          # Output directory for simulation results
   DESIGN: "HBM_footprint_A"                      # Design name  
   # === Die Settings ===
-  NUM_DIES: 10000                            # Number of Dies used in simulation
+  NUM_DIES: 1                            # Number of Dies used in simulation
   PITCH_r_um: 55                            # Row pad pitch (µm) (In checkerboard layout, this is sqrt(2)/2 times of the real pitch)
   PITCH_c_um: 35                            # Column pad pitch (µm)  (In checkerboard layout, this is sqrt(2)/2 times of the real pitch)
   DIE_W_um: 10850                          # Die width (µm)
@@ -32,7 +32,7 @@ d2w_simulation:
   B_Sub_Sio2_V: 0.00                    # Efficient substrate layer Sio2 volume density
   B_Sub_Si_V: 0.90                      # Efficient substrate layer si volume density
   B_Sub_T: 775e-6                       # Efficient substrate layer thickness (m)
-  S_INIT_A_M: 25e-9                     # Pre-anneal warpages (m)
+  S_INIT_A_M: 100e-9                     # Pre-anneal warpages (m)
   # === Top Wafer Settings ===
   T_Chip_Cu_V: 0.30                     # Efficient chip layer Cu volume density
   T_Chip_Sio2_V: 0.70                   # Efficient chip layer Sio2 volume density
@@ -46,8 +46,8 @@ d2w_simulation:
 
  
 
-  CONTACT_AREA_CONSTRAINT: 0.5         # Minimum allowed contact area ratio
-  CRITICAL_DIST_CONSTRAINT: 0.5        # Minimum distance constraint for critical pads
+  CONTACT_AREA_CONSTRAINT: 0.75         # Minimum allowed contact area ratio
+  CRITICAL_DIST_CONSTRAINT: 0.75        # Minimum distance constraint for critical pads
 
   # === Misalignment Parameters ===
   RANDOM_MISALIGNMENT_MEAN_um: 5e-3        # Random misalignment mean (µm)
@@ -56,8 +56,8 @@ d2w_simulation:
   SYSTEM_TRANSLATION_X_STD_um: 1e-2        # Systematic X translation std (µm)
   SYSTEM_TRANSLATION_Y_MEAN_um: 5e-3       # Systematic Y translation mean (µm)
   SYSTEM_TRANSLATION_Y_STD_um: 1e-2        # Systematic Y translation std (µm)
-  SYSTEM_ROTATION_MEAN_rad: 2e-6            # Systematic rotation mean (rad)
-  SYSTEM_ROTATION_STD_rad: 1e-6             # Systematic rotation std (rad)
+  SYSTEM_ROTATION_MEAN_rad: 8e-4            # Systematic rotation mean (rad)
+  SYSTEM_ROTATION_STD_rad: 1e-5             # Systematic rotation std (rad)
 
   # === Bowing and Magnification ===
   BOW_DIFFERENCE_MEAN_um: 0.5               # Bow difference mean (µm)
@@ -67,7 +67,7 @@ d2w_simulation:
 
   # === Defect Parameters ===
   first_contact: 'horizontal-edge'            # First contact location: 'center' or 'edge' or 'corner (left-top)'
-  D0: 1e-9                              # Particle density (1/µm²)
+  D0: 2.1e-9                              # Particle density (1/µm²)
   z: 3                                  # Particle thickness distribution exponent
   t_0: 0.1                                # Minimum particle thickness (µm)
   k_r: 1.8e-4
@@ -77,10 +77,10 @@ d2w_simulation:
   k_S: 2.7
 
   # === Cu Dishing Parameters ===
-  TOP_DISH_MEAN_nm: -2.0                  # Top pad dish mean (nm)
-  TOP_DISH_STD_nm: 0.3                     # Top pad dish std (nm)
-  BOT_DISH_MEAN_nm: -2.0                  # Bottom pad dish mean (nm)
-  BOT_DISH_STD_nm: 0.3                     # Bottom pad dish std (nm)
+  TOP_DISH_MEAN_nm: -1.0                  # Top pad dish mean (nm)
+  TOP_DISH_STD_nm: 0.33                     # Top pad dish std (nm)
+  BOT_DISH_MEAN_nm: -1.0                  # Bottom pad dish mean (nm)
+  BOT_DISH_STD_nm: 0.33                     # Bottom pad dish std (nm)
   k_et: 0.053                           # Top Cu expansion coefficient (nm/K)
   k_eb: 0.053                           # Bottom Cu expansion coefficient (nm/K)
   T_R: 25                               # Room temperature (°C)
@@ -151,10 +151,10 @@ d2w_simulation:
   Effective_Contact_Area: 1.0           # Fraction of pad area effectively bearing normal load
 
   # === ESD Parameters ===
-  TILT_X_MEAN_DEG: 0.000
-  TILT_X_STD_DEG: 0.01
+  TILT_X_MEAN_DEG: 0.010
+  TILT_X_STD_DEG: 1e-4
   TILT_Y_MEAN_DEG: 0.000
-  TILT_Y_STD_DEG: 0.01
+  TILT_Y_STD_DEG: 1e-4
 
   # === Simulation Control ===
   simulation_times: 1                  # Number of simulation iterations
@@ -162,6 +162,7 @@ d2w_simulation:
 
   # === Miscellaneous Parameters ===
   plot_flag: True                      # Enable plotting of results
+  spatial_correlation_flag: True        # Enable spatial correlation in overlay error simulation
 
 #### ==================================================================== ####
 #### Modeling parameters for Die-to-Wafer (W2W) hybrid bonding simulation.
@@ -210,8 +211,8 @@ d2w_modeling:
 
  
 
-  CONTACT_AREA_CONSTRAINT: 0.5         # Minimum allowed contact area ratio
-  CRITICAL_DIST_CONSTRAINT: 0.5        # Minimum distance constraint for critical pads
+  CONTACT_AREA_CONSTRAINT: 0.75         # Minimum allowed contact area ratio
+  CRITICAL_DIST_CONSTRAINT: 0.75        # Minimum distance constraint for critical pads
 
   # === Overlay Parameters ===
   num_samples: 10000                    # Number of samples for misalignment input parameters
@@ -241,9 +242,9 @@ d2w_modeling:
 
   # === Cu Expansion / Dishing Parameters ===
   TOP_DISH_MEAN_nm: -1.0                  # Top pad height mean (nm)
-  TOP_DISH_STD_nm: 0.4                     # Top pad height std (nm)
+  TOP_DISH_STD_nm: 0.45                     # Top pad height std (nm)
   BOT_DISH_MEAN_nm: -1.0                  # Bottom pad height mean (nm)
-  BOT_DISH_STD_nm: 0.4                     # Bottom pad height std (nm)
+  BOT_DISH_STD_nm: 0.45                     # Bottom pad height std (nm)
   k_et: 0.053                           # Top Cu expansion coef (nm/K)
   k_eb: 0.053                           # Bottom Cu expansion coef (nm/K)
   T_R: 25                               # Room temperature (°C)
@@ -319,7 +320,8 @@ d2w_modeling:
   TILT_Y_MEAN_DEG: 0.000
   TILT_Y_STD_DEG: 1e-4
   n_tilts_samples: 1                  # Number of tilt samples for ESD simulation
-  n_dishes_samples: 1000000             # Number of dish samples for ESD simulation
+  n_dishes_samples: 10000             # Number of dish samples for ESD simulation
 
   # === Miscellaneous Parameters ===
   plot_flag: True                      # Enable plotting of results
+  spatial_correlation_flag: True        # Enable spatial correlation in overlay error simulation

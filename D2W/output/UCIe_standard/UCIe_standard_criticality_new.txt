@@ -1,0 +1,15 @@
+rxckRD rxckn rxckp rxtrk 4 1 1
+rxcksb rxcksbRD 2 1 1
+rxdataRD0 rxdataRD1 rxdata0 rxdata1 rxdata2 rxdata3 rxdata4 rxdata5 rxdata6 rxdata7 rxdata8 rxdata9 rxdata10 rxdata11 rxdata12 rxdata13 rxdata14 rxdata15 rxdata16 rxdata17 rxdata18 rxdata19 rxdata20 rxdata21 rxdata22 rxdata23 rxdata24 rxdata25 rxdata26 rxdata27 rxdata28 rxdata29 rxdata30 rxdata31 34 2 2
+rxdataRD2 rxdataRD3 rxdata32 rxdata33 rxdata34 rxdata35 rxdata36 rxdata37 rxdata38 rxdata39 rxdata40 rxdata41 rxdata42 rxdata43 rxdata44 rxdata45 rxdata46 rxdata47 rxdata48 rxdata49 rxdata50 rxdata51 rxdata52 rxdata53 rxdata54 rxdata55 rxdata56 rxdata57 rxdata58 rxdata59 rxdata60 rxdata61 rxdata62 rxdata63 34 2 2
+rxdatasb rxdatasbRD 2 1 1
+rxvld rxvldRD 2 1 1
+txckRD txckn txckp txtrk 4 1 1
+txcksb txcksbRD 2 1 1
+txdataRD0 txdataRD1 txdata0 txdata1 txdata2 txdata3 txdata4 txdata5 txdata6 txdata7 txdata8 txdata9 txdata10 txdata11 txdata12 txdata13 txdata14 txdata15 txdata16 txdata17 txdata18 txdata19 txdata20 txdata21 txdata22 txdata23 txdata24 txdata25 txdata26 txdata27 txdata28 txdata29 txdata30 txdata31 34 2 2
+txdataRD2 txdataRD3 txdata32 txdata33 txdata34 txdata35 txdata36 txdata37 txdata38 txdata39 txdata40 txdata41 txdata42 txdata43 txdata44 txdata45 txdata46 txdata47 txdata48 txdata49 txdata50 txdata51 txdata52 txdata53 txdata55 txdata56 txdata57 txdata58 txdata59 txdata60 txdata61 txdata62 txdata63 34 2 2
+txdatasb txdatasbRD 2 1 1
+txvld txvldRD 2 1 1
+vccfwdio 5 5 4
+vccio 30 30 29
+vss 34 34 33

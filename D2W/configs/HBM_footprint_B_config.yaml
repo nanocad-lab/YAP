@@ -46,8 +46,8 @@ d2w_modeling:
 
  
 
-  CONTACT_AREA_CONSTRAINT: 0.5         # Minimum allowed contact area ratio
-  CRITICAL_DIST_CONSTRAINT: 0.5        # Minimum distance constraint for critical pads
+  CONTACT_AREA_CONSTRAINT: 0.75         # Minimum allowed contact area ratio
+  CRITICAL_DIST_CONSTRAINT: 0.75        # Minimum distance constraint for critical pads
 
   # === Overlay Parameters ===
   num_samples: 10000                    # Number of samples for misalignment input parameters

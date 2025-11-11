@@ -4,17 +4,17 @@
 #### Author: Zhichao Chen
 #### Date: Sep 26, 2024
 
+import os
 import numpy as np
 from scipy.integrate import quad
 from scipy.stats import norm
 import time
 
-from wafer_die_initialization import Die, Wafer, die_initialize
-from overlay_yield_simulator import overlay_term_simulator, die_pad_misalignment
-from Cu_gap_simulator import Cu_gap_simulator
+from wafer_die_initialization import die_initialize
+from overlay_yield_simulator import overlay_term_simulator
 from defect_yield_simulator import defect_yield_simulator
-from roughness_parameters import roughness_parameters
 from overall_yield_simulator import overall_yield_simulator
+from spatial_correlation_coefficients import get_spatial_correlation_coefficients
 
 
 def Assembly_Yield_Simulator(
@@ -81,6 +81,7 @@ def Assembly_Yield_Simulator(
     )
 
     
+    
     # Calculate the overall yield
     yield_list = overall_yield_simulator(
         cfg                             =       cfg,
@@ -93,7 +94,7 @@ def Assembly_Yield_Simulator(
         system_magnification_ppm        =       system_magnification_ppm,
         MAX_ALLOWED_MISALIGNMENT_um     =       MAX_ALLOWED_MISALIGNMENT_um,
         PAD_ARR_W_um                    =       cfg.PAD_ARR_W_um,
-        PAD_ARR_L_um                    =       cfg.PAD_ARR_L_um,
+        PAD_ARR_L_um                    =       cfg.PAD_ARR_L_um, 
         PAD_ARR_ROW                     =       cfg.PAD_ARR_ROW,
         PAD_ARR_COL                     =       cfg.PAD_ARR_COL,
         TOP_DISH_MEAN_nm                =       cfg.TOP_DISH_MEAN_nm,

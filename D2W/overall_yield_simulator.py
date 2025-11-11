@@ -224,7 +224,7 @@ def overall_yield_simulator(
         # Check critical pad Cu gap
         critical_pad_Cu_gap = Cu_gap_map * die_critical_pad_bitmap  # shape: (PAD_ARR_ROW, PAD_ARR_COL)
         if np.any(critical_pad_Cu_gap > zeta_1 * die_critical_pad_bitmap) or np.any(critical_pad_Cu_gap < zeta_0 * die_critical_pad_bitmap):
-            print(f"Die {die_ind} fails due to critical pad Cu gap.")
+            # print(f"Die {die_ind} fails due to critical pad Cu gap.")
             die.survival = False
             critical_fail += 1
             continue
@@ -239,7 +239,7 @@ def overall_yield_simulator(
         fail_bump_id_set = set(fail_bump_id.astype(int))
         # Check every net connecting redundant pads, if all the redundant pad replicas fail due to voids, then the die fails
         if any(redundant_bumpid_set.issubset(fail_bump_id_set) for net, redundant_bumpid_set in redundant_net_to_bumpids.items()):
-            print(f"Die {die_ind} fails due to redundant pad Cu gap.")  
+            # print(f"Die {die_ind} fails due to redundant pad Cu gap.")  
             die.survival = False
             redundant_fail += 1
             break

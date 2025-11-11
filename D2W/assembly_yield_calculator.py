@@ -135,7 +135,7 @@ def Pad_Yield_Map_Generator(
     die.glb_pad_yield_min_max_dict['Y_esd'] = (np.nanmin(die.pad_yield_map['Y_esd']), np.nanmax(die.pad_yield_map['Y_esd']))
     if cfg.plot_flag:
         # Draw the pad yield map
-        plt.figure(figsize=(8, 6))
+        plt.figure(figsize=(12, 6))
         plt.imshow(
             die.pad_yield_map['Y_esd'],
             cmap='viridis', 

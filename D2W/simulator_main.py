@@ -31,8 +31,7 @@ def main():
     if not os.path.exists(cfg.OUTPUT_DIR + cfg.DESIGN):
         os.makedirs(cfg.OUTPUT_DIR + cfg.DESIGN)
 
-    # Update cfg (same as before)
-    update_config_items(cfg=cfg, mode=args.mode)
+
 
     # Determine .bmap path
     blox_bmap_path = args.bmap
@@ -41,6 +40,10 @@ def main():
     pad_bitmap_collection = convert_3dblox_to_pad_bitmap(cfg=cfg,
                                                         blox_bmap_path=blox_bmap_path,
                                                         pad_arrange_pattern=cfg.PAD_ARRANGE_PATTERN)
+    
+    # Update cfg (same as before)
+    update_config_items(cfg=cfg, mode=args.mode)
+
     # Step 2: run assembly yield simulator
     print("Running assembly yield simulator over {} dies...".format(cfg.NUM_DIES))
     start_time = time.time()

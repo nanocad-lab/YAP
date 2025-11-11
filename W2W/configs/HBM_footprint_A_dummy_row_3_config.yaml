@@ -49,8 +49,8 @@ w2w_simulation:
 
  
 
-  CONTACT_AREA_CONSTRAINT: 0.5         # Minimum allowed contact area ratio
-  CRITICAL_DIST_CONSTRAINT: 0.5        # Minimum distance constraint for critical pads
+  CONTACT_AREA_CONSTRAINT: 0.75         # Minimum allowed contact area ratio
+  CRITICAL_DIST_CONSTRAINT: 0.75        # Minimum distance constraint for critical pads
 
   # === Misalignment Parameters ===
   RANDOM_MISALIGNMENT_MEAN_um: 0        # Mean of random overlay error (µm)
@@ -216,8 +216,8 @@ w2w_modeling:
   S_INIT_B_M: 0.0e-6                    # Pre-anneal warpages (m)
 
 
-  CONTACT_AREA_CONSTRAINT: 0.5         # Minimum allowed contact area ratio
-  CRITICAL_DIST_CONSTRAINT: 0.5        # Minimum distance constraint for critical pads
+  CONTACT_AREA_CONSTRAINT: 0.75         # Minimum allowed contact area ratio
+  CRITICAL_DIST_CONSTRAINT: 0.75        # Minimum distance constraint for critical pads
 
   # === Overlay Parameters ===
   num_samples: 10000                    # Number of samples for misalignment input parameters
