@@ -3,7 +3,8 @@ w2w_simulation:
   # === General Settings ===
   MODE: "W2W_Hybrid_Bonding_Simulation"  # Name of the simulation
   DEBUG: false                                      # Enable debug mode
-  OUTPUT_DIR: "output/"          # Output directory for simulation results
+  OUTPUT_DIR: "output/"
+  INPUT_DIR: "input/"          # Output directory for simulation results
   DESIGN: "<DESIGN_NAME>"                      # Design name
   # === Wafer and Die Settings ===
   NUM_WAFERS: 1                        # Number of wafers used in simulation
@@ -179,7 +180,8 @@ w2w_modeling:
   # === General Settings ===
   MODE: "W2W_Hybrid_Bonding_Modeling"   # Name of the modeling
   DEBUG: false                          # Enable debug mode
-  OUTPUT_DIR: "output/"          # Output directory for simulation results
+  OUTPUT_DIR: "output/"
+  INPUT_DIR: "input/"          # Output directory for simulation results
   DESIGN: "<DESIGN_NAME>"                      # Design name
   # === Per Wafer Parameters ===
   PITCH_r_um: <ROW_PITCH_Y>                              # Row pad PITCH_um (µm)   (In checkerboard layout, this is sqrt(2)/2 times of the real pitch)
@@ -347,7 +349,8 @@ d2w_simulation:
   # === General Settings ===
   MODE: "D2W_Hybrid_Bonding_Simulation" # Name of the simulation
   DEBUG: false                          # Enable debug mode
-  OUTPUT_DIR: "output/"          # Output directory for simulation results
+  OUTPUT_DIR: "output/"
+  INPUT_DIR: "input/"          # Output directory for simulation results
   DESIGN: "<DESIGN_NAME>"                      # Design name  
   # === Die Settings ===
   NUM_DIES: 10000                            # Number of Dies used in simulation
@@ -523,7 +526,8 @@ d2w_modeling:
   # === General Settings ===
   MODE: "D2W_Hybrid_Bonding_Modeling"   # Name of the modeling
   DEBUG: false                          # Enable debug mode
-  OUTPUT_DIR: "output/"          # Output directory for simulation results
+  OUTPUT_DIR: "output/"
+  INPUT_DIR: "input/"          # Output directory for simulation results
   DESIGN: "<DESIGN_NAME>"                      # Design name  
   # === Die Settings ===
   NUM_DIES: 10000                            # Number of Dies used in simulation

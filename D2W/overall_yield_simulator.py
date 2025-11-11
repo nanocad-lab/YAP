@@ -78,6 +78,10 @@ def overall_yield_simulator(
         valid_pad_mask = (pad_bitmap_collection['CRITICAL_PAD_BITMAP'] == 1) | (pad_bitmap_collection['REDUNDANT_PAD_BITMAP'] == 1) | (pad_bitmap_collection['DUMMY_PAD_BITMAP'] == 1)
         # Read the mapping from physical to bump id
         mapping_physical_to_bumpid = pad_bitmap_collection["mapping_physical_to_bumpid"]
+        # Read the criticality info
+        criticality_info = pad_bitmap_collection["criticality_info"]
+        # Read the redundant net to 1D physical mask mapping
+        redundant_net_to_1d_physical_mask = pad_bitmap_collection["redundant_net_to_1d_physical_mask"]
         critical_fail = 0
         redundant_fail = 0
         redundant_pad_fail_map = np.zeros((PAD_ARR_ROW, PAD_ARR_COL))
@@ -108,19 +112,27 @@ def overall_yield_simulator(
             # Check if too many redundant pad misalignment is greater than the maximum allowed misalignment
             redundant_pad_misalignment = die.pad_misalignment * die_redundant_pad_bitmap    # shape (PAD_ARR_ROW, PAD_ARR_COL)
             redundant_pad_fail_map[redundant_pad_misalignment > MAX_ALLOWED_MISALIGNMENT_um] = 1   # 1: redundant pad fails
-            # Get the fail bump indices
-            fail_bump_id = mapping_physical_to_bumpid[redundant_pad_fail_map == 1]
-            # Switch to set for easier checking
-            fail_bump_id_set = set(fail_bump_id.astype(int))    
+            for redundant_net, physical_mask in redundant_net_to_1d_physical_mask.items():
+                tolerated_mechanical_failures = criticality_info[redundant_net]['tolerated_mechanical_failures']
+                num_fail_pad_in_net = np.sum(redundant_pad_fail_map.flatten()[physical_mask])
+                if num_fail_pad_in_net > tolerated_mechanical_failures:
+                    die.survival = False
+                    redundant_fail += 1
+                    break
+
+            # # Get the fail bump indices
+            # fail_bump_id = mapping_physical_to_bumpid[redundant_pad_fail_map == 1]
+            # # Switch to set for easier checking
+            # fail_bump_id_set = set(fail_bump_id.astype(int))    
 
         # Delete the die.pad_misalignment to save memory
         del die.pad_misalignment
 
-        # If all the redundant pad replicas fail, then the die fails
-        if any(redundant_bumpid_set.issubset(fail_bump_id_set) for net, redundant_bumpid_set in redundant_net_to_bumpids.items()):
-                die.survival = False
-                redundant_fail += 1
-                break
+        # # If all the redundant pad replicas fail, then the die fails
+        # if any(redundant_bumpid_set.issubset(fail_bump_id_set) for net, redundant_bumpid_set in redundant_net_to_bumpids.items()):
+        #         die.survival = False
+        #         redundant_fail += 1
+        #         break
         if not die.survival:
             continue
 
@@ -188,16 +200,23 @@ def overall_yield_simulator(
                         # Check if any void overlaps with the redundant critical pads
                         overlap_redundant = overlap_void_pad_mask & check_redundant_pad_bitmap.astype(bool)
                         redundant_pad_fail_map[PAD_ARR_ROW-j_max-1:PAD_ARR_ROW-j_min, i_min:i_max+1][overlap_redundant] = 1
-                        # Get the fail bump indices
-                        fail_bump_id = mapping_physical_to_bumpid[redundant_pad_fail_map == 1]
-                        # Switch to set for easier checking
-                        fail_bump_id_set = set(fail_bump_id.astype(int))
+                        for redundant_net, physical_mask in redundant_net_to_1d_physical_mask.items():
+                            tolerated_mechanical_failures = criticality_info[redundant_net]['tolerated_mechanical_failures']
+                            num_fail_pad_in_net = np.sum(redundant_pad_fail_map.flatten()[physical_mask])
+                            if num_fail_pad_in_net > tolerated_mechanical_failures:
+                                die.survival = False
+                                redundant_fail += 1
+                                break
+                        # # Get the fail bump indices
+                        # fail_bump_id = mapping_physical_to_bumpid[redundant_pad_fail_map == 1]
+                        # # Switch to set for easier checking
+                        # fail_bump_id_set = set(fail_bump_id.astype(int))
                 
-                        # Check every net connecting redundant pads, if all the redundant pad replicas fail due to voids, then the die fails
-                        if any(redundant_bumpid_set.issubset(fail_bump_id_set) for net, redundant_bumpid_set in redundant_net_to_bumpids.items()):
-                            die.survival = False
-                            redundant_fail += 1
-                            break
+                        # # Check every net connecting redundant pads, if all the redundant pad replicas fail due to voids, then the die fails
+                        # if any(redundant_bumpid_set.issubset(fail_bump_id_set) for net, redundant_bumpid_set in redundant_net_to_bumpids.items()):
+                        #     die.survival = False
+                        #     redundant_fail += 1
+                        #     break
                     if not die.survival:
                         break
 
@@ -233,16 +252,23 @@ def overall_yield_simulator(
         redundant_pad_Cu_gap = Cu_gap_map * die_redundant_pad_bitmap
         redundant_pad_fail_map[redundant_pad_Cu_gap > zeta_1 * die_redundant_pad_bitmap] = 1
         redundant_pad_fail_map[redundant_pad_Cu_gap < zeta_0 * die_redundant_pad_bitmap] = 1
-        # Get the fail bump indices
-        fail_bump_id = mapping_physical_to_bumpid[redundant_pad_fail_map == 1]
-        # Switch to set for easier checking
-        fail_bump_id_set = set(fail_bump_id.astype(int))
-        # Check every net connecting redundant pads, if all the redundant pad replicas fail due to voids, then the die fails
-        if any(redundant_bumpid_set.issubset(fail_bump_id_set) for net, redundant_bumpid_set in redundant_net_to_bumpids.items()):
-            # print(f"Die {die_ind} fails due to redundant pad Cu gap.")  
-            die.survival = False
-            redundant_fail += 1
-            break
+        for redundant_net, physical_mask in redundant_net_to_1d_physical_mask.items():
+            tolerated_mechanical_failures = criticality_info[redundant_net]['tolerated_mechanical_failures']
+            num_fail_pad_in_net = np.sum(redundant_pad_fail_map.flatten()[physical_mask])
+            if num_fail_pad_in_net > tolerated_mechanical_failures:
+                die.survival = False
+                redundant_fail += 1
+                break
+        # # Get the fail bump indices
+        # fail_bump_id = mapping_physical_to_bumpid[redundant_pad_fail_map == 1]
+        # # Switch to set for easier checking
+        # fail_bump_id_set = set(fail_bump_id.astype(int))
+        # # Check every net connecting redundant pads, if all the redundant pad replicas fail due to voids, then the die fails
+        # if any(redundant_bumpid_set.issubset(fail_bump_id_set) for net, redundant_bumpid_set in redundant_net_to_bumpids.items()):
+        #     # print(f"Die {die_ind} fails due to redundant pad Cu gap.")  
+        #     die.survival = False
+        #     redundant_fail += 1
+        #     break
 
         '''
         Check the ESD failure
@@ -265,6 +291,13 @@ def overall_yield_simulator(
                 print(f"Die {die_ind} fails due to ESD on critical pad.")
                 die.survival = False
                 continue
+            for redundant_net, physical_mask in redundant_net_to_1d_physical_mask.items():
+                tolerated_esd_failures = criticality_info[redundant_net]['tolerated_esd_failures']
+                num_fail_pad_in_net = np.sum(redundant_pad_fail_map.flatten()[physical_mask])
+                if num_fail_pad_in_net > tolerated_esd_failures:
+                    die.survival = False
+                    redundant_fail += 1
+                    break
         
         if die.survival:
             safe_die_count += 1

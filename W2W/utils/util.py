@@ -262,15 +262,43 @@ def convert_3dblox_to_pad_bitmap(cfg,
                 if float(y) > pad_array_top:
                     pad_array_top = float(y)
                 bumpid += 1  # Increment bumpid after successfully parsing a line
-    # Convert the bump data to pad bitmap
+    # Record the 1D physical locations of each pad in redundant nets
+    '''Example: {NC: [0, 5, 10], VSS: [1, 6, 11], VDD: [2, 7, 12], ...}'''
+    redundant_net_to_1d_physical_mask = dict()   
+    # Record the bump ids of each pad in redundant nets, bump id is the index in bump_data list
     redundant_net_to_bumpids = dict()
     for bump in bump_data:
         if bump['net'] not in redundant_net_to_bumpids:
             redundant_net_to_bumpids[bump['net']] = set()
+            redundant_net_to_1d_physical_mask[bump['net']] = np.array([], dtype=int)
         redundant_net_to_bumpids[bump['net']].add(bump['bumpid'])
     
     # Generate the criticality map
-    criticality_generator(cfg, bump_data, redundant_net_to_bumpids)
+    '''
+    Current Format: <net1> [net2] [net3] ... <group_size> <tolerated_esd_failures> <tolerated_mechanical_failures>
+   
+    Where:
+    - group_size: Total number of pads/bumps in the redundancy group
+    - tolerated_esd_failures: Number of ESD failures the group can tolerate before failing
+    - tolerated_mechanical_failures: Number of mechanical failures the group can tolerate before failing
+    
+    Criticality values are calculated when reading the file:
+    - esd_criticality = (group_size - tolerated_esd_failures) / group_size
+    - mechanical_criticality = (group_size - tolerated_mechanical_failures) / group_size
+    '''
+    # criticality_generator(cfg, bump_data, redundant_net_to_bumpids)
+    criticality_info = dict()
+    with open(cfg.INPUT_DIR + cfg.DESIGN + "_criticality.txt", 'r') as f:
+        lines = f.readlines()
+        for line in lines:
+            parts = line.strip().split()
+            if len(parts) != 4:
+                continue
+            net, num_copy, tolerated_esd_failures, tolerated_mechanical_failures = parts
+            criticality_info[net] = {
+                "tolerated_esd_failures": int(tolerated_esd_failures),
+                "tolerated_mechanical_failures": int(tolerated_mechanical_failures)
+            }
 
     # Initialize the pad bitmap
     # TODO: You need to modify the simulator to support different pad arrangement patterns
@@ -292,21 +320,20 @@ def convert_3dblox_to_pad_bitmap(cfg,
             pad_coords[row * cfg.PAD_ARR_COL + col, 0] = bump['x'] - (pad_array_left + pad_array_right) / 2
             pad_coords[row * cfg.PAD_ARR_COL + col, 1] = bump['y'] - (pad_array_top + pad_array_bottom) / 2
             current_bump_net = bump['net']
-            current_bump_port = bump['port']
             num_copies = len(redundant_net_to_bumpids[current_bump_net])
             if 'dummy' in current_bump_net.lower():
                 DUMMY_PAD_BITMAP[row, col] = 1
                 continue
             if num_copies == 1:
                 CRITICAL_PAD_BITMAP[row, col] = 1
+                ESD_CRITICAL_PAD_BITMAP[row, col] = 1
                 redundant_net_to_bumpids.pop(current_bump_net, None)
+                redundant_net_to_1d_physical_mask.pop(current_bump_net, None)
                 continue
-            elif num_copies > 1 and ('vss' in current_bump_port.lower() or 'vcc' in current_bump_port.lower()): 
+            elif num_copies > 1: 
                 REDUNDANT_PAD_BITMAP[row, col] = 1
-                continue
-            elif num_copies > 1 and ('vss' not in current_bump_port.lower() and 'vcc' not in current_bump_port.lower()):
-                REDUNDANT_PAD_BITMAP[row, col] = 1
-                ESD_CRITICAL_PAD_BITMAP[row, col] = 1   # TODO: Check this with Alex. If redundant pads are connected to the same transistor gate, then this is correct.
+                ESD_CRITICAL_PAD_BITMAP[row, col] = 1 if criticality_info[current_bump_net]['tolerated_esd_failures'] == 0 else 0
+                redundant_net_to_1d_physical_mask[bump['net']] = np.append(redundant_net_to_1d_physical_mask[bump['net']], row * cfg.PAD_ARR_COL + col)
                 continue
     else:   
         raise NotImplementedError("Currently only support checkerboard pad arrangement pattern.")
@@ -331,8 +358,10 @@ def convert_3dblox_to_pad_bitmap(cfg,
     bitmap_collection["num_redundant_pads"] = num_redundant_pads
     bitmap_collection["num_dummy_pads"] = num_dummy_pads
     bitmap_collection["redundant_net_to_bumpids"] = redundant_net_to_bumpids
+    bitmap_collection["redundant_net_to_1d_physical_mask"] = redundant_net_to_1d_physical_mask
     bitmap_collection["pad_coords"] = pad_coords
     bitmap_collection["mapping_physical_to_bumpid"] = mapping_physical_to_bumpid
+    bitmap_collection["criticality_info"] = criticality_info
     
     
     # Save the bitmap collection as npy file and mat file

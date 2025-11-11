@@ -2,7 +2,8 @@
 w2w_simulation:
   # === General Settings ===
   MODE: "W2W_Hybrid_Bonding_Simulation"  # Name of the simulation
-  OUTPUT_DIR: "output/"          # Output directory for simulation results
+  OUTPUT_DIR: "output/"
+  INPUT_DIR: "input/"          # Output directory for simulation results
   DEBUG: False                                      # Enable debug mode
   DESIGN: "HBM_footprint_A_dummy_row_3"                      # Design name
 
@@ -174,7 +175,8 @@ w2w_modeling:
   # === General Settings ===
   MODE: "W2W_Hybrid_Bonding_Modeling"   # Name of the modeling
   DEBUG: False                          # Enable debug mode
-  OUTPUT_DIR: "output/"          # Output directory for simulation results
+  OUTPUT_DIR: "output/"
+  INPUT_DIR: "input/"          # Output directory for simulation results
   DESIGN: "HBM_footprint_A_dummy_row_3"                      # Design name
 
   # === Per Wafer Parameters ===
