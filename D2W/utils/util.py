@@ -274,8 +274,8 @@ def convert_3dblox_to_pad_bitmap(cfg,
             redundant_net_to_bumpids[bump['net']] = set()
         redundant_net_to_bumpids[bump['net']].add(bump['bumpid'])
 
-    # Generate the criticality map
-    criticality_generator(cfg, bump_data, redundant_net_to_bumpids)
+    # # Generate the criticality map
+    # criticality_generator(cfg, bump_data, redundant_net_to_bumpids)
 
     # Initialize the pad bitmap
     # TODO: You need to modify the simulator to support different pad arrangement patterns
@@ -304,6 +304,7 @@ def convert_3dblox_to_pad_bitmap(cfg,
                 continue
             if num_copies == 1:
                 CRITICAL_PAD_BITMAP[row, col] = 1
+                redundant_net_to_bumpids.pop(current_bump_net, None)
                 continue
             elif num_copies > 1 and ('vss' in current_bump_port.lower() or 'vcc' in current_bump_port.lower()): 
                 REDUNDANT_PAD_BITMAP[row, col] = 1

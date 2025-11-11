@@ -299,6 +299,7 @@ def convert_3dblox_to_pad_bitmap(cfg,
                 continue
             if num_copies == 1:
                 CRITICAL_PAD_BITMAP[row, col] = 1
+                redundant_net_to_bumpids.pop(current_bump_net, None)
                 continue
             elif num_copies > 1 and ('vss' in current_bump_port.lower() or 'vcc' in current_bump_port.lower()): 
                 REDUNDANT_PAD_BITMAP[row, col] = 1
