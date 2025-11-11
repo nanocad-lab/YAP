@@ -184,7 +184,7 @@ w2w_modeling:
   PITCH_c_um: 35                              # Column pad PITCH_um (µm)
   DIE_W_um: 10850                          # Die width (µm)
   DIE_L_um: 8965                          # Die length (µm)
-  WAF_R_um: 20000                         # Wafer radius (µm)
+  WAF_R_um: 50000                         # Wafer radius (µm)
   PAD_BOT_R_um: 9                      # Bottom Cu pad radius (um)
   PAD_TOP_R_um: 9                      # Top Cu pad radius (um)
   PAD_ARR_ROW: 161

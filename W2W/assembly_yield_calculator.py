@@ -171,11 +171,9 @@ def Pad_Yield_Map_Generator(
         die.pad_yield_map['Y_bond'] = die.pad_yield_map['Y_ovl'] * die.pad_yield_map['Y_df'] * die.pad_yield_map['Y_ce'] * die.pad_yield_map['Y_esd']
         wafer_glb_pad_yield_min = min(wafer_glb_pad_yield_min, np.nanmin(die.pad_yield_map['Y_bond']))
         wafer_glb_pad_yield_max = max(wafer_glb_pad_yield_max, np.nanmax(die.pad_yield_map['Y_bond']))
-        # risk_map_generator(cfg=cfg, 
-        #                     die_id=die_id,
-        #                     die=die,
-        #                     die_coords=die.die_center + wafer.base_pad_coords,
-        #                 )
+    risk_map_generator(cfg=cfg, 
+                          wafer=wafer, 
+                    )
     wafer.glb_pad_yield_min_max_dict['Y_bond'] = (wafer_glb_pad_yield_min, wafer_glb_pad_yield_max)
     print("wafer pad yield min max for Y_bond:", wafer.glb_pad_yield_min_max_dict['Y_bond'])
     wafer.draw_wafer_die(fig_size=(20, 20), draw_pad_yield_map_option='Y_bond')

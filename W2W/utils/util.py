@@ -194,24 +194,69 @@ def criticality_generator(cfg,
 
 
 def risk_map_generator(cfg, 
-                          die_id: int,
-                          die: object,
-                          die_coords: np.ndarray,
+                        wafer: object,
                         ):
     '''
     Risk map output format:
     <pad_coords_x> <pad_coords_y> <esd_failure_probability> <overlay_failure_probability> <particle_failure_probability> <mechanical_failure_probability>
+    W2W's die risk map is the average of all dies on the wafer.
     '''
+    avg_ovl_pad_yield_map = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL), dtype=float)
+    avg_df_pad_yield_map = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL), dtype=float)
+    avg_ce_pad_yield_map = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL), dtype=float)
+    avg_esd_pad_yield_map = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL), dtype=float)
+    avg_bond_pad_yield_map = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL), dtype=float)
+    num_dies = len(wafer.die_list)
+    for die_id, die in enumerate(wafer.die_list):
+        avg_ovl_pad_yield_map += die.pad_yield_map['Y_ovl']
+        avg_df_pad_yield_map += die.pad_yield_map['Y_df']
+        avg_ce_pad_yield_map += die.pad_yield_map['Y_ce']
+        avg_esd_pad_yield_map += die.pad_yield_map['Y_esd']
+        avg_bond_pad_yield_map += die.pad_yield_map['Y_bond']
+    avg_ovl_pad_yield_map /= num_dies
+    avg_df_pad_yield_map /= num_dies
+    avg_ce_pad_yield_map /= num_dies
+    avg_esd_pad_yield_map /= num_dies
+    avg_bond_pad_yield_map /= num_dies
+    
+    # # Draw the pad yield map as a heatmap
+    # plt.figure(figsize=(10, 6))
+    # plt.imshow(avg_ovl_pad_yield_map, cmap='viridis', vmin=np.nanmin(avg_ovl_pad_yield_map), vmax=np.nanmax(avg_ovl_pad_yield_map))
+    # plt.colorbar(label='Average Pad Overlay Yield')
+    # plt.title('Wafer Average Pad Overlay Yield Map')
+
+    # plt.figure(figsize=(10, 6))
+    # plt.imshow(avg_df_pad_yield_map, cmap='viridis', vmin=np.nanmin(avg_df_pad_yield_map), vmax=np.nanmax(avg_df_pad_yield_map))
+    # plt.colorbar(label='Average Pad Defect Yield')
+    # plt.title('Wafer Average Pad Defect Yield Map')
+
+    # plt.figure(figsize=(10, 6))
+    # plt.imshow(avg_ce_pad_yield_map, cmap='viridis', vmin=np.nanmin(avg_ce_pad_yield_map), vmax=np.nanmax(avg_ce_pad_yield_map))
+    # plt.colorbar(label='Average Pad Mechanical Yield')
+    # plt.title('Wafer Average Pad Mechanical Yield Map')
+
+    # plt.figure(figsize=(10, 6))
+    # plt.imshow(avg_esd_pad_yield_map, cmap='viridis', vmin=np.nanmin(avg_esd_pad_yield_map), vmax=np.nanmax(avg_esd_pad_yield_map))
+    # plt.colorbar(label='Average Pad ESD Yield')
+    # plt.title('Wafer Average Pad ESD Yield Map')
+
+    # plt.figure(figsize=(10, 6))
+    # plt.imshow(avg_bond_pad_yield_map, cmap='viridis', vmin=np.nanmin(avg_bond_pad_yield_map), vmax=np.nanmax(avg_bond_pad_yield_map))
+    # plt.colorbar(label='Average Pad Bond Yield')
+    # plt.title('Wafer Average Pad Bond Yield Map')
+
+
+    die_coords = wafer.base_pad_coords
     risk_map = list()
     for pad_id in range(len(die_coords)):
         pad_coords_x = die_coords[pad_id, 0]
         pad_coords_y = die_coords[pad_id, 1]
         if np.isnan(pad_coords_x) or np.isnan(pad_coords_y):
             continue
-        pad_ovl_yield = die.pad_yield_map['Y_ovl'].flatten()[pad_id]
-        pad_df_yield = die.pad_yield_map['Y_df'].flatten()[pad_id]
-        pad_ce_yield = die.pad_yield_map['Y_ce'].flatten()[pad_id]
-        pad_esd_yield = die.pad_yield_map['Y_esd'].flatten()[pad_id]
+        pad_ovl_yield = avg_ovl_pad_yield_map.flatten()[pad_id]
+        pad_df_yield = avg_df_pad_yield_map.flatten()[pad_id]
+        pad_ce_yield = avg_ce_pad_yield_map.flatten()[pad_id]
+        pad_esd_yield = avg_esd_pad_yield_map.flatten()[pad_id]
         risk_map.append({
             "pad_coords_x": pad_coords_x,
             "pad_coords_y": pad_coords_y,
@@ -220,10 +265,10 @@ def risk_map_generator(cfg,
             "particle_failure_probability": 1 - pad_df_yield,
             "mechanical_failure_probability": 1 - pad_ce_yield,
         })
-    with open(cfg.OUTPUT_DIR + cfg.DESIGN + "/" + cfg.DESIGN + "_die_{}_risk_map.map".format(die_id), 'w') as f:
+    with open(cfg.OUTPUT_DIR + cfg.DESIGN + "/" + cfg.DESIGN + "_risk_map.map", 'w') as f:
         for pad_risk in risk_map:
             f.write(f"{pad_risk['pad_coords_x']} {pad_risk['pad_coords_y']} {pad_risk['esd_failure_probability']} {pad_risk['overlay_failure_probability']} {pad_risk['particle_failure_probability']} {pad_risk['mechanical_failure_probability']}\n")
-    print("Risk map file saved in ".format(die_id), cfg.OUTPUT_DIR + cfg.DESIGN + "/" + cfg.DESIGN + "_die_{}_risk_map.map".format(die_id))
+    print("Risk map file saved in ", cfg.OUTPUT_DIR + cfg.DESIGN + "/" + cfg.DESIGN + "_risk_map.map")
     return
 
 def convert_3dblox_to_pad_bitmap(cfg, 
