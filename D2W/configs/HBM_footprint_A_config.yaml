@@ -9,7 +9,7 @@ d2w_simulation:
   INPUT_DIR: "input/"          # Output directory for simulation results
   DESIGN: "HBM_footprint_A"                      # Design name  
   # === Die Settings ===
-  NUM_DIES: 1000                            # Number of Dies used in simulation
+  NUM_DIES: 10000                            # Number of Dies used in simulation
   PITCH_r_um: 55                            # Row pad pitch (µm) (In checkerboard layout, this is sqrt(2)/2 times of the real pitch)
   PITCH_c_um: 35                            # Column pad pitch (µm)  (In checkerboard layout, this is sqrt(2)/2 times of the real pitch)
   DIE_W_um: 10850                          # Die width (µm)
@@ -199,7 +199,7 @@ d2w_modeling:
   B_Sub_Sio2_V: 0.00                    # Efficient substrate layer Sio2 volume density
   B_Sub_Si_V: 0.90                      # Efficient substrate layer si volume density
   B_Sub_T: 775e-6                       # Efficient substrate layer thickness (m)
-  S_INIT_A_M: 25e-9                   # Pre-anneal warpages (m)
+  S_INIT_A_M: 100e-9                   # Pre-anneal warpages (m)
   # === Top Wafer Settings ===
   T_Chip_Cu_V: 0.30                     # Efficient chip layer Cu volume density
   T_Chip_Sio2_V: 0.70                   # Efficient chip layer Sio2 volume density
