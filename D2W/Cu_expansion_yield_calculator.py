@@ -102,25 +102,25 @@ def pad_Cu_expansion_yield_map_generator(*,
 
 
     if cfg.plot_flag:
-        # Draw pad yield v.s. pad distance to the die center
-        pad_distances_um = np.linalg.norm(die.pad_coords, axis=1)  # (num_pads,)
-        plt.figure(figsize=(10, 6))
-        plt.scatter(
-            pad_distances_um[valid_pad_mask.flatten() == 1],
-            pad_yield_map[valid_pad_mask == 1],
-            c='blue',
-            s=8,
-            alpha=0.6,
-            )
-        np.savez(cfg.OUTPUT_DIR + cfg.DESIGN + '/' + cfg.DESIGN + "_cu_expansion_yield_vs_distance_300warp_0d5dish.npz",
-                 pad_distances_um=pad_distances_um[valid_pad_mask.flatten() == 1],
-                    pad_yields=pad_yield_map[valid_pad_mask == 1],
-                    )
-        plt.xlabel('Pad Distance to Die Center (um)')
-        plt.ylabel('Pad Cu Expansion Yield')
-        plt.title('Pad Cu Expansion Yield vs. Pad Distance to Die Center')
-        plt.grid(True)
-        plt.show()
+        # # Draw pad yield v.s. pad distance to the die center
+        # pad_distances_um = np.linalg.norm(die.pad_coords, axis=1)  # (num_pads,)
+        # plt.figure(figsize=(10, 6))
+        # plt.scatter(
+        #     pad_distances_um[valid_pad_mask.flatten() == 1],
+        #     pad_yield_map[valid_pad_mask == 1],
+        #     c='blue',
+        #     s=8,
+        #     alpha=0.6,
+        #     )
+        # np.savez(cfg.OUTPUT_DIR + cfg.DESIGN + '/' + cfg.DESIGN + "_cu_expansion_yield_vs_distance_300warp_0d5dish.npz",
+        #          pad_distances_um=pad_distances_um[valid_pad_mask.flatten() == 1],
+        #             pad_yields=pad_yield_map[valid_pad_mask == 1],
+        #             )
+        # plt.xlabel('Pad Distance to Die Center (um)')
+        # plt.ylabel('Pad Cu Expansion Yield')
+        # plt.title('Pad Cu Expansion Yield vs. Pad Distance to Die Center')
+        # plt.grid(True)
+        # plt.show()
     
 
         # Draw the pad yield map
@@ -138,7 +138,7 @@ def pad_Cu_expansion_yield_map_generator(*,
         plt.xlabel('Pad Column Index', fontsize=16)
         plt.ylabel('Pad Row Index', fontsize=16)
         plt.show()
-        raise NotImplementedError("Disabled detailed pad yield map plot to reduce runtime.")
+        # raise NotImplementedError("Disabled detailed pad yield map plot to reduce runtime.")
 
 
 

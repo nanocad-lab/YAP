@@ -79,7 +79,7 @@ w2w_simulation:
   M_0: 0                                # Magnification offset (ppm)
 
   # === Defect Parameters ===
-  D0: 1e-9                              # Particle density (1/µm²)
+  D0: 2e-9                              # Particle density (1/µm²)
   z: 3                                  # Particle thickness distribution exponent
   t_0: 1                                # Minimum particle thickness (µm)
   k_r: 1.8e-4
@@ -220,18 +220,7 @@ w2w_modeling:
   T_Sub_T: 775e-6                       # Efficient substrate layer thickness (m)
   S_INIT_B_M: 0.0e-6                    # Pre-anneal warpages (m)
 
-  # === Fault Tolerance Parameters ===
-  redundant_flag: True                  # Enable redundant pads
-  critical_pad_ratio: 0.9               # Critical pad ratio per die
-  redundant_pad_ratio: 0.1              # Redundant pad ratio per die
-  redundant_block_interval: 2           # Interval between redundant pad blocks
-  pad_block_dim_x: 35                  # Pad block width dimension (µm)
-  pad_block_dim_y: 55                  # Pad block height dimension (µm)
-  redundant_logical_pad_ratio: 0.3      # Ratio of redundant logical pads
-  redundant_logical_pad_copy: 2         # Number of copies for each redundant logical pad
-  redundant_logical_pad_dist: 40.0      # Distance between redundant logical pads (PITCH_um)
-  multi2one_flag: False                 # Enable multi-to-one mapping
-  multi2one_ratio: 20                   # Ratio for multi-to-one mapping (e.g., 80:1 replicas)
+
 
   CONTACT_AREA_CONSTRAINT: 0.75         # Minimum allowed contact area ratio
   CRITICAL_DIST_CONSTRAINT: 0.75        # Minimum distance constraint for critical pads
@@ -252,7 +241,7 @@ w2w_modeling:
   M_0: 0                                # Magnification offset
 
   # === Defect Parameters ===
-  D0: 1e-9                              # Particle density (1/µm²)
+  D0: 2e-9                              # Particle density (1/µm²)
   z: 3                                  # Thickness distribution exponent factor
   t_0: 0.1                              # Minimum particle thickness (µm)
   k_r: 1.8e-4
@@ -391,17 +380,6 @@ d2w_simulation:
   T_Sub_T: 775e-6                       # Efficient substrate layer thickness (m)
   S_INIT_B_M: 0.0e-6                    # Pre-anneal warpages (m)
 
-  # === Fault-Tolerance Parameters ===
-  redundant_flag: True                  # Enable redundant pads
-  critical_pad_ratio: 0.9999               # Critical pad ratio per die
-  redundant_pad_ratio: 0.0001              # Redundant pad ratio per die
-  pad_block_dim_x: 35                  # Pad block width dimension (µm)
-  pad_block_dim_y: 55                  # Pad block height dimension (µm)
-  redundant_logical_pad_ratio: 0.005      # Ratio of redundant logical pads
-  redundant_logical_pad_copy: 2         # Number of copies for each redundant logical pad
-  redundant_logical_pad_dist: 2.0      # Distance between redundant logical pads (PITCH_um)
-  multi2one_flag: false                 # Enable multi-to-one mapping
-  multi2one_ratio: 80                   # Ratio for multi-to-one mapping (e.g., 80:1 replicas)
 
   CONTACT_AREA_CONSTRAINT: 0.75         # Minimum allowed contact area ratio
   CRITICAL_DIST_CONSTRAINT: 0.75        # Minimum distance constraint for critical pads
@@ -413,8 +391,8 @@ d2w_simulation:
   SYSTEM_TRANSLATION_X_STD_um: 1e-2        # Systematic X translation std (µm)
   SYSTEM_TRANSLATION_Y_MEAN_um: 5e-3       # Systematic Y translation mean (µm)
   SYSTEM_TRANSLATION_Y_STD_um: 1e-2        # Systematic Y translation std (µm)
-  SYSTEM_ROTATION_MEAN_rad: 2e-6            # Systematic rotation mean (rad)
-  SYSTEM_ROTATION_STD_rad: 1e-6             # Systematic rotation std (rad)
+  SYSTEM_ROTATION_MEAN_rad: 6e-4            # Mean of systematic rotation (rad)
+  SYSTEM_ROTATION_STD_rad: 1e-5             # Std of systematic rotation (rad)
 
   # === Bowing and Magnification ===
   BOW_DIFFERENCE_MEAN_um: 0.5               # Bow difference mean (µm)
@@ -424,7 +402,7 @@ d2w_simulation:
 
   # === Defect Parameters ===
   first_contact: 'center'            # First contact location: 'center' or 'edge' or 'corner (left-top)'
-  D0: 1e-9                              # Particle density (1/µm²)
+  D0: 2e-9                              # Particle density (1/µm²)
   z: 3                                  # Particle thickness distribution exponent
   t_0: 0.1                                # Minimum particle thickness (µm)
   k_r: 1.8e-4
@@ -568,17 +546,6 @@ d2w_modeling:
   T_Sub_T: 775e-6                       # Efficient substrate layer thickness (m)
   S_INIT_B_M: 0.0e-6                    # Pre-anneal warpages (m)
 
-  # === Fault Tolerance Parameters ===
-  redundant_flag: True                  # Enable redundant pads
-  critical_pad_ratio: 1.0               # Critical pad ratio per die
-  redundant_pad_ratio: 0.0              # Redundant pad ratio per die
-  pad_block_dim_x: 35                  # Pad block width dimension (µm)
-  pad_block_dim_y: 55                  # Pad block height dimension (µm)
-  redundant_logical_pad_ratio: 0.005    # Ratio of redundant logical pads
-  redundant_logical_pad_copy: 2         # Number of copies for each redundant logical pad
-  redundant_logical_pad_dist: 2.0      # Distance between redundant logical pads (PITCH_um)
-  multi2one_flag: false                 # Enable multi-to-one mapping
-  multi2one_ratio: 80                   # Ratio for multi-to-one mapping (e.g., 80:1 replicas)
 
   CONTACT_AREA_CONSTRAINT: 0.75         # Minimum allowed contact area ratio
   CRITICAL_DIST_CONSTRAINT: 0.75        # Minimum distance constraint for critical pads
@@ -591,8 +558,8 @@ d2w_modeling:
   SYSTEM_TRANSLATION_X_STD_um: 2e-2        # Std of systematic X translation (µm)
   SYSTEM_TRANSLATION_Y_MEAN_um: 0       # Mean of systematic Y translation (µm)
   SYSTEM_TRANSLATION_Y_STD_um: 2e-2        # Std of systematic Y translation (µm)
-  SYSTEM_ROTATION_MEAN_rad: 2e-6            # Mean of systematic rotation (rad)
-  SYSTEM_ROTATION_STD_rad: 5e-7             # Std of systematic rotation (rad)
+  SYSTEM_ROTATION_MEAN_rad: 6e-4            # Mean of systematic rotation (rad)
+  SYSTEM_ROTATION_STD_rad: 1e-5             # Std of systematic rotation (rad)
   BOW_DIFFERENCE_MEAN_um: 0.5               # Bow difference mean (µm)
   BOW_DIFFERENCE_STD_um: 0.1                 # Bow difference std (µm)
   k_mag: 0.1                           # Magnification slope coefficient
@@ -600,7 +567,7 @@ d2w_modeling:
 
   # === Defect Parameters ===
   first_contact: 'center'            # First contact location: 'center' or 'vertical-edge' or 'horizontal-edge' or 'corner' (left-bottom)
-  D0: 1e-9                              # Particle density (1/µm²)
+  D0: 2e-9                              # Particle density (1/µm²)
   z: 3                                  # Thickness distribution exponent factor
   t_0: 0.1                              # Minimum particle thickness (µm)
   k_r: 1.8e-4
@@ -610,10 +577,10 @@ d2w_modeling:
   k_S: 2.7
 
   # === Cu Expansion / Dishing Parameters ===
-  TOP_DISH_MEAN_nm: -1.0                  # Top pad height mean (nm)
-  TOP_DISH_STD_nm: 0.6                     # Top pad height std (nm)
-  BOT_DISH_MEAN_nm: -1.0                  # Bottom pad height mean (nm)
-  BOT_DISH_STD_nm: 0.6                     # Bottom pad height std (nm)
+  TOP_DISH_MEAN_nm: -2.0                  # Top pad height mean (nm)
+  TOP_DISH_STD_nm: 0.3                     # Top pad height std (nm)
+  BOT_DISH_MEAN_nm: -2.0                  # Bottom pad height mean (nm)
+  BOT_DISH_STD_nm: 0.3                     # Bottom pad height std (nm)
   k_et: 0.053                           # Top Cu expansion coef (nm/K)
   k_eb: 0.053                           # Bottom Cu expansion coef (nm/K)
   T_R: 25                               # Room temperature (°C)
