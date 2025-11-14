@@ -50,6 +50,8 @@ def pad_Cu_expansion_yield_map_generator(*,
 
     upper_limits_valid_pads = - valid_pad_dishing_bound_array[:, 0] * 2 # - upper Cu height limits
     lower_limits_valid_pads = - valid_pad_dishing_bound_array[:, 1] * 2 # - lower Cu height limits
+    print("Max upper limit (nm): {:.2f}, Min upper limit (nm): {:.2f}".format(np.max(upper_limits_valid_pads), np.min(upper_limits_valid_pads)))
+    print("Max lower limit (nm): {:.2f}, Min lower limit (nm): {:.2f}".format(np.max(lower_limits_valid_pads), np.min(lower_limits_valid_pads)))
     pos_valid_pads = norm.cdf(upper_limits_valid_pads, loc=TOP_DISH_MEAN_nm + BOT_DISH_MEAN_nm, scale=np.sqrt(TOP_DISH_STD_nm**2 + BOT_DISH_STD_nm**2)) - \
                      norm.cdf(lower_limits_valid_pads, loc=TOP_DISH_MEAN_nm + BOT_DISH_MEAN_nm, scale=np.sqrt(TOP_DISH_STD_nm**2 + BOT_DISH_STD_nm**2))
     pad_yield_map = np.full((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL), np.nan)
@@ -95,10 +97,34 @@ def pad_Cu_expansion_yield_map_generator(*,
     glb_cu_expansion_pad_yield_min = min(glb_cu_expansion_pad_yield_min, np.nanmin(pad_yield_map))
     glb_cu_expansion_pad_yield_max = max(glb_cu_expansion_pad_yield_max, np.nanmax(pad_yield_map))
     die.glb_pad_yield_min_max_dict['Y_ce'] = (glb_cu_expansion_pad_yield_min, glb_cu_expansion_pad_yield_max)
+    print("Cu Expansion Pad Yield Min: {:.6f}".format(glb_cu_expansion_pad_yield_min))
+    print("Cu Expansion Pad Yield Max: {:.6f}".format(glb_cu_expansion_pad_yield_max))
+
 
     if cfg.plot_flag:
+        # Draw pad yield v.s. pad distance to the die center
+        pad_distances_um = np.linalg.norm(die.pad_coords, axis=1)  # (num_pads,)
+        plt.figure(figsize=(10, 6))
+        plt.scatter(
+            pad_distances_um[valid_pad_mask.flatten() == 1],
+            pad_yield_map[valid_pad_mask == 1],
+            c='blue',
+            s=8,
+            alpha=0.6,
+            )
+        np.savez(cfg.OUTPUT_DIR + cfg.DESIGN + '/' + cfg.DESIGN + "_cu_expansion_yield_vs_distance_300warp_0d5dish.npz",
+                 pad_distances_um=pad_distances_um[valid_pad_mask.flatten() == 1],
+                    pad_yields=pad_yield_map[valid_pad_mask == 1],
+                    )
+        plt.xlabel('Pad Distance to Die Center (um)')
+        plt.ylabel('Pad Cu Expansion Yield')
+        plt.title('Pad Cu Expansion Yield vs. Pad Distance to Die Center')
+        plt.grid(True)
+        plt.show()
+    
+
         # Draw the pad yield map
-        plt.figure(figsize=(8, 6))
+        plt.figure(figsize=(13.5, 6), dpi=300)
         plt.imshow(
             pad_yield_map,
             cmap='viridis', 
@@ -106,9 +132,14 @@ def pad_Cu_expansion_yield_map_generator(*,
             vmax=die.glb_pad_yield_min_max_dict['Y_ce'][1],
             interpolation='nearest',
             )
-        plt.colorbar(label='Pad Cu Expansion Yield')
-        plt.xlabel('Pad Column Index')
-        plt.ylabel('Pad Row Index')
+        cb = plt.colorbar(label='Pad Cu Expansion Yield')
+        cb.ax.yaxis.label.set_size(16)
+        plt.title('Pad Mechanical Stress Yield Map', fontsize=16)
+        plt.xlabel('Pad Column Index', fontsize=16)
+        plt.ylabel('Pad Row Index', fontsize=16)
         plt.show()
+        raise NotImplementedError("Disabled detailed pad yield map plot to reduce runtime.")
+
+
 
     return pad_yield_map

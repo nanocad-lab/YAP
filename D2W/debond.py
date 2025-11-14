@@ -149,7 +149,7 @@ def __init_params(cfg):
     S_INIT_B_M = cfg.S_INIT_B_M
 
     # ---------- (J) Optional plotting ----------
-    USE_PLOT = False
+    USE_PLOT = True
 
 # =============================================================================
 # ============================== PAD-SCALE CORE ===============================
@@ -449,6 +449,8 @@ def peeling_stress_at_points_vec_MPa(peel_dict: dict, coords_mm_np: np.ndarray, 
         plt.title("Peeling Stress vs Radius")
         plt.grid(True)
         plt.show()
+        # np.savez("peeling_stress_100warp.npz", r_m=r_m, p_pa=p_pa)
+        # raise RuntimeError("Plotting peeling stress and saving data; interrupting for review.")
     return p_pa / 1e6  # MPa
 
 # =============================================================================
@@ -487,58 +489,61 @@ def build_effcrit_and_dishing_arrays(peel_dict: dict, coords_mm_np: np.ndarray, 
         D_cu_nm[i] = D_Cu
 
     if USE_PLOT:
-        # # Optional visualization of peeling stress field
-        # plt.figure(figsize=(8, 6))
-        # plt.scatter(coords_mm_np[:, 0], coords_mm_np[:, 1], c=p_MPa, cmap='viridis', s=8)
-        # plt.colorbar(label='Peeling Stress p (MPa)')
-        # plt.xlabel('X (um)')
-        # plt.ylabel('Y (um)')
-        # plt.title('Peeling Stress Distribution')
-        # plt.axis('equal')
-        # plt.minorticks_on()
-
-        # ax = plt.gca()
-        # ax.xaxis.set_major_locator(MultipleLocator(1.0))
-        # ax.yaxis.set_major_locator(MultipleLocator(1.0))
-        # ax.xaxis.set_minor_locator(MultipleLocator(0.5))  # 次刻度间隔 0.25 mm
-        # ax.yaxis.set_minor_locator(MultipleLocator(0.5))
-        # ax.set_xticks(np.arange(-2.5, 2.51, 1))
-        # ax.set_yticks(np.arange(-2.5, 2.51, 1))
-        # ax.tick_params(which='both', direction='in', top=True, right=True)
-        # ax.tick_params(which='major', length=6, labelsize=12)
-        # ax.tick_params(which='minor', length=3)
-        # ax.grid(which='major', linestyle='-', linewidth=0.8, alpha=0.6)
-        # ax.grid(which='minor', linestyle='--', linewidth=0.4, alpha=0.4)
-        # plt.show()
+        # Optional visualization of peeling stress field
         coords_um_np = coords_mm_np * 1000
-
-        x = np.unique(coords_um_np[:, 0])
-        y = np.unique(coords_um_np[:, 1])
-        X, Y = np.meshgrid(x, y)
-
-        # 将 p_MPa 重塑为与坐标匹配的网格形状
-        Z = p_MPa.reshape(len(y), len(x))
-
-        plt.figure(figsize=(8, 6), dpi=100)
-        mesh = plt.pcolormesh(X, Y, Z, cmap='viridis', shading='auto')
-        plt.colorbar(mesh, label='Peeling Stress p (MPa)')
-        plt.xlabel('X (μm)')
-        plt.ylabel('Y (μm)')
-        plt.title('Peeling Stress Distribution')
+        plt.figure(figsize=(13.5, 9), dpi=300)
+        plt.scatter(coords_um_np[:, 0], coords_um_np[:, 1], c=p_MPa, cmap='viridis', s=8)
+        cb = plt.colorbar(label='Peeling Stress p (MPa)')
+        cb.ax.yaxis.label.set_size(16)
+        plt.xlabel('X (μm)', fontsize=16)
+        plt.ylabel('Y (μm)', fontsize=16)
+        plt.title('Peeling Stress Distribution', fontsize=16)
         plt.axis('equal')
+        plt.minorticks_on()
 
         ax = plt.gca()
         ax.xaxis.set_major_locator(MultipleLocator(1000))
         ax.yaxis.set_major_locator(MultipleLocator(1000))
-        ax.xaxis.set_minor_locator(MultipleLocator(500))
+        ax.xaxis.set_minor_locator(MultipleLocator(500))  # 次刻度间隔 0.25 mm
         ax.yaxis.set_minor_locator(MultipleLocator(500))
+        ax.set_xticks(np.arange(-5500, 6000, 1000))
+        ax.set_yticks(np.arange(-4500, 4600, 1000))
         ax.tick_params(which='both', direction='in', top=True, right=True)
         ax.tick_params(which='major', length=6, labelsize=12)
         ax.tick_params(which='minor', length=3)
         ax.grid(which='major', linestyle='-', linewidth=0.8, alpha=0.6)
         ax.grid(which='minor', linestyle='--', linewidth=0.4, alpha=0.4)
-
         plt.show()
+
+        # coords_um_np = coords_mm_np * 1000
+
+        # x = np.unique(coords_um_np[:, 0])
+        # y = np.unique(coords_um_np[:, 1])
+        # X, Y = np.meshgrid(x, y)
+
+        # # 将 p_MPa 重塑为与坐标匹配的网格形状
+        # Z = p_MPa.reshape(len(y), len(x))
+
+        # plt.figure(figsize=(8, 6), dpi=100)
+        # mesh = plt.pcolormesh(X, Y, Z, cmap='viridis', shading='auto')
+        # plt.colorbar(mesh, label='Peeling Stress p (MPa)')
+        # plt.xlabel('X (μm)')
+        # plt.ylabel('Y (μm)')
+        # plt.title('Peeling Stress Distribution')
+        # plt.axis('equal')
+
+        # ax = plt.gca()
+        # ax.xaxis.set_major_locator(MultipleLocator(1000))
+        # ax.yaxis.set_major_locator(MultipleLocator(1000))
+        # ax.xaxis.set_minor_locator(MultipleLocator(500))
+        # ax.yaxis.set_minor_locator(MultipleLocator(500))
+        # ax.tick_params(which='both', direction='in', top=True, right=True)
+        # ax.tick_params(which='major', length=6, labelsize=12)
+        # ax.tick_params(which='minor', length=3)
+        # ax.grid(which='major', linestyle='-', linewidth=0.8, alpha=0.6)
+        # ax.grid(which='minor', linestyle='--', linewidth=0.4, alpha=0.4)
+
+        # plt.show()
 
     effcrit = np.column_stack([sigma_eff_Cu, sigma_eff_SiO2])      # (N,2)
     dishing = np.column_stack([D_cu_nm, D_sio2_nm])                # (N,2)

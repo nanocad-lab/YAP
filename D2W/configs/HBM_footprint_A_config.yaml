@@ -199,7 +199,7 @@ d2w_modeling:
   B_Sub_Sio2_V: 0.00                    # Efficient substrate layer Sio2 volume density
   B_Sub_Si_V: 0.90                      # Efficient substrate layer si volume density
   B_Sub_T: 775e-6                       # Efficient substrate layer thickness (m)
-  S_INIT_A_M: 100e-9                   # Pre-anneal warpages (m)
+  S_INIT_A_M: 300e-9                   # Pre-anneal warpages (m)
   # === Top Wafer Settings ===
   T_Chip_Cu_V: 0.30                     # Efficient chip layer Cu volume density
   T_Chip_Sio2_V: 0.70                   # Efficient chip layer Sio2 volume density
@@ -243,10 +243,10 @@ d2w_modeling:
   k_S: 2.7
 
   # === Cu Expansion / Dishing Parameters ===
-  TOP_DISH_MEAN_nm: -1.0                  # Top pad height mean (nm)
-  TOP_DISH_STD_nm: 0.45                     # Top pad height std (nm)
-  BOT_DISH_MEAN_nm: -1.0                  # Bottom pad height mean (nm)
-  BOT_DISH_STD_nm: 0.45                     # Bottom pad height std (nm)
+  TOP_DISH_MEAN_nm: -0.5                  # Top pad height mean (nm)
+  TOP_DISH_STD_nm: 0.3                     # Top pad height std (nm)
+  BOT_DISH_MEAN_nm: -0.5                  # Bottom pad height mean (nm)
+  BOT_DISH_STD_nm: 0.3                     # Bottom pad height std (nm)
   k_et: 0.053                           # Top Cu expansion coef (nm/K)
   k_eb: 0.053                           # Bottom Cu expansion coef (nm/K)
   T_R: 25                               # Room temperature (°C)
