@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from matplotlib.colors import ListedColormap, BoundaryNorm
 import scipy.io as sio
+import os
 
 def load_modeling_config(path, mode, debug=False):
     full_cfg = OmegaConf.load(path)
@@ -25,8 +26,8 @@ def load_modeling_config(path, mode, debug=False):
         cfg.SYSTEM_MAGNIFICATION_MEAN_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_MEAN_um + cfg.M_0) / 1e6
         cfg.SYSTEM_MAGNIFICATION_STD_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_STD_um) ** 2 / 1e6
         cfg.eff_DIE_R = float(np.sqrt((cfg.DIE_W_um / 2) ** 2 + (cfg.DIE_L_um / 2) ** 2))  # Effective die radius (um)
-        # cfg.S_INIT_A_M = 10e-6 * (cfg.eff_DIE_R / 150000) ** 2
-        # cfg.S_INIT_B_M = 0.0
+        cfg.S_INIT_A_M = 10e-6 * (cfg.eff_DIE_R / 150000) ** 2
+        cfg.S_INIT_B_M = 0.0
     else:
         raise ValueError(f"Unknown mode: {mode}. Supported modes are 'w2w_simulation', 'w2w_modeling', 'd2w_simulation', and 'd2w_modeling'.")
 
@@ -76,8 +77,8 @@ def update_config_items(cfg, mode):
         cfg.SYSTEM_MAGNIFICATION_MEAN_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_MEAN_um + cfg.M_0) / 1e6
         cfg.SYSTEM_MAGNIFICATION_STD_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_STD_um) ** 2 / 1e6
         cfg.eff_DIE_R = float(np.sqrt((cfg.DIE_W_um / 2) ** 2 + (cfg.DIE_L_um / 2) ** 2))  # Effective die radius (um)
-        # cfg.S_INIT_A_M = 10e-6 * (cfg.eff_DIE_R / 150000) ** 2
-        # cfg.S_INIT_B_M = 0.0
+        cfg.S_INIT_A_M = 10e-6 * (cfg.eff_DIE_R / 150000) ** 2
+        cfg.S_INIT_B_M = 0.0
     else:
         raise ValueError(f"Unknown mode: {mode}. Supported modes are 'w2w_simulation', 'w2w_modeling', 'd2w_simulation', and 'd2w_modeling'.")
 
@@ -370,6 +371,8 @@ def convert_3dblox_to_pad_bitmap(cfg,
     bitmap_collection["criticality_info"] = criticality_info
     
     # Save the bitmap collection as npy file and mat file
+    if not os.path.exists(cfg.OUTPUT_DIR + cfg.DESIGN + '/'):
+        os.makedirs(cfg.OUTPUT_DIR + cfg.DESIGN + '/')
     np.save(cfg.OUTPUT_DIR + cfg.DESIGN + '/' + cfg.DESIGN + "_bitmap_collection.npy", bitmap_collection)
     # sio.savemat(cfg.OUTPUT_DIR + "bitmap_collection.mat", bitmap_collection)
 
