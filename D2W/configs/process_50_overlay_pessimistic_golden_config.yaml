@@ -385,14 +385,14 @@ d2w_simulation:
   CRITICAL_DIST_CONSTRAINT: 0.75        # Minimum distance constraint for critical pads
 
   # === Misalignment Parameters ===
-  RANDOM_MISALIGNMENT_MEAN_um: 5e-3        # Random misalignment mean (µm)
-  RANDOM_MISALIGNMENT_STD_um: 1e-2         # Random misalignment standard deviation (µm)
-  SYSTEM_TRANSLATION_X_MEAN_um: 5e-3       # Systematic X translation mean (µm)
-  SYSTEM_TRANSLATION_X_STD_um: 1e-2        # Systematic X translation std (µm)
-  SYSTEM_TRANSLATION_Y_MEAN_um: 5e-3       # Systematic Y translation mean (µm)
-  SYSTEM_TRANSLATION_Y_STD_um: 1e-2        # Systematic Y translation std (µm)
-  SYSTEM_ROTATION_MEAN_rad: 5.4e-4            # Mean of systematic rotation (rad)
-  SYSTEM_ROTATION_STD_rad: 1e-5             # Std of systematic rotation (rad)
+  RANDOM_MISALIGNMENT_MEAN_um: 0        # Mean of random overlay error (µm)
+  RANDOM_MISALIGNMENT_STD_um: 2e-2         # Std of random overlay error (µm)
+  SYSTEM_TRANSLATION_X_MEAN_um: 0       # Mean of systematic X translation (µm)
+  SYSTEM_TRANSLATION_X_STD_um: 2e-2        # Std of systematic X translation (µm)
+  SYSTEM_TRANSLATION_Y_MEAN_um: 0       # Mean of systematic Y translation (µm)
+  SYSTEM_TRANSLATION_Y_STD_um: 2e-2        # Std of systematic Y translation (µm)
+  SYSTEM_ROTATION_MEAN_rad: 5.5e-4            # Mean of systematic rotation (rad)
+  SYSTEM_ROTATION_STD_rad: 2e-4             # Std of systematic rotation (rad)
 
   # === Bowing and Magnification ===
   BOW_DIFFERENCE_MEAN_um: 0.5               # Bow difference mean (µm)
@@ -558,8 +558,8 @@ d2w_modeling:
   SYSTEM_TRANSLATION_X_STD_um: 2e-2        # Std of systematic X translation (µm)
   SYSTEM_TRANSLATION_Y_MEAN_um: 0       # Mean of systematic Y translation (µm)
   SYSTEM_TRANSLATION_Y_STD_um: 2e-2        # Std of systematic Y translation (µm)
-  SYSTEM_ROTATION_MEAN_rad: 5.4e-4            # Mean of systematic rotation (rad)
-  SYSTEM_ROTATION_STD_rad: 1e-5             # Std of systematic rotation (rad)
+  SYSTEM_ROTATION_MEAN_rad: 5.5e-4            # Mean of systematic rotation (rad)
+  SYSTEM_ROTATION_STD_rad: 2e-4             # Std of systematic rotation (rad)
   BOW_DIFFERENCE_MEAN_um: 0.5               # Bow difference mean (µm)
   BOW_DIFFERENCE_STD_um: 0.1                 # Bow difference std (µm)
   k_mag: 0.1                           # Magnification slope coefficient

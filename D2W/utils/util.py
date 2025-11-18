@@ -377,7 +377,8 @@ def convert_3dblox_to_pad_bitmap(cfg,
     # sio.savemat(cfg.OUTPUT_DIR + "bitmap_collection.mat", bitmap_collection)
 
     # # Draw the critical and redundant pad bitmaps in one figure (critical light red, redundant light blue, dummy light gray)
-    # draw_pad_bitmap(cfg, bitmap_collection)
+    draw_pad_bitmap(cfg, bitmap_collection)
+    # raise NotImplementedError("Stop here to avoid confusion.")
 
     return bitmap_collection
 

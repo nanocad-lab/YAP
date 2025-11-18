@@ -250,7 +250,7 @@ def pad_overlay_yield_map_generator(*,
         die.glb_pad_yield_min_max_dict['Y_ovl'] = (glb_defect_pad_yield_min, glb_defect_pad_yield_max)
         if cfg.plot_flag:
         # Draw the pad yield map
-            plt.figure(figsize=(8, 6))
+            plt.figure(figsize=(14, 6))
             plt.imshow(
                 overlay_pad_yield_map_sub, 
                 cmap='viridis', 
