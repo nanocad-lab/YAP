@@ -33,7 +33,7 @@ d2w_simulation:
   B_Sub_Sio2_V: 0.00                    # Efficient substrate layer Sio2 volume density
   B_Sub_Si_V: 0.90                      # Efficient substrate layer si volume density
   B_Sub_T: 775e-6                       # Efficient substrate layer thickness (m)
-  S_INIT_A_M: 100e-9                     # Pre-anneal warpages (m)
+  S_INIT_A_M: 300e-9                     # Pre-anneal warpages (m)
   # === Top Wafer Settings ===
   T_Chip_Cu_V: 0.30                     # Efficient chip layer Cu volume density
   T_Chip_Sio2_V: 0.70                   # Efficient chip layer Sio2 volume density
@@ -51,14 +51,14 @@ d2w_simulation:
   CRITICAL_DIST_CONSTRAINT: 0.75        # Minimum distance constraint for critical pads
 
   # === Misalignment Parameters ===
-  RANDOM_MISALIGNMENT_MEAN_um: 5e-3        # Random misalignment mean (µm)
-  RANDOM_MISALIGNMENT_STD_um: 1e-2         # Random misalignment standard deviation (µm)
-  SYSTEM_TRANSLATION_X_MEAN_um: 5e-3       # Systematic X translation mean (µm)
-  SYSTEM_TRANSLATION_X_STD_um: 1e-2        # Systematic X translation std (µm)
-  SYSTEM_TRANSLATION_Y_MEAN_um: 5e-3       # Systematic Y translation mean (µm)
-  SYSTEM_TRANSLATION_Y_STD_um: 1e-2        # Systematic Y translation std (µm)
-  SYSTEM_ROTATION_MEAN_rad: 2e-6            # Systematic rotation mean (rad)
-  SYSTEM_ROTATION_STD_rad: 1e-6             # Systematic rotation std (rad)
+  RANDOM_MISALIGNMENT_MEAN_um: 0        # Random misalignment mean (µm)
+  RANDOM_MISALIGNMENT_STD_um: 2e-2         # Random misalignment standard deviation (µm)
+  SYSTEM_TRANSLATION_X_MEAN_um: 0       # Systematic X translation mean (µm)
+  SYSTEM_TRANSLATION_X_STD_um: 2e-2        # Systematic X translation std (µm)
+  SYSTEM_TRANSLATION_Y_MEAN_um: 0       # Systematic Y translation mean (µm)
+  SYSTEM_TRANSLATION_Y_STD_um: 2e-2        # Systematic Y translation std (µm)
+  SYSTEM_ROTATION_MEAN_rad: 6e-4            # Systematic rotation mean (rad)
+  SYSTEM_ROTATION_STD_rad: 1e-4             # Systematic rotation std (rad)
 
   # === Bowing and Magnification ===
   BOW_DIFFERENCE_MEAN_um: 0.5               # Bow difference mean (µm)
@@ -224,16 +224,16 @@ d2w_modeling:
   SYSTEM_TRANSLATION_X_STD_um: 2e-2        # Std of systematic X translation (µm)
   SYSTEM_TRANSLATION_Y_MEAN_um: 0       # Mean of systematic Y translation (µm)
   SYSTEM_TRANSLATION_Y_STD_um: 2e-2        # Std of systematic Y translation (µm)
-  SYSTEM_ROTATION_MEAN_rad: 2e-6            # Mean of systematic rotation (rad)
-  SYSTEM_ROTATION_STD_rad: 5e-7             # Std of systematic rotation (rad)
+  SYSTEM_ROTATION_MEAN_rad: 6e-4            # Systematic rotation mean (rad)
+  SYSTEM_ROTATION_STD_rad: 1e-4             # Systematic rotation std (rad)
   BOW_DIFFERENCE_MEAN_um: 0.5               # Bow difference mean (µm)
   BOW_DIFFERENCE_STD_um: 0.1                 # Bow difference std (µm)
   k_mag: 0.1                           # Magnification slope coefficient
   M_0: 0                                # Magnification offset
 
   # === Defect Parameters ===
-  first_contact: 'horizontal-edge'            # First contact location: 'center' or 'vertical-edge' or 'horizontal-edge' or 'corner' (left-bottom)
-  D0: 1e-9                              # Particle density (1/µm²)
+  first_contact: 'center'            # First contact location: 'center' or 'vertical-edge' or 'horizontal-edge' or 'corner' (left-bottom)
+  D0: 2e-9                              # Particle density (1/µm²)
   z: 3                                  # Thickness distribution exponent factor
   t_0: 0.1                              # Minimum particle thickness (µm)
   k_r: 1.8e-4

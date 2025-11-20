@@ -98,7 +98,7 @@ def draw_pad_bitmap(cfg, bitmap_collection):
     # Remaining zeros are non-pad areas
     PAD_BITMAP[PAD_BITMAP == 0] = 4  # non-pad (light gray)
 
-    plt.figure(figsize=(15, 15))
+    plt.figure(figsize=(20, 20))
     cmap = ListedColormap([
         (1.0, 0.5, 0.5),    # 1 - critical (medium red)
         (0.4, 0.4, 0.9),    # 2 - redundant (medium blue)
@@ -109,16 +109,18 @@ def draw_pad_bitmap(cfg, bitmap_collection):
     blue_patch = patches.Patch(color=(0.4, 0.4, 0.9), label='Redundant Pads')
     green_patch = patches.Patch(color=(0.0, 0.6, 0.0), label='Dummy Pads')
     light_gray_patch = patches.Patch(color=(0.9, 0.9, 0.9), label='Non-Pad Areas')
-    plt.legend(
-        handles=[red_patch, blue_patch, green_patch, light_gray_patch],
-        loc='upper center',
-        bbox_to_anchor=(0.5, -0.07),
-        ncol=4,
-        frameon=False
-    )
+    # plt.legend(
+    #     handles=[red_patch, blue_patch, green_patch, light_gray_patch],
+    #     loc='upper center',
+    #     bbox_to_anchor=(0.5, -0.07),
+    #     ncol=4,
+    #     frameon=False
+    # )
+    plt.legend().set_visible(False)
     norm = BoundaryNorm(boundaries=[0.5, 1.5, 2.5, 3.5, 4.5], ncolors=cmap.N)
+    plt.axis('off')
     plt.imshow(PAD_BITMAP, cmap=cmap, norm=norm)
-    plt.title("Pad Block Bitmap")
+    # plt.title("Pad Block Bitmap")
 
 
     # Save the pad bitmaps

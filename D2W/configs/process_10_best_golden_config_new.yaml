@@ -355,7 +355,7 @@ d2w_simulation:
   INPUT_DIR: "input/"          # Output directory for simulation results
   DESIGN: "random_2x2_10"                      # Design name  
   # === Die Settings ===
-  NUM_DIES: 100                            # Number of Dies used in simulation
+  NUM_DIES: 100000                            # Number of Dies used in simulation
   PITCH_r_um: 10                            # Row pad pitch (µm) (In checkerboard layout, this is sqrt(2)/2 times of the real pitch)
   PITCH_c_um: 10                            # Column pad pitch (µm)  (In checkerboard layout, this is sqrt(2)/2 times of the real pitch)
   DIE_W_um: 2050                          # Die width (µm)

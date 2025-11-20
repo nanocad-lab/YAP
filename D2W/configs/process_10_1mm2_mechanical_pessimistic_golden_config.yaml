@@ -355,7 +355,7 @@ d2w_simulation:
   INPUT_DIR: "input/"          # Output directory for simulation results
   DESIGN: "<DESIGN_NAME>"                      # Design name  
   # === Die Settings ===
-  NUM_DIES: 100000                            # Number of Dies used in simulation
+  NUM_DIES: 10000                            # Number of Dies used in simulation
   PITCH_r_um: <ROW_PITCH_Y>                            # Row pad pitch (µm) (In checkerboard layout, this is sqrt(2)/2 times of the real pitch)
   PITCH_c_um: <COLUMN_PITCH_X>                            # Column pad pitch (µm)  (In checkerboard layout, this is sqrt(2)/2 times of the real pitch)
   DIE_W_um: <DIE_WIDTH_X>                          # Die width (µm)
@@ -404,8 +404,8 @@ d2w_simulation:
   SYSTEM_TRANSLATION_X_STD_um: 2e-2        # Std of systematic X translation (µm)
   SYSTEM_TRANSLATION_Y_MEAN_um: 0       # Mean of systematic Y translation (µm)
   SYSTEM_TRANSLATION_Y_STD_um: 2e-2        # Std of systematic Y translation (µm)
-  SYSTEM_ROTATION_MEAN_rad: 5.4e-4            # Mean of systematic rotation (rad)
-  SYSTEM_ROTATION_STD_rad: 2e-4             # Std of systematic rotation (rad)
+  SYSTEM_ROTATION_MEAN_rad: 8e-4          # Systematic rotation mean (rad)
+  SYSTEM_ROTATION_STD_rad: 2e-4             # Systematic rotation std (rad)
 
   # === Bowing and Magnification ===
   BOW_DIFFERENCE_MEAN_um: 0.5               # Bow difference mean (µm)
@@ -415,7 +415,7 @@ d2w_simulation:
 
   # === Defect Parameters ===
   first_contact: 'center'            # First contact location: 'center' or 'edge' or 'corner (left-top)'
-  D0: 2e-9                              # Particle density (1/µm²)
+  D0: 3e-9                              # Particle density (1/µm²)
   z: 3                                  # Particle thickness distribution exponent
   t_0: 0.1                                # Minimum particle thickness (µm)
   k_r: 1.8e-4
@@ -425,10 +425,10 @@ d2w_simulation:
   k_S: 2.7
 
   # === Cu Dishing Parameters ===
-  TOP_DISH_MEAN_nm: -2.0                  # Top pad dish mean (nm)
-  TOP_DISH_STD_nm: 0.3                     # Top pad dish std (nm)
-  BOT_DISH_MEAN_nm: -2.0                  # Bottom pad dish mean (nm)
-  BOT_DISH_STD_nm: 0.3                     # Bottom pad dish std (nm)
+  TOP_DISH_MEAN_nm: -1.0                  # Top pad dish mean (nm)
+  TOP_DISH_STD_nm: 0.33                     # Top pad dish std (nm)
+  BOT_DISH_MEAN_nm: -1.0                  # Bottom pad dish mean (nm)
+  BOT_DISH_STD_nm: 0.33                     # Bottom pad dish std (nm)
   k_et: 0.053                           # Top Cu expansion coefficient (nm/K)
   k_eb: 0.053                           # Bottom Cu expansion coefficient (nm/K)
   T_R: 25                               # Room temperature (°C)
@@ -570,7 +570,7 @@ d2w_modeling:
   SYSTEM_TRANSLATION_X_STD_um: 2e-2        # Std of systematic X translation (µm)
   SYSTEM_TRANSLATION_Y_MEAN_um: 0       # Mean of systematic Y translation (µm)
   SYSTEM_TRANSLATION_Y_STD_um: 2e-2        # Std of systematic Y translation (µm)
-  SYSTEM_ROTATION_MEAN_rad: 5.4e-4            # Mean of systematic rotation (rad)
+  SYSTEM_ROTATION_MEAN_rad: 8e-4          # Mean of systematic rotation (rad)
   SYSTEM_ROTATION_STD_rad: 2e-4             # Std of systematic rotation (rad)
   BOW_DIFFERENCE_MEAN_um: 0.5               # Bow difference mean (µm)
   BOW_DIFFERENCE_STD_um: 0.1                 # Bow difference std (µm)
@@ -579,7 +579,7 @@ d2w_modeling:
 
   # === Defect Parameters ===
   first_contact: 'center'            # First contact location: 'center' or 'vertical-edge' or 'horizontal-edge' or 'corner' (left-bottom)
-  D0: 2e-9                              # Particle density (1/µm²)
+  D0: 3e-9                              # Particle density (1/µm²)
   z: 3                                  # Thickness distribution exponent factor
   t_0: 0.1                              # Minimum particle thickness (µm)
   k_r: 1.8e-4
@@ -589,10 +589,10 @@ d2w_modeling:
   k_S: 2.7
 
   # === Cu Expansion / Dishing Parameters ===
-  TOP_DISH_MEAN_nm: -2.0                  # Top pad height mean (nm)
-  TOP_DISH_STD_nm: 0.3                     # Top pad height std (nm)
-  BOT_DISH_MEAN_nm: -2.0                  # Bottom pad height mean (nm)
-  BOT_DISH_STD_nm: 0.3                     # Bottom pad height std (nm)
+  TOP_DISH_MEAN_nm: -1.0                  # Top pad height mean (nm)
+  TOP_DISH_STD_nm: 0.33                     # Top pad height std (nm)
+  BOT_DISH_MEAN_nm: -1.0                  # Bottom pad height mean (nm)
+  BOT_DISH_STD_nm: 0.33                     # Bottom pad height std (nm)
   k_et: 0.053                           # Top Cu expansion coef (nm/K)
   k_eb: 0.053                           # Bottom Cu expansion coef (nm/K)
   T_R: 25                               # Room temperature (°C)
