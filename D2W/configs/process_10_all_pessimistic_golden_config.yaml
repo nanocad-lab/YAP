@@ -8,6 +8,7 @@ w2w_simulation:
   DESIGN: "<DESIGN_NAME>"                      # Design name
   # === Wafer and Die Settings ===
   NUM_WAFERS: 1                        # Number of wafers used in simulation
+  SIM_BATCH_SIZE: 1                            # Number of wafer samples simulated in one batch (a way to decrease memory requirements)
   PITCH_r_um: <ROW_PITCH_Y>                            # Row pad pitch (µm)   (In checkerboard layout, this is sqrt(2)/2 times of the real pitch)
   PITCH_c_um: <COLUMN_PITCH_X>                            # Column pad pitch (µm)    (In checkerboard layout, this is sqrt(2)/2 times of the real pitch)
   DIE_W_um: <DIE_WIDTH_X>                          # Die width (µm)
@@ -510,6 +511,7 @@ d2w_modeling:
   DESIGN: "<DESIGN_NAME>"                      # Design name  
   # === Die Settings ===
   NUM_DIES: 10000                            # Number of Dies used in simulation
+  SIM_BATCH_SIZE: 100                            # Number of Dies samples simulated in one batch (a way to 
   PITCH_r_um: <ROW_PITCH_Y>                            # Row pad pitch (µm) (In checkerboard layout, this is sqrt(2)/2 times of the real pitch)
   PITCH_c_um: <COLUMN_PITCH_X>                            # Column pad pitch (µm)  (In checkerboard layout, this is sqrt(2)/2 times of the real pitch)
   DIE_W_um: <DIE_WIDTH_X>                          # Die width (µm)

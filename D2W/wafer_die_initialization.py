@@ -177,17 +177,17 @@ class Wafer:
 
 
 def die_initialize(
-    NUM_DIES,
-    DIE_W_um,
-    DIE_L_um,
-    PAD_ARR_W_um,
-    PAD_ARR_L_um,
-    PAD_ARR_ROW,
-    PAD_ARR_COL,
-    PITCH_r_um,
-    PITCH_c_um,
-    PAD_TOP_R_um,
-    PAD_BOT_R_um,
+    NUM_DIE_SAMPLES: int,
+    DIE_W_um: float,
+    DIE_L_um: float,
+    PAD_ARR_W_um: float,
+    PAD_ARR_L_um: float,
+    PAD_ARR_ROW: int,   
+    PAD_ARR_COL: int,
+    PITCH_r_um: float,
+    PITCH_c_um: float,
+    PAD_TOP_R_um: float,
+    PAD_BOT_R_um: float,
     pad_bitmap_collection,
     pad_yield_flag: bool = False,
 ):
@@ -232,7 +232,7 @@ def die_initialize(
             print("Too many Cu pads... Will not generate the pad coordinates.")
             PAD_COORDS = None
     
-    for i in range(NUM_DIES):
+    for i in range(NUM_DIE_SAMPLES):
         die = Die(
             DIE_W_um=DIE_W_um,
             DIE_L_um=DIE_L_um,

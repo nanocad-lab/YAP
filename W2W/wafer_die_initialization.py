@@ -182,7 +182,7 @@ class Wafer:
 
 
 def wafer_initialize(
-    NUM_WAFERS,
+    NUM_WAFER_SAMPLES,
     DIE_W_um,
     DIE_L_um,
     PAD_ARR_W_um,
@@ -242,7 +242,7 @@ def wafer_initialize(
             PAD_COORDS = None
     
     # Initialize the wafer
-    for i in range(NUM_WAFERS):
+    for i in range(NUM_WAFER_SAMPLES):
         wafer = Wafer(
             wafer_radius=WAF_R_um,
             DIE_W_um=DIE_W_um,

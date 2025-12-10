@@ -51,7 +51,7 @@ def overlay_term_simulator(
     SYSTEM_TRANSLATION_Y_STD_um: float,
     BOW_DIFFERENCE_MEAN_um: float,
     BOW_DIFFERENCE_STD_um: float,
-    NUM_DIES: int,
+    NUM_DIE_SAMPLES: int,
     k_mag: float,
     M_0: float,
 ):
@@ -99,15 +99,15 @@ def overlay_term_simulator(
     
     # Calculate the systematic translation, rotation, and magnification
     system_translation_x_um = (
-        np.random.normal(SYSTEM_TRANSLATION_X_MEAN_um, SYSTEM_TRANSLATION_X_STD_um, NUM_DIES)
+        np.random.normal(SYSTEM_TRANSLATION_X_MEAN_um, SYSTEM_TRANSLATION_X_STD_um, NUM_DIE_SAMPLES)
     )
     system_translation_y_um = (
-        np.random.normal(SYSTEM_TRANSLATION_Y_MEAN_um, SYSTEM_TRANSLATION_Y_STD_um, NUM_DIES)
+        np.random.normal(SYSTEM_TRANSLATION_Y_MEAN_um, SYSTEM_TRANSLATION_Y_STD_um, NUM_DIE_SAMPLES)
     )
     system_rotation_rad = (
-        np.random.normal(SYSTEM_ROTATION_MEAN_rad, SYSTEM_ROTATION_STD_rad, NUM_DIES)
+        np.random.normal(SYSTEM_ROTATION_MEAN_rad, SYSTEM_ROTATION_STD_rad, NUM_DIE_SAMPLES)
     )
-    bow_difference = np.random.normal(BOW_DIFFERENCE_MEAN_um, BOW_DIFFERENCE_STD_um, NUM_DIES)
+    bow_difference = np.random.normal(BOW_DIFFERENCE_MEAN_um, BOW_DIFFERENCE_STD_um, NUM_DIE_SAMPLES)
     system_magnification_ppm = (
         (k_mag * bow_difference + M_0) / 1e6
     )  # systematic magnification unit (ppm)

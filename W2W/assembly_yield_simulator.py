@@ -6,6 +6,7 @@
 
 import numpy as np
 import time
+import os
 
 from wafer_die_initialization import wafer_initialize
 from overlay_yield_simulator import overlay_term_simulator
@@ -18,16 +19,21 @@ def Assembly_Yield_Simulator(
     cfg,
     pad_bitmap_collection,
 ):
-    single_config_yield_list = []
+    # Remove temporary files if any
+    for name in os.listdir(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp'):
+        file_path = os.path.join(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp', name)
+        if os.path.isdir(file_path):
+            os.remove(file_path)
 
-    for i in range(cfg.simulation_times):
-        if i % 1 == 0 and cfg.simulation_times > 1:
-            print("Processing batch {}/{}...".format(i + 1, cfg.simulation_times))
+
+    num_sim_epoch = cfg.NUM_WAFERS // cfg.SIM_BATCH_SIZE
+    epoch_yield_list = []
+    for epoch in range(num_sim_epoch):
         # Record the time
         start_time = time.time()
         # Initialize the wafer
         waf_list = wafer_initialize(
-            NUM_WAFERS              = cfg.NUM_WAFERS,
+            NUM_WAFERS              = cfg.SIM_BATCH_SIZE,
             DIE_W_um                = cfg.DIE_W_um,
             DIE_L_um                = cfg.DIE_L_um,
             PAD_ARR_W_um            = cfg.PAD_ARR_W_um,
@@ -42,7 +48,7 @@ def Assembly_Yield_Simulator(
             dice_width              = cfg.dice_width,
             pad_bitmap_collection   = pad_bitmap_collection,
         )
-        wafer_sample = waf_list[0]
+        # wafer_sample = waf_list[0]
         # Draw the swhole wafer
         # wafer_sample.draw_wafer_die(fig_size=(15, 15))
         # raise NotImplementedError("Stop here for debug.")
@@ -63,25 +69,25 @@ def Assembly_Yield_Simulator(
             SYSTEM_TRANSLATION_Y_STD_um     =       cfg.SYSTEM_TRANSLATION_Y_STD_um,
             BOW_DIFFERENCE_MEAN_um          =       cfg.BOW_DIFFERENCE_MEAN_um,
             BOW_DIFFERENCE_STD_um           =       cfg.BOW_DIFFERENCE_STD_um,
-            NUM_WAFERS                      =       cfg.NUM_WAFERS,
+            NUM_WAFER_SAMPLES               =       cfg.SIM_BATCH_SIZE,
             k_mag                           =       cfg.k_mag,
             M_0                             =       cfg.M_0,
         )
         
         # Generate void defects
         defect_yield_simulator(
-            WAF_R_um           =       cfg.WAF_R_um,
-            D0              =       cfg.D0,
-            t_0             =       cfg.t_0,
-            z               =       cfg.z,
-            k_r             =       cfg.k_r,
-            k_r0            =       cfg.k_r0,
-            k_n             =       cfg.k_n,
-            k_L             =       cfg.k_L,
-            k_S             =       cfg.k_S,
-            VOID_SHAPE      =       cfg.VOID_SHAPE,
-            NUM_WAFERS      =       cfg.NUM_WAFERS,
-            waf_list        =       waf_list,
+            WAF_R_um            =       cfg.WAF_R_um,
+            D0                  =       cfg.D0,
+            t_0                 =       cfg.t_0,
+            z                   =       cfg.z,
+            k_r                 =       cfg.k_r,
+            k_r0                =       cfg.k_r0,
+            k_n                 =       cfg.k_n,
+            k_L                 =       cfg.k_L,
+            k_S                 =       cfg.k_S,
+            VOID_SHAPE          =       cfg.VOID_SHAPE,
+            NUM_WAFER_SAMPLES   =       cfg.SIM_BATCH_SIZE,
+            waf_list            =       waf_list,
         )
         
         # Calculate the overall yield
@@ -118,13 +124,12 @@ def Assembly_Yield_Simulator(
             approximate_set                 =       cfg.approximate_set,
             pad_bitmap_collection           =       pad_bitmap_collection,
         )
-        single_config_yield_list.append(yield_list)
+        epoch_yield_list.append(yield_list)
+        print(f"Simulation progress: {epoch+1}/{num_sim_epoch} epochs completed.", end='\r')
         
         
         del waf_list
-    if cfg.simulation_times > 1:
-        print("The batch yield list is: ", single_config_yield_list)
-    assembly_yield = np.mean(single_config_yield_list)
-    print("The assembly yield is {:.2f}%.".format(assembly_yield * 100))
 
-    return assembly_yield, single_config_yield_list
+    assembly_yield = np.mean(epoch_yield_list)
+
+    return assembly_yield, epoch_yield_list

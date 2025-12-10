@@ -16,7 +16,7 @@ from esd_hybrid import esd_failure_simulator
 def overall_yield_simulator(
     cfg,
     die_list: list,
-    NUM_DIES: int,
+    NUM_DIE_SAMPLES: int,
     base_pad_coords: np.ndarray,
     system_translation_x_um: np.ndarray,
     system_translation_y_um: np.ndarray,
@@ -49,21 +49,20 @@ def overall_yield_simulator(
     # Get the valid pad mask
     valid_pad_mask = (pad_bitmap_collection['CRITICAL_PAD_BITMAP'] == 1) | (pad_bitmap_collection['REDUNDANT_PAD_BITMAP'] == 1) | (pad_bitmap_collection['DUMMY_PAD_BITMAP'] == 1)
     valid_die_pad_coords = die_list[0].pad_coords[valid_pad_mask.flatten() == 1]
-    # if not os.path.exists(cfg.OUTPUT_DIR + cfg.DESIGN + '/' + cfg.DESIGN + "_dishing_bound_array.npy") or cfg.DEBUG:
-    #     start_time = time.time()
-    #     valid_pad_dishing_bound_array = debond_dishing_bounds_calculator(cfg, valid_die_pad_coords) # (num_pads, 2) array: (dishing_low_nm, dishing_high_nm)
-    #     print("Dishing bound calculation time: {:.2f} seconds".format(time.time() - start_time))
-    #     np.save(cfg.OUTPUT_DIR + cfg.DESIGN + '/' + cfg.DESIGN + "_dishing_bound_array.npy", valid_pad_dishing_bound_array)
-    # else:
-    #     valid_pad_dishing_bound_array = np.load(cfg.OUTPUT_DIR + cfg.DESIGN + '/' + cfg.DESIGN + "_dishing_bound_array.npy")
-    start_time = time.time()
-    valid_pad_dishing_bound_array = debond_dishing_bounds_calculator(cfg, valid_die_pad_coords) # (num_pads, 2) array: (dishing_low_nm, dishing_high_nm)
-    print("Dishing bound calculation time: {:.2f} seconds".format(time.time() - start_time))
-    for die_ind in range(NUM_DIES):
+    if not os.path.exists(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp/' + cfg.DESIGN + "_dishing_bound_array.npy") or cfg.DEBUG:
+        if not os.path.exists(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp/'):
+            os.makedirs(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp/')
+        start_time = time.time()
+        valid_pad_dishing_bound_array = debond_dishing_bounds_calculator(cfg, valid_die_pad_coords) # (num_pads, 2) array: (dishing_low_nm, dishing_high_nm)
+        print("Dishing bound calculation time: {:.2f} seconds".format(time.time() - start_time))
+        np.save(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp/' + cfg.DESIGN + "_dishing_bound_array.npy", valid_pad_dishing_bound_array)
+    else:
+        valid_pad_dishing_bound_array = np.load(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp/' + cfg.DESIGN + "_dishing_bound_array.npy")
+    for die_ind in range(NUM_DIE_SAMPLES):
         # # check start time
         start_time = time.time()
-        if die_count % 500 == 0:
-            print("Processing die {}/{}...".format(die_count, len(die_list)))
+        # if die_count % 500 == 0:
+        #     print("Processing die {}/{}...".format(die_count, len(die_list)))
         die = die_list[die_ind]
         die_count += 1
         # Read the critical pad bitmap
@@ -259,6 +258,7 @@ def overall_yield_simulator(
                 die.survival = False
                 redundant_fail += 1
                 break
+            
         # # Get the fail bump indices
         # fail_bump_id = mapping_physical_to_bumpid[redundant_pad_fail_map == 1]
         # # Switch to set for easier checking

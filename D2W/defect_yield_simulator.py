@@ -80,7 +80,7 @@ def defect_yield_simulator(
     VOID_SHAPE,
     DIE_W_um,
     DIE_L_um,
-    NUM_DIES,
+    NUM_DIE_SAMPLES,
     die_list,
 ):
     def cdf_particle_thickness(t):
@@ -127,11 +127,11 @@ def defect_yield_simulator(
         return voids, main_voids, tail_voids
     
     drop_particle_range = 2 # the range of the particles to drop regarding the die size
-    total_particles = (drop_particle_range * DIE_W_um) * (drop_particle_range * DIE_L_um) * D0 * NUM_DIES     # Put the particles on the 2*DIE_W_um * 2*DIE_L_um area
+    total_particles = (drop_particle_range * DIE_W_um) * (drop_particle_range * DIE_L_um) * D0 * NUM_DIE_SAMPLES     # Put the particles on the 2*DIE_W_um * 2*DIE_L_um area
     particles_per_die = np.random.multinomial(
-        total_particles, [1 / NUM_DIES] * NUM_DIES
+        total_particles, [1 / NUM_DIE_SAMPLES] * NUM_DIE_SAMPLES
     )
-    for die_ind in range(NUM_DIES):
+    for die_ind in range(NUM_DIE_SAMPLES):
         num_particles = particles_per_die[die_ind]
         particle_thickness = np.zeros(num_particles)
         u = np.random.rand(num_particles)

@@ -8,7 +8,8 @@ w2w_simulation:
   DESIGN: "HBM_footprint_A"                      # Design name
   PAD_ARRANGE_PATTERN: "checkerboard"        # Pad arrangement pattern: "checkerboard" (HBM)
   # === Wafer and Die Settings ===
-  NUM_WAFERS: 1                        # Number of wafers used in simulation
+  NUM_WAFERS: 10                        # Number of wafers used in simulation
+  SIM_BATCH_SIZE: 1                            # Number of wafer samples simulated in one batch (a way to decrease memory requirements)
   PITCH_r_um: 55                            # Row pad pitch (µm)
   PITCH_c_um: 35                            # Column pad pitch (µm)
   DIE_W_um: 10850                          # Die width (µm)

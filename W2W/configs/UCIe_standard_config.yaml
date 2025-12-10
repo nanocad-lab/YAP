@@ -9,6 +9,7 @@ w2w_simulation:
 
   # === Wafer and Die Settings ===
   NUM_WAFERS: 1                        # Number of wafers used in simulation
+  SIM_BATCH_SIZE: 1                            # Number of wafer samples simulated in one batch (a way to decrease memory requirements)
   PITCH_r_um: 115                            # Row pad pitch (µm)
   PITCH_c_um: 115                            # Column pad pitch (µm)
   DIE_W_um: 1400                          # Die width (µm)
