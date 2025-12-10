@@ -21,13 +21,6 @@ def Assembly_Yield_Simulator(
     cfg,
     pad_bitmap_collection,
 ):   
-    
-    # Remove temporary files if any
-    for name in os.listdir(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp'):
-        file_path = os.path.join(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp', name)
-        if os.path.isdir(file_path):
-            os.remove(file_path)
-
     num_sim_epoch = cfg.NUM_DIES // cfg.SIM_BATCH_SIZE
     epoch_yield_list = []
     for epoch in range(num_sim_epoch):
@@ -131,5 +124,11 @@ def Assembly_Yield_Simulator(
 
 
     assembly_yield = np.mean(epoch_yield_list)
+        
+    # Remove temporary files if any
+    for name in os.listdir(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp'):
+        file_path = os.path.join(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp', name)
+        if os.path.isdir(file_path):
+            os.remove(file_path)
 
     return assembly_yield, epoch_yield_list
