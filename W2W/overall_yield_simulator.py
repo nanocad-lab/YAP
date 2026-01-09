@@ -261,7 +261,7 @@ def overall_yield_simulator(
             if not os.path.exists(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp/' + cfg.DESIGN + "_dishing_bound_array_die_{}.npy".format(die_ind)) or cfg.DEBUG:
                 if not os.path.exists(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp/'):
                     os.makedirs(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp/')
-                start_time = time.time()
+                # start_time = time.time()
                 valid_pad_dishing_bound_array = debond_dishing_bounds_calculator(cfg, valid_die_pad_coords) # (num_pads, 2) array: (dishing_low_nm, dishing_high_nm)
                 # print("Dishing bound calculation time: {:.2f} seconds".format(time.time() - start_time))
                 np.save(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp/' + cfg.DESIGN + "_dishing_bound_array_die_{}.npy".format(die_ind), valid_pad_dishing_bound_array)

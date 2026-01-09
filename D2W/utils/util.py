@@ -98,7 +98,7 @@ def draw_pad_bitmap(cfg, bitmap_collection):
     # Remaining zeros are non-pad areas
     PAD_BITMAP[PAD_BITMAP == 0] = 4  # non-pad (light gray)
 
-    plt.figure(figsize=(20, 20))
+    plt.figure(figsize=(10, 10))
     cmap = ListedColormap([
         (1.0, 0.5, 0.5),    # 1 - critical (medium red)
         (0.4, 0.4, 0.9),    # 2 - redundant (medium blue)
@@ -242,7 +242,10 @@ def convert_3dblox_to_pad_bitmap(cfg,
     '''
     pad_arrange_pattern: 'checkerboard' for UCIe standard and HBM
     '''
-
+    # Create output directory if not exist
+    if not os.path.exists(cfg.OUTPUT_DIR + cfg.DESIGN):
+        os.makedirs(cfg.OUTPUT_DIR + cfg.DESIGN)
+        
     sort_pads_bmap(blox_bmap_path, blox_bmap_path)
 
     # Read the bump data from the .bmap file

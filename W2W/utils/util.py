@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from matplotlib.colors import ListedColormap, BoundaryNorm
 import scipy.io as sio
-
+import os
 
 def load_modeling_config(path, mode, debug=False):
     full_cfg = OmegaConf.load(path)
@@ -280,6 +280,10 @@ def convert_3dblox_to_pad_bitmap(cfg,
     This module converts the 3DBlox .bmap file to pad bitmap for YAP to process.
         - pad_arrange_pattern: 'checkerboard' for UCIe standard and HBM
     '''
+
+    # Create output directory if not exist
+    if not os.path.exists(cfg.OUTPUT_DIR + cfg.DESIGN):
+        os.makedirs(cfg.OUTPUT_DIR + cfg.DESIGN)
 
     sort_pads_bmap(blox_bmap_path, blox_bmap_path)
 

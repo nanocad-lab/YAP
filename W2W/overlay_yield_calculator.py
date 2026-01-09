@@ -252,7 +252,7 @@ def pad_overlay_yield_map_generator(
                                                         )
             glb_defect_pad_yield_min = min(glb_defect_pad_yield_min, np.nanmin(overlay_pad_yield_map))
             glb_defect_pad_yield_max = max(glb_defect_pad_yield_max, np.nanmax(overlay_pad_yield_map))
-            print("Generated pad-level overlay yield map for die {}.".format(die_id))
+            print("Generated pad-level overlay yield map for die {}.".format(die_id), end='\r')
             die.pad_yield_map['Y_ovl'] = overlay_pad_yield_map
 
     wafer.glb_pad_yield_min_max_dict['Y_ovl'] = (glb_defect_pad_yield_min, glb_defect_pad_yield_max)

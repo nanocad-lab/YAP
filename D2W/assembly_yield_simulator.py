@@ -121,7 +121,7 @@ def Assembly_Yield_Simulator(
 
         del die_list
 
-    print("Simulation Completed.")
+    print("\nSimulation Completed.")
     assembly_yield = np.mean(epoch_yield_list)
     # Remove temporary files if any
     for name in os.listdir(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp'):

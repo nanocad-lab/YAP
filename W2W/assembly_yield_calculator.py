@@ -27,7 +27,7 @@ def Pad_Yield_Map_Generator(
     start_time = time.time()
     # Initialize the wafer
     single_waf_list = wafer_initialize(
-        NUM_WAFERS                  = 1,
+        NUM_WAFER_SAMPLES           = 1,
         DIE_W_um                    = cfg.DIE_W_um,
         DIE_L_um                    = cfg.DIE_L_um,
         PAD_ARR_W_um                = cfg.PAD_ARR_W_um,
