@@ -56,7 +56,7 @@ def main():
         cfg=cfg,
         pad_bitmap_collection=pad_bitmap_collection,                                               
     )
-   
+    
     print(f"Assembly yield over {cfg.NUM_DIES} simulations: {assembly_yield*100:.2f}%")
     print("Total time taken: {:.2f} seconds".format(time.time() - start_time))
 

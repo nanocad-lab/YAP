@@ -121,7 +121,7 @@ def Assembly_Yield_Simulator(
 
         del die_list
 
-
+    print("Simulation Completed.")
 
     assembly_yield = np.mean(epoch_yield_list)
         
