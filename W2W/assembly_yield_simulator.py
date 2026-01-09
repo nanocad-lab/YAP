@@ -26,7 +26,7 @@ def Assembly_Yield_Simulator(
         start_time = time.time()
         # Initialize the wafer
         waf_list = wafer_initialize(
-            NUM_WAFERS              = cfg.SIM_BATCH_SIZE,
+            NUM_WAFER_SAMPLES       = cfg.SIM_BATCH_SIZE,
             DIE_W_um                = cfg.DIE_W_um,
             DIE_L_um                = cfg.DIE_L_um,
             PAD_ARR_W_um            = cfg.PAD_ARR_W_um,
@@ -118,16 +118,17 @@ def Assembly_Yield_Simulator(
             pad_bitmap_collection           =       pad_bitmap_collection,
         )
         epoch_yield_list.append(yield_list)
-        print(f"Simulation progress: {epoch+1}/{num_sim_epoch} epochs completed.", end='\r')
+        print(f"Simulation progress: {(epoch+1)*cfg.SIM_BATCH_SIZE}/{cfg.NUM_WAFERS} wafers simulated. Epoch yield: {np.mean(yield_list):.4f}. Time taken: {time.time() - start_time:.2f} seconds.")
         
         
         del waf_list
 
+    print("Simulation for all epochs completed.")
     assembly_yield = np.mean(epoch_yield_list)
     # Remove temporary files if any
     for name in os.listdir(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp'):
         file_path = os.path.join(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp', name)
-        if os.path.isdir(file_path):
+        if os.path.isfile(file_path):
             os.remove(file_path)
 
 

@@ -96,8 +96,7 @@ def overall_yield_simulator(
             valid_die_pad_coords = die_pad_coords[valid_pad_mask.flatten() == 1]
             die_count += 1
             if die_count % 10 == 0:
-                print("Processing die {}/{}...".format(die_count, len(wafer.die_list)))
-                print("Time taken for every 10 dies: {:.2f} seconds".format((time.time() - start_time) / die_count * 10))
+                print("Processing die {}/{}...Time taken for every 10 dies: {:.2f} seconds".format(die_count, len(wafer.die_list), (time.time() - start_time) / die_count * 10), end='\r')
                 # start_time = time.time()
             redundant_pad_fail_map = np.zeros((PAD_ARR_ROW, PAD_ARR_COL))
             
@@ -218,7 +217,7 @@ def overall_yield_simulator(
                     # Check if any void overlaps with the critical pads
                     overlap_critical = overlap_void_pad_mask & check_critical_pad_bitmap.astype(bool)
                     if np.any(overlap_critical):
-                        print("Die fails due to critical pad void overlap.")
+                        # print("Die fails due to critical pad void overlap.")
                         wafer.survival_die -= 1
                         die.survival = False
                     else:   # Voids overlapping with the redundant pads.
@@ -264,7 +263,7 @@ def overall_yield_simulator(
                     os.makedirs(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp/')
                 start_time = time.time()
                 valid_pad_dishing_bound_array = debond_dishing_bounds_calculator(cfg, valid_die_pad_coords) # (num_pads, 2) array: (dishing_low_nm, dishing_high_nm)
-                print("Dishing bound calculation time: {:.2f} seconds".format(time.time() - start_time))
+                # print("Dishing bound calculation time: {:.2f} seconds".format(time.time() - start_time))
                 np.save(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp/' + cfg.DESIGN + "_dishing_bound_array_die_{}.npy".format(die_ind), valid_pad_dishing_bound_array)
             else:
                 valid_pad_dishing_bound_array = np.load(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp/' + cfg.DESIGN + "_dishing_bound_array_die_{}.npy".format(die_ind))
@@ -275,7 +274,7 @@ def overall_yield_simulator(
             # Check critical pad Cu gap
             critical_pad_Cu_gap = Cu_gap_map * die_critical_pad_bitmap      # Shape: (PAD_ARR_ROW, PAD_ARR_COL)
             if np.any(critical_pad_Cu_gap > zeta_1 * die_critical_pad_bitmap) or np.any(critical_pad_Cu_gap < zeta_0 * die_critical_pad_bitmap):
-                print("Die fails due to critical pad Cu gap failure.")
+                # print("Die fails due to critical pad Cu gap failure.")
                 wafer.survival_die -= 1
                 die.survival = False
                 continue
@@ -313,10 +312,10 @@ def overall_yield_simulator(
             if np.abs(die_center_x) < die.DIE_W_um / 2 and np.abs(die_center_y) < die.DIE_L_um / 2:
                 # Assume dies in the center will be the first contact point and have higher ESD hazard
                 # Check critical pads specifically for the ESD failure mechanisms (ESD-critical pads)
-                first_contact_pad_idx, survive_bool = esd_failure_simulator(pad_coords_um=valid_die_pad_coords,
+                first_contact_pad_idx, survive_bool = esd_failure_simulator(
+                                                pad_coords_um=valid_die_pad_coords,
                                                 pad_size_um=PAD_TOP_R_um * 2,
-                                                top_die_w_um=die.DIE_W_um,
-                                                top_die_h_um=die.DIE_L_um,
+                                                top_wafer_radius_um=WAF_R_um,
                                                 top_dish_nm_ext=top_dish,
                                                 bot_dish_nm_ext=bot_dish,
                                                 tilt_x_mean_deg=TILT_X_MEAN_DEG,
@@ -327,7 +326,7 @@ def overall_yield_simulator(
                 if first_contact_pad_idx is not None and survive_bool == False:
                     r_idx, c_idx = first_contact_pad_idx // PAD_ARR_COL, first_contact_pad_idx % PAD_ARR_COL
                     if die_esd_critical_pad_bitmap[r_idx, c_idx] == 1:
-                        print("Die fails due to ESD")
+                        # print("Die fails due to ESD")
                         wafer.survival_die -= 1
                         die.survival = False
                         continue
@@ -339,23 +338,19 @@ def overall_yield_simulator(
                             redundant_fail += 1
                             break                    
 
-            #check time for 10 dies
-            if die_count % 10 == 9:
-                print("The time for checking ten dies is {} seconds.".format(time.time() - start_time))
-
         # Record the time
         # print("The time for checking wafer {} is {} seconds.".format(waf_ind, time.time() - start_time))
         # # print("The number of survival dies in the wafer is {}.".format(wafer.survival_die))
         # Draw the swhole wafer
-        wafer.draw_wafer_die(fig_size=(10, 10))
+        # wafer.draw_wafer_die(fig_size=(10, 10))
         # raise ValueError("Stop here")
         # print("Critical pad fail: {}, Redundant pad fail: {}".format(critical_fail, redundant_fail))
         die_yield = wafer.survival_die / len(wafer.die_list)
 
         # print("The die yield of the wafer is {:.2f}%.".format(die_yield * 100))
         yield_list.append(die_yield)
-        if (waf_ind + 1) % 1 == 0:
-            print("Processing wafer {}/{}..., Current mean yield is {:.2f}%.".format(waf_ind + 1, len(waf_list), np.mean(yield_list) * 100))
+        # if (waf_ind + 1) % 1 == 0:
+        #     print("Processing wafer {}/{}..., Current mean yield is {:.2f}%.".format(waf_ind + 1, cfg.NUM_WAFERS, np.mean(yield_list) * 100))
             # Print the memory size of the waf_list
             # print("The memory size of the waf_list is {} MB.".format(total_memory_mb(waf_list)))
         # raise ValueError("Stop here")

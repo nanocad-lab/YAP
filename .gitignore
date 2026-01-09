@@ -1,2 +1,4 @@
 __pycache__/
 *.pyc
+/D2W_correlation_experiments/
+/Repair_Analysis/
