@@ -60,31 +60,32 @@ pip install -r requirements.txt
 # File Formats
 1. Bump Map (.bmap):
 
-   Format: <instance> <bump_type> <x> <y> <port> <net>
+   Format: `<instance> <bump_type> <x> <y> <port> <net>`
 
-   Example: Bump_0 uBUMP 115 1610 txdatasb txdatasb
+   Example: `Bump_0 uBUMP 115 1610 txdatasb txdatasb`
 
 2. Risk Map (.map):
 
-   Format: <x> <y> <esd_failure_probability> <overlay_failure_probability> <particle_failure_probability> <mechanical_failure_probability>
+   Format: `<x> <y> <esd_failure_probability> <overlay_failure_probability> <particle_failure_probability> <mechanical_failure_probability>`
 
-   Example: 115 1610 0.15 0.05 0.03 0.20
+   Example: `115 1610 0.15 0.05 0.03 0.20`
 
    Note: Probabilities are float values between 0 and 1
-   
+
    NOTE: ESD criticality is multiplied by esd_failure_probability.
          Mechanical criticality is multiplied by overlay_failure_probability, 
          particle_failure_probability, and mechanical_failure_probability.
          All four failure modes are considered in the optimization objective.
 
 3. Criticality (.txt):
-   Current Format: <net1> [net2] [net3] ... <group_size> <tolerated_esd_failures> <tolerated_mechanical_failures>
+
+   Current Format: `<net1> [net2] [net3] ... <group_size> <tolerated_esd_failures> <tolerated_mechanical_failures>`
    
    Where:
-   - group_size: Total number of pads/bumps in the redundancy group
-   - tolerated_esd_failures: Number of ESD failures the group can tolerate before failing
-   - tolerated_mechanical_failures: Number of mechanical failures the group can tolerate before failing
-   
+   - `group_size`: Total number of pads/bumps in the redundancy group
+   - `tolerated_esd_failures`: Number of ESD failures the group can tolerate before failing
+   - `tolerated_mechanical_failures`: Number of mechanical failures the group can tolerate before failing
+
    Criticality values are calculated when reading the file:
    - esd_criticality = (group_size - tolerated_esd_failures) / group_size
    - mechanical_criticality = (group_size - tolerated_mechanical_failures) / group_size
