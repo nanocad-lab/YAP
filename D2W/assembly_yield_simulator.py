@@ -25,6 +25,7 @@ def Assembly_Yield_Simulator(
     epoch_yield_list = []
 
     if cfg.verbose:
+        print("Verbose mode enabled: Tracking failure reasons for each die.")
         fail_map_dict = {}
         fail_map_dict['overlay']    = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL))
         fail_map_dict['particle']   = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL))
@@ -162,9 +163,17 @@ def Assembly_Yield_Simulator(
         fail_map_dict['mechanical'] /= (num_sim_epoch * cfg.SIM_BATCH_SIZE)
         fail_map_dict['ESD']        /= (num_sim_epoch * cfg.SIM_BATCH_SIZE)
         fail_map_dict['overall']    /= (num_sim_epoch * cfg.SIM_BATCH_SIZE)
+        # Report the failure reasons statistics
+        print("{} die failures due to overlay misalignment.".format(int(np.sum(fail_vec_dict['overlay']))))
+        print("{} die failures due to particle defects.".format(int(np.sum(fail_vec_dict['particle']))))
+        print("{} die failures due to mechanical issues.".format(int(np.sum(fail_vec_dict['mechanical']))))
+        print("{} die failures due to ESD issues.".format(int(np.sum(fail_vec_dict['ESD']))))
+        print("{} die failures in total.".format(int(np.sum(fail_vec_dict['overall']))))
         # Save fail map dict
         np.savez(cfg.OUTPUT_DIR + cfg.DESIGN + '/assembly_fail_map_dict.npz', **fail_map_dict)
+        print("Failure heat maps saved to {}.".format(cfg.OUTPUT_DIR + cfg.DESIGN + '/assembly_fail_map_dict.npz'))
         # Save fail vec dict
         np.savez(cfg.OUTPUT_DIR + cfg.DESIGN + '/assembly_fail_vec_dict.npz', **fail_vec_dict)
+        print("Failure vectors for all die samples saved to {}.".format(cfg.OUTPUT_DIR + cfg.DESIGN + '/assembly_fail_vec_dict.npz'))
 
-    return assembly_yield, epoch_yield_list
+    return assembly_yield, epoch_yield_list 
