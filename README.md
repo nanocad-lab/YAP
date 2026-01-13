@@ -77,7 +77,7 @@ pip install -r requirements.txt
          particle_failure_probability, and mechanical_failure_probability.
          All four failure modes are considered in the optimization objective.
 
-3. Criticality (.txt):
+**3. Criticality (.txt):**
 
    Current Format: `<net1> [net2] [net3] ... <group_size> <tolerated_esd_failures> <tolerated_mechanical_failures>`
    
