@@ -57,15 +57,21 @@ pip install -r requirements.txt
   python simulator_main.py --config configs/random_10x10_50.yaml --mode d2w_simulation --bmap input/random_10x10_50.bmap  --criticality input/random_10x10_50_criticality.txt
   ```
 
-# File Format
+# File Formats
 1. Bump Map (.bmap):
+
    Format: <instance> <bump_type> <x> <y> <port> <net>
+
    Example: Bump_0 uBUMP 115 1610 txdatasb txdatasb
 
 2. Risk Map (.map):
+
    Format: <x> <y> <esd_failure_probability> <overlay_failure_probability> <particle_failure_probability> <mechanical_failure_probability>
+
    Example: 115 1610 0.15 0.05 0.03 0.20
+
    Note: Probabilities are float values between 0 and 1
+   
    NOTE: ESD criticality is multiplied by esd_failure_probability.
          Mechanical criticality is multiplied by overlay_failure_probability, 
          particle_failure_probability, and mechanical_failure_probability.
