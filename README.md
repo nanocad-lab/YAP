@@ -58,13 +58,13 @@ pip install -r requirements.txt
   ```
 
 # File Formats
-1. Bump Map (.bmap):
+**1. Bump Map (.bmap):**
 
    Format: `<instance> <bump_type> <x> <y> <port> <net>`
 
    Example: `Bump_0 uBUMP 115 1610 txdatasb txdatasb`
 
-2. Risk Map (.map):
+**2. Risk Map (.map):**
 
    Format: `<x> <y> <esd_failure_probability> <overlay_failure_probability> <particle_failure_probability> <mechanical_failure_probability>`
 
@@ -91,21 +91,22 @@ pip install -r requirements.txt
    - mechanical_criticality = (group_size - tolerated_mechanical_failures) / group_size
    
    Examples:
+
    Single net with 5 pads, tolerates 4 ESD failures and 4 mechanical failures:
-     vccfwdio 5 4 4
+     `vccfwdio 5 4 4`
      (Results in esd_criticality = 0.2, mechanical_criticality = 0.2)
    
    Redundancy group with 4 pads, tolerates 1 ESD failure and 1 mechanical failure:
-     rxckRD rxckn rxckp rxtrk 4 1 1
+     `rxckRD rxckn rxckp rxtrk 4 1 1`
      (Results in esd_criticality = 0.75, mechanical_criticality = 0.75)
    
    Redundancy group with 34 pads, tolerates 2 ESD failures and 2 mechanical failures:
-     rxdata0 rxdata1 rxdata2 ... rxdata31 34 2 2
+     `rxdata0 rxdata1 rxdata2 ... rxdata31 34 2 2`
      (Results in esd_criticality = 0.941, mechanical_criticality = 0.941)
    
    Legacy format (deprecated but still supported):
-     <net> <esd_criticality> <mechanical_criticality>
-     Example: txdatasb 0.8 0.7
+     `<net> <esd_criticality> <mechanical_criticality>`
+     Example: `txdatasb 0.8 0.7`
    
    Note: 
    - Criticality values range from 0 (non-critical) to 1 (critical)
