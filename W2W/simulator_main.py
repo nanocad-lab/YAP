@@ -16,6 +16,7 @@ def parse_args():
     p.add_argument("--bmap", "-b", required=True, help="Path to .bmap file (overrides default input/<DESIGN>.bmap)")
     p.add_argument("--criticality", "-cr", required=True, help="Path to criticality file (overrides default input/<DESIGN>_criticality.txt)")
     p.add_argument("--plot", "-plot", default=False, action="store_true", help="Enable plotting of the pad risk map")
+    p.add_argument("--verbose", "-v", action="store_true", help="Enable verbose output during simulation")
     p.add_argument("--debug", action="store_true", help="Enable debug output when loading config")
     return p.parse_args()
 
@@ -39,6 +40,9 @@ def main():
 
     # Determine criticality path
     criticality_path = args.criticality
+
+    # Verbose flag
+    cfg.verbose = args.verbose
 
     # Step 1: convert .bmap -> pad bitmap collection
     pad_bitmap_collection = convert_3dblox_to_pad_bitmap(cfg=cfg,

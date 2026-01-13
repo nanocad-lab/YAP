@@ -23,6 +23,12 @@ pip install -r requirements.txt
 ```
 
 # Usage
+- Generate criticality file from bump map
+  ```
+  python utils/generate_criticality.py input/random_10x10_50.bmap
+  ```
+
+
 - Run the simulator and model for W2W hybrid bonding.
   ```
   cd W2W
@@ -114,6 +120,11 @@ pip install -r requirements.txt
    - Multiple nets listed on the same line form a redundancy group sharing the same failure tolerance
    - Each net name should appear only once in the entire file
    - See UCIe_advanced_criticality.txt for a complete example of the current format
+
+# Generator Utilities
+Four helper scripts are provided to quickly generate starter files for testing:
+  - `generate_random_bump_map.py`: Generate random bump maps with power, ground, signal, and dummy bumps
+  - `generate_criticality.py`: Generate criticality files from bump maps
 
 # Paper Link
 To be continued...

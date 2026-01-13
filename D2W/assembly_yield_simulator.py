@@ -23,6 +23,21 @@ def Assembly_Yield_Simulator(
 ):   
     num_sim_epoch = cfg.NUM_DIES // cfg.SIM_BATCH_SIZE
     epoch_yield_list = []
+
+    if cfg.verbose:
+        fail_map_dict = {}
+        fail_map_dict['overlay']    = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL))
+        fail_map_dict['particle']   = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL))
+        fail_map_dict['mechanical'] = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL))
+        fail_map_dict['ESD']        = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL))
+        fail_map_dict['overall']    = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL))
+        fail_vec_dict = {}
+        fail_vec_dict['overlay']    = np.zeros(cfg.NUM_DIES)
+        fail_vec_dict['particle']   = np.zeros(cfg.NUM_DIES)
+        fail_vec_dict['mechanical'] = np.zeros(cfg.NUM_DIES)
+        fail_vec_dict['ESD']        = np.zeros(cfg.NUM_DIES)
+        fail_vec_dict['overall']    = np.zeros(cfg.NUM_DIES)
+
     for epoch in range(num_sim_epoch):
         # Initialize the die list (Extract the base pad coordinates seperately for later use, so that a lot of memory can be saved)
         die_list, base_pad_coords = die_initialize(
@@ -86,7 +101,7 @@ def Assembly_Yield_Simulator(
         
         
         # Calculate the overall yield
-        yield_list = overall_yield_simulator(
+        yield_list, epoch_fail_map_dict, epoch_fail_vec_dict = overall_yield_simulator(
             cfg                             =       cfg,
             die_list                        =       die_list,
             NUM_DIE_SAMPLES                 =       cfg.SIM_BATCH_SIZE,
@@ -117,6 +132,18 @@ def Assembly_Yield_Simulator(
             pad_bitmap_collection           =       pad_bitmap_collection,
         )
         epoch_yield_list.append(yield_list)
+        if cfg.verbose:
+            fail_map_dict['overlay']    += epoch_fail_map_dict['overlay']
+            fail_map_dict['particle']   += epoch_fail_map_dict['particle']
+            fail_map_dict['mechanical'] += epoch_fail_map_dict['mechanical']
+            fail_map_dict['ESD']        += epoch_fail_map_dict['ESD']
+            fail_map_dict['overall']    += epoch_fail_map_dict['overall']
+            fail_vec_dict['overlay'][epoch*cfg.SIM_BATCH_SIZE:(epoch+1)*cfg.SIM_BATCH_SIZE]    = epoch_fail_vec_dict['overlay']
+            fail_vec_dict['particle'][epoch*cfg.SIM_BATCH_SIZE:(epoch+1)*cfg.SIM_BATCH_SIZE]   = epoch_fail_vec_dict['particle']
+            fail_vec_dict['mechanical'][epoch*cfg.SIM_BATCH_SIZE:(epoch+1)*cfg.SIM_BATCH_SIZE] = epoch_fail_vec_dict['mechanical']
+            fail_vec_dict['ESD'][epoch*cfg.SIM_BATCH_SIZE:(epoch+1)*cfg.SIM_BATCH_SIZE]        = epoch_fail_vec_dict['ESD']
+            fail_vec_dict['overall'][epoch*cfg.SIM_BATCH_SIZE:(epoch+1)*cfg.SIM_BATCH_SIZE]    = epoch_fail_vec_dict['overall']
+
         print(f"Simulation progress: {epoch+1}/{num_sim_epoch} epochs completed.", end='\r')
 
         del die_list
@@ -128,5 +155,16 @@ def Assembly_Yield_Simulator(
         file_path = os.path.join(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp', name)
         if os.path.isfile(file_path):
             os.remove(file_path)
+    
+    if cfg.verbose:
+        fail_map_dict['overlay']    /= (num_sim_epoch * cfg.SIM_BATCH_SIZE)
+        fail_map_dict['particle']   /= (num_sim_epoch * cfg.SIM_BATCH_SIZE)
+        fail_map_dict['mechanical'] /= (num_sim_epoch * cfg.SIM_BATCH_SIZE)
+        fail_map_dict['ESD']        /= (num_sim_epoch * cfg.SIM_BATCH_SIZE)
+        fail_map_dict['overall']    /= (num_sim_epoch * cfg.SIM_BATCH_SIZE)
+        # Save fail map dict
+        np.savez(cfg.OUTPUT_DIR + cfg.DESIGN + '/assembly_fail_map_dict.npz', **fail_map_dict)
+        # Save fail vec dict
+        np.savez(cfg.OUTPUT_DIR + cfg.DESIGN + '/assembly_fail_vec_dict.npz', **fail_vec_dict)
 
     return assembly_yield, epoch_yield_list
