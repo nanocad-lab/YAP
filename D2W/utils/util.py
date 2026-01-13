@@ -116,7 +116,7 @@ def draw_pad_bitmap(cfg, bitmap_collection):
     #     ncol=4,
     #     frameon=False
     # )
-    plt.legend().set_visible(False)
+    # plt.legend().set_visible(False)
     norm = BoundaryNorm(boundaries=[0.5, 1.5, 2.5, 3.5, 4.5], ncolors=cmap.N)
     plt.axis('off')
     plt.imshow(PAD_BITMAP, cmap=cmap, norm=norm)
