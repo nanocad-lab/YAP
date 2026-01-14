@@ -43,7 +43,7 @@ pip install -r requirements.txt
   Example command to run the simulator main for W2W hybrid bonding
 
   ```
-  python simulator_main.py --config configs/random_10x10_50.yaml --mode w2w_simulation --bmap input/random_10x10_50.bmap  --criticality input/random_10x10_50_criticality.txt
+  python simulator_main.py --config configs/random_10x10_50.yaml --mode w2w_simulation --bmap input/random_10x10_50.bmap  --criticality input/random_10x10_50_criticality.txt --verbose
   ```
 
 - Run the simulator and model for D2W hybrid bonding.
@@ -60,7 +60,7 @@ pip install -r requirements.txt
   Example command to run the simulator main for D2W hybrid bonding
 
   ```
-  python simulator_main.py --config configs/random_10x10_50.yaml --mode d2w_simulation --bmap input/random_10x10_50.bmap  --criticality input/random_10x10_50_criticality.txt
+  python simulator_main.py --config configs/random_10x10_50.yaml --mode d2w_simulation --bmap input/random_10x10_50.bmap  --criticality input/random_10x10_50_criticality.txt --verbose
   ```
 
 # File Formats
