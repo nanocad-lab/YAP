@@ -65,6 +65,7 @@ class Wafer:
         self.PAD_TOP_R_um = PAD_TOP_R_um
         self.PAD_BOT_R_um = PAD_BOT_R_um
         self.die_list = []
+        self.num_dies = 0
         self.dice_proportion = dice_proportion
         self.voids = []
         self.safe_voids_mask = []
@@ -119,6 +120,7 @@ class Wafer:
                 if flag_die_outside:
                     continue
                 self.die_list.append(die)
+        self.num_dies = len(self.die_list)
 
     def draw_wafer_die(self, fig_size=(30, 30), draw_pad_yield_map_option=None):
         fig, ax = plt.subplots(figsize=fig_size, dpi=900)
@@ -234,7 +236,7 @@ def wafer_initialize(
     
     # Calculate the top-left pad coordinates of the pad array
     if PITCH_um >= 1.0:
-        PAD_COORDS = np.zeros([PAD_ARR_ROW * PAD_ARR_COL, 2], dtype=np.float16)  # pad coordinates: [x, y]
+        PAD_COORDS = np.zeros([PAD_ARR_ROW * PAD_ARR_COL, 2], dtype=np.float32)  # pad coordinates: [x, y]
     
         # Create grid of row and column indices
         col_indices = np.arange(PAD_ARR_COL)
@@ -242,8 +244,8 @@ def wafer_initialize(
         col_grid, row_grid = np.meshgrid(col_indices, row_indices)
 
         # Calculate x and y coordinates
-        x_coords = (-PAD_ARR_W_um / 2 + col_grid * PITCH_um).astype(np.float16)
-        y_coords = (PAD_ARR_L_um / 2 - row_grid * PITCH_um).astype(np.float16)
+        x_coords = (-PAD_ARR_W_um / 2 + col_grid * PITCH_um).astype(np.float32)
+        y_coords = (PAD_ARR_L_um / 2 - row_grid * PITCH_um).astype(np.float32)
 
         # Combine x and y coordinates
         PAD_COORDS = np.stack((x_coords, y_coords), axis=-1).reshape(-1, 2)

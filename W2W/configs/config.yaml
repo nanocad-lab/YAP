@@ -94,24 +94,24 @@ w2w_modeling:
   PITCH_um: 10                              # Pad PITCH_um (µm)
   DIE_W_um: 10000                          # Die width (µm)
   DIE_L_um: 10000                          # Die length (µm)
-  WAF_R_um: 20000                         # Wafer radius (µm)
+  WAF_R_um: 150000                         # Wafer radius (µm)
   PAD_BOT_R_um_ratio: 0.5                  # Ratio of bottom pad dimension to the PITCH_um
   PAD_TOP_R_um_ratio: 0.667                # Ratio of top pad radius to bottom pad radius
   VOID_SHAPE: "circle"                  # Shape of void: "circle" or "square"
   dice_width: 1000                      # Dice width to separate dies (µm)
   pad_yield_flag: True
-  pad_yield_map_sub_factor: 25          # Subsampling factor for pad yield map (1: no subsampling, 10: rows/10 and cols/10)
+  pad_yield_map_sub_factor: 50          # Subsampling factor for pad yield map (1: no subsampling, 10: rows/10 and cols/10)
 
   # === Fault Tolerance Parameters ===
   redundant_flag: True                  # Enable redundant pads
-  critical_pad_ratio: 1.0               # Critical pad ratio per die
-  redundant_pad_ratio: 0.0              # Redundant pad ratio per die
+  critical_pad_ratio: 0.9               # Critical pad ratio per die
+  redundant_pad_ratio: 0.1              # Redundant pad ratio per die
   redundant_survival_ratio: 0.3        # Survival ratio of redundant pads
   redundant_block_interval: 2           # Interval between redundant pad blocks
   pad_block_dim: 400                    # Pad block dimension (µm)
   redundant_logical_pad_ratio: 0.3      # Ratio of redundant logical pads
   redundant_logical_pad_copy: 2         # Number of copies for each redundant logical pad
-  redundant_logical_pad_dist: 2.0      # Distance between redundant logical pads (PITCH_um)
+  redundant_logical_pad_dist: 40.0      # Distance between redundant logical pads (PITCH_um)
   multi2one_flag: False                 # Enable multi-to-one mapping
   multi2one_ratio: 20                   # Ratio for multi-to-one mapping (e.g., 80:1 replicas)
 

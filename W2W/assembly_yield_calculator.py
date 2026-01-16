@@ -6,6 +6,8 @@
 #### Date: Sep 26, 2024
 
 import time
+import pickle
+import gzip
 from wafer_die_initialization import wafer_initialize
 from overlay_yield_calculator import overlay_yield_calculator
 from defect_yield_calculator import defect_yield_calculator
@@ -38,6 +40,10 @@ def Assembly_Yield_Calculator(
     )
     
     wafer = waf_list[0]
+    # Save wafer info
+    with gzip.open('wafer_info.pkl.gz', 'wb') as f:
+        pickle.dump(wafer, f, protocol=pickle.HIGHEST_PROTOCOL)
+    # raise Exception("Wafer info saved. Stop execution here for debugging.")
     print(len(wafer.die_list), "dies initialized on the wafer.")
     wafer_init_time = time.time() - start_time
     print("Wafer initialization time: {} seconds.".format(wafer_init_time))

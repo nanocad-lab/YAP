@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-# Wafers and Dies intialization for the yield model for hybrid bonding
 #### Author: Zhichao Chen
-#### Date: Sep 26, 2024
+#### Date: Oct 20, 2025
+'''
+This module generates/read the pad bitmap for the die.
+'''
 
 import numpy as np
 import scipy.io as sio
@@ -193,8 +195,155 @@ def draw_pad_bitmap(bitmap_collection):
 
     return
 
+def convert_3dblox_to_pad_bitmap(cfg, blox_bmap_path='pad_bitmap/UCIe_standard.bmap'):
+    # Extract configuration parameters
+    pad_block_size = cfg.pad_block_size     # In UCIe standard, pad block size is 1 (no downsampling)
+    critical_pad_ratio = cfg.critical_pad_ratio
+    redundant_pad_ratio = cfg.redundant_pad_ratio
+    redundant_logical_pad_copy = cfg.redundant_logical_pad_copy
+    redundant_logical_pad_dist = cfg.redundant_logical_pad_dist
 
-def pad_bitmap_generate_random(cfg, pad_layout_pattern):
+    # Read the bump data from the .bmap file
+    bump_data = []
+    with open(blox_bmap_path, 'r') as f:
+        for line in f:
+            parts = line.strip().split()
+            if len(parts) == 6:
+                instance, bump_type, x, y, port, net = parts
+                bump_data.append({      # From the top-left corner to the bottom-right corner
+                    "bumpid": int(instance.split("_")[1]),
+                    "x": int(x),
+                    "y": int(y),
+                    "port": port,
+                    "net": net
+                })
+    # Convert the bump data to pad bitmap
+    port_set = set([bump['port'] for bump in bump_data])
+    redundant_port_to_bumpid = dict()
+    for bump in bump_data:
+        if bump['port'] not in redundant_port_to_bumpid:
+            redundant_port_to_bumpid[bump['port']] = []
+        redundant_port_to_bumpid[bump['port']].append(bump['bumpid'])
+    # Initialize the pad bitmap
+    pad_arrange_pattern = 'checkerboard'   # Currently only support checkerboard pattern
+    # TODO: You need to modify the simulator to support different pad arrangement patterns
+    CRITICAL_PAD_BITMAP = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL), dtype=bool)
+    CRITICAL_PAD_BLOCK_BITMAP = downsample_bitmap(CRITICAL_PAD_BITMAP, pad_block_size)
+    REDUNDANT_PAD_BITMAP = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL), dtype=bool)
+    REDUNDANT_PAD_BLOCK_BITMAP = downsample_bitmap(REDUNDANT_PAD_BITMAP, pad_block_size)
+    if pad_arrange_pattern == 'checkerboard': # This case is for UCIe standard
+        for row in range(cfg.PAD_ARR_ROW):
+            for col in range(cfg.PAD_ARR_COL):
+                if (row + col) % 2 == 1:    # There is a bump (but not necessarily a critical pad)
+                    bump_id = int(row // 2 * cfg.PAD_ARR_COL / 2 + col // 2)
+                    current_bump_dict = bump_data[bump_id]
+                    if len(redundant_port_to_bumpid[current_bump_dict['port']]) == 1:
+                        CRITICAL_PAD_BITMAP[row, col] = 1
+                    else:
+                        REDUNDANT_PAD_BITMAP[row, col] = 1
+                else:
+                    continue
+    else:
+        raise NotImplementedError("Currently only support checkerboard pad arrangement pattern.")
+    DUMMY_PAD_BITMAP = None # This case is for UCIe standard, so there is no dummy pads
+    REDUNDANT_MAIN_PAD_BLOCK_BITMAP = np.zeros_like(REDUNDANT_PAD_BLOCK_BITMAP, dtype=bool)
+    REDUNDANT_COPY_PAD_BLOCK_BITMAP = np.zeros_like(REDUNDANT_PAD_BLOCK_BITMAP, dtype=bool)
+    # We define that the first redundant pad in the redundant pads is the main pad, others are copy pads
+    for row in range(cfg.PAD_ARR_ROW):
+        for col in range(cfg.PAD_ARR_COL):
+            if REDUNDANT_PAD_BITMAP[row, col]:
+                bump_id = int(row // 2 * cfg.PAD_ARR_COL / 2 + col // 2)
+                current_bump_dict = bump_data[bump_id]
+                port = current_bump_dict['port']
+                replica_bumpid_list = redundant_port_to_bumpid[port]
+                REDUNDANT_MAIN_PAD_BLOCK_BITMAP[row, col] = True if replica_bumpid_list[0] == current_bump_dict['bumpid'] else False
+                REDUNDANT_COPY_PAD_BLOCK_BITMAP[row, col] = True if replica_bumpid_list[0] != current_bump_dict['bumpid'] else False
+
+
+    # Count the number of pads
+    num_critical_pads = np.sum(CRITICAL_PAD_BITMAP)
+    num_redundant_pads = np.sum(REDUNDANT_PAD_BITMAP)
+    num_dummy_pads = 0 if DUMMY_PAD_BITMAP is None else np.sum(DUMMY_PAD_BITMAP)
+    
+    # Count the number of logical pads in redundant pads
+    num_redundant_logical_pads = 0
+    for port in redundant_port_to_bumpid:
+        if len(redundant_port_to_bumpid[port]) > 1 and ('vcc' not in port.lower()) and ('vss' not in port.lower()):
+            num_redundant_logical_pads += 1
+    # Initialize the redundant port alive count dict
+    redundant_port_alive_count_dict = dict()
+    for port in redundant_port_to_bumpid:
+        redundant_port_alive_count_dict[port] = len(redundant_port_to_bumpid[port])
+    redundant_logical_pad_ratio = num_redundant_logical_pads / num_redundant_pads if num_redundant_pads > 0 else 0.0
+
+    # Calculate the outmost critical pad coordinates for overlay simulation (4 totally)
+    critical_pad_boundary_bitmap_row_col_block_ind = np.zeros((4, 2), dtype=int)
+    row_col_ind = np.argwhere(CRITICAL_PAD_BITMAP == 1)
+    top_left_ind = row_col_ind[np.argmin(row_col_ind[:, 0] + row_col_ind[:, 1])]
+    top_right_ind = row_col_ind[np.argmin(row_col_ind[:, 0] - row_col_ind[:, 1])]
+    bottom_left_ind = row_col_ind[np.argmax(row_col_ind[:, 0] - row_col_ind[:, 1])]
+    bottom_right_ind = row_col_ind[np.argmax(row_col_ind[:, 0] + row_col_ind[:, 1])]
+    critical_pad_boundary_bitmap_row_col_block_ind[0] = top_left_ind / pad_block_size
+    critical_pad_boundary_bitmap_row_col_block_ind[1] = top_right_ind / pad_block_size
+    critical_pad_boundary_bitmap_row_col_block_ind[2] = bottom_left_ind / pad_block_size 
+    critical_pad_boundary_bitmap_row_col_block_ind[3] = bottom_right_ind / pad_block_size
+    critical_pad_boundary_bitmap_row_col_block_ind_non_zero_mask = (critical_pad_boundary_bitmap_row_col_block_ind != 0)
+    critical_pad_boundary_bitmap_row_col_block_ind = critical_pad_boundary_bitmap_row_col_block_ind + critical_pad_boundary_bitmap_row_col_block_ind_non_zero_mask
+
+    # Calculate the outmost redundant copy pad coordinates for overlay simulation (4 totally)
+    redundant_copy_pad_boundary_bitmap_row_col_block_ind = None
+    if len(redundant_port_alive_count_dict) != 0:
+        redundant_copy_pad_boundary_bitmap_row_col_block_ind = np.zeros((4, 2), dtype=int)
+        row_col_ind = np.argwhere(np.any(REDUNDANT_COPY_PAD_BLOCK_BITMAP, axis=0) == 1)
+        top_left_ind = row_col_ind[np.argmin(row_col_ind[:, 0] + row_col_ind[:, 1])]
+        top_right_ind = row_col_ind[np.argmin(row_col_ind[:, 0] - row_col_ind[:, 1])]
+        bottom_left_ind = row_col_ind[np.argmax(row_col_ind[:, 0] - row_col_ind[:, 1])]
+        bottom_right_ind = row_col_ind[np.argmax(row_col_ind[:, 0] + row_col_ind[:, 1])]
+        redundant_copy_pad_boundary_bitmap_row_col_block_ind[0] = top_left_ind
+        redundant_copy_pad_boundary_bitmap_row_col_block_ind[1] = top_right_ind
+        redundant_copy_pad_boundary_bitmap_row_col_block_ind[2] = bottom_left_ind
+        redundant_copy_pad_boundary_bitmap_row_col_block_ind[3] = bottom_right_ind
+
+
+    bitmap_collection = {}
+    bitmap_collection["CRITICAL_PAD_BITMAP"] = CRITICAL_PAD_BITMAP
+    bitmap_collection["CRITICAL_PAD_BLOCK_BITMAP"] = CRITICAL_PAD_BLOCK_BITMAP
+    bitmap_collection["critical_pad_boundary_bitmap_row_col_block_ind"] = critical_pad_boundary_bitmap_row_col_block_ind
+    bitmap_collection["redundant_copy_pad_boundary_bitmap_row_col_block_ind"] = redundant_copy_pad_boundary_bitmap_row_col_block_ind
+    bitmap_collection["REDUNDANT_PAD_BITMAP"] = REDUNDANT_PAD_BITMAP
+    bitmap_collection["DUMMY_PAD_BITMAP"] = DUMMY_PAD_BITMAP
+    bitmap_collection["REDUNDANT_MAIN_PAD_BLOCK_BITMAP"] = REDUNDANT_MAIN_PAD_BLOCK_BITMAP
+    bitmap_collection["REDUNDANT_COPY_PAD_BLOCK_BITMAP"] = REDUNDANT_COPY_PAD_BLOCK_BITMAP
+
+    bitmap_collection["is_redundant_copy_same_block"] = False
+    bitmap_collection["num_critical_pads"] = num_critical_pads
+    bitmap_collection["num_redundant_pads"] = num_redundant_pads
+    bitmap_collection["num_redundant_logical_pads"] = num_redundant_logical_pads
+
+    bitmap_collection["critical_pad_ratio"] = critical_pad_ratio
+    bitmap_collection["redundant_pad_ratio"] = redundant_pad_ratio
+    bitmap_collection["redundant_logical_pad_ratio"] = redundant_logical_pad_ratio
+    bitmap_collection["redundant_logical_pad_copy"] = redundant_logical_pad_copy
+    bitmap_collection["redundant_logical_pad_dist"] = redundant_logical_pad_dist
+    bitmap_collection["pad_block_size"] = pad_block_size
+    bitmap_collection["redundant_logical_to_physical_arr"] = None
+    bitmap_collection["redundant_physical_to_logical_arr"] = None
+    bitmap_collection["redundant_pad_block_pair_dict"] = None
+    bitmap_collection["redundant_port_alive_count_dict"] = redundant_port_alive_count_dict
+    
+    # Save the bitmap collection as npy file and mat file
+    np.save("pad_bitmap/bitmap_collection.npy", bitmap_collection)
+    # sio.savemat("pad_bitmap/bitmap_collection.mat", bitmap_collection)
+
+    # # Draw the critical and redundant pad bitmaps in one figure (critical light red, redundant light blue, dummy light gray)
+    draw_pad_bitmap(bitmap_collection)
+
+    # raise ValueError("Pad bitmap generation finished. Please check the pad_bitmap folder.")
+
+    return bitmap_collection
+
+
+def pad_bitmap_generate(cfg, pad_layout_pattern):
     '''
     This function generates the random pad bitmaps for the die.
     '''
@@ -724,7 +873,6 @@ def pad_bitmap_generate_random(cfg, pad_layout_pattern):
     bitmap_collection["redundant_logical_to_physical_arr"] = redundant_logical_to_physical_arr
     bitmap_collection["redundant_physical_to_logical_arr"] = redundant_physical_to_logical_arr
     bitmap_collection["redundant_pad_block_pair_dict"] = redundant_pad_block_pair_dict
-    bitmap_collection["multi2one_ratio"] = multi2one_ratio
     
     # Save the bitmap collection as npy file and mat file
     np.save("pad_bitmap/bitmap_collection.npy", bitmap_collection)

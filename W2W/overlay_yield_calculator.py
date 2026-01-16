@@ -29,12 +29,12 @@ def die_pad_misalignment(
     die,
     system_translation_x_um,
     system_translation_y_um,
-    system_rotation_um,
-    system_magnification,
+    system_rotation_rad,
+    system_magnification_ppm,
 ):
     pad_misalignment = np.zeros(len(die.pad_array_box))
-    dx = (system_translation_x_um - system_rotation_um * die.pad_array_box[:, 1] + system_magnification * die.pad_array_box[:, 0])
-    dy = (system_translation_y_um + system_rotation_um * die.pad_array_box[:, 0] + system_magnification * die.pad_array_box[:, 1])
+    dx = (system_translation_x_um - system_rotation_rad * die.pad_array_box[:, 1] + system_magnification_ppm * die.pad_array_box[:, 0])
+    dy = (system_translation_y_um + system_rotation_rad * die.pad_array_box[:, 0] + system_magnification_ppm * die.pad_array_box[:, 1])
     pad_misalignment = np.sqrt(dx**2 + dy**2)
     return pad_misalignment
 
@@ -109,35 +109,35 @@ def overlay_yield_calculator(
     system_translation_x_samples_um = np.random.normal(SYSTEM_TRANSLATION_X_MEAN_um, SYSTEM_TRANSLATION_X_STD_um, num_samples)
     system_translation_y_samples_um = np.random.normal(SYSTEM_TRANSLATION_Y_MEAN_um, SYSTEM_TRANSLATION_Y_STD_um, num_samples)
     system_rotation_samples_rad = np.random.normal(SYSTEM_ROTATION_MEAN_rad, SYSTEM_ROTATION_STD_rad, num_samples)
-    system_magnification_samples = np.random.normal(SYSTEM_MAGNIFICATION_MEAN_ppm, SYSTEM_MAGNIFICATION_STD_ppm, num_samples)
+    system_magnification_samples_ppm = np.random.normal(SYSTEM_MAGNIFICATION_MEAN_ppm, SYSTEM_MAGNIFICATION_STD_ppm, num_samples)
     overlay_die_yield_list = []
 
     print(system_translation_x_samples_um.mean()*1e3, " nm")
     print(system_translation_y_samples_um.mean()*1e3, " nm")
     print(system_rotation_samples_rad.mean() * 150e+3 * 1e3, " nm")
-    print(system_magnification_samples.mean() * 150e+3 * 1e3, " nm")
+    print(system_magnification_samples_ppm.mean() * 150e+3 * 1e3, " nm")
     
     # # Record the time
     # start_time = time.time()
     for die_id, die in enumerate(wafer.die_list):
         if redundant_flag == True:
-            far_dx_samples_0 = (system_translation_x_samples_um - system_rotation_samples_rad * die.ovl_critical_pad_boundary_coords[0, 1] + system_magnification_samples * die.ovl_critical_pad_boundary_coords[0, 0])
-            far_dy_samples_0 = (system_translation_y_samples_um + system_rotation_samples_rad * die.ovl_critical_pad_boundary_coords[0, 0] + system_magnification_samples * die.ovl_critical_pad_boundary_coords[0, 1])
-            far_dx_samples_1 = (system_translation_x_samples_um - system_rotation_samples_rad * die.ovl_critical_pad_boundary_coords[1, 1] + system_magnification_samples * die.ovl_critical_pad_boundary_coords[1, 0])
-            far_dy_samples_1 = (system_translation_y_samples_um + system_rotation_samples_rad * die.ovl_critical_pad_boundary_coords[1, 0] + system_magnification_samples * die.ovl_critical_pad_boundary_coords[1, 1])
-            far_dx_samples_2 = (system_translation_x_samples_um - system_rotation_samples_rad * die.ovl_critical_pad_boundary_coords[2, 1] + system_magnification_samples * die.ovl_critical_pad_boundary_coords[2, 0])
-            far_dy_samples_2 = (system_translation_y_samples_um + system_rotation_samples_rad * die.ovl_critical_pad_boundary_coords[2, 0] + system_magnification_samples * die.ovl_critical_pad_boundary_coords[2, 1])
-            far_dx_samples_3 = (system_translation_x_samples_um - system_rotation_samples_rad * die.ovl_critical_pad_boundary_coords[3, 1] + system_magnification_samples * die.ovl_critical_pad_boundary_coords[3, 0])
-            far_dy_samples_3 = (system_translation_y_samples_um + system_rotation_samples_rad * die.ovl_critical_pad_boundary_coords[3, 0] + system_magnification_samples * die.ovl_critical_pad_boundary_coords[3, 1])
+            far_dx_samples_0 = (system_translation_x_samples_um - system_rotation_samples_rad * die.ovl_critical_pad_boundary_coords[0, 1] + system_magnification_samples_ppm * die.ovl_critical_pad_boundary_coords[0, 0])
+            far_dy_samples_0 = (system_translation_y_samples_um + system_rotation_samples_rad * die.ovl_critical_pad_boundary_coords[0, 0] + system_magnification_samples_ppm * die.ovl_critical_pad_boundary_coords[0, 1])
+            far_dx_samples_1 = (system_translation_x_samples_um - system_rotation_samples_rad * die.ovl_critical_pad_boundary_coords[1, 1] + system_magnification_samples_ppm * die.ovl_critical_pad_boundary_coords[1, 0])
+            far_dy_samples_1 = (system_translation_y_samples_um + system_rotation_samples_rad * die.ovl_critical_pad_boundary_coords[1, 0] + system_magnification_samples_ppm * die.ovl_critical_pad_boundary_coords[1, 1])
+            far_dx_samples_2 = (system_translation_x_samples_um - system_rotation_samples_rad * die.ovl_critical_pad_boundary_coords[2, 1] + system_magnification_samples_ppm * die.ovl_critical_pad_boundary_coords[2, 0])
+            far_dy_samples_2 = (system_translation_y_samples_um + system_rotation_samples_rad * die.ovl_critical_pad_boundary_coords[2, 0] + system_magnification_samples_ppm * die.ovl_critical_pad_boundary_coords[2, 1])
+            far_dx_samples_3 = (system_translation_x_samples_um - system_rotation_samples_rad * die.ovl_critical_pad_boundary_coords[3, 1] + system_magnification_samples_ppm * die.ovl_critical_pad_boundary_coords[3, 0])
+            far_dy_samples_3 = (system_translation_y_samples_um + system_rotation_samples_rad * die.ovl_critical_pad_boundary_coords[3, 0] + system_magnification_samples_ppm * die.ovl_critical_pad_boundary_coords[3, 1])
         else:
-            far_dx_samples_0 = (system_translation_x_samples_um - system_rotation_samples_rad * die.pad_array_box[0, 1] + system_magnification_samples * die.pad_array_box[0, 0])
-            far_dy_samples_0 = (system_translation_y_samples_um + system_rotation_samples_rad * die.pad_array_box[0, 0] + system_magnification_samples * die.pad_array_box[0, 1])
-            far_dx_samples_1 = (system_translation_x_samples_um - system_rotation_samples_rad * die.pad_array_box[1, 1] + system_magnification_samples * die.pad_array_box[1, 0])
-            far_dy_samples_1 = (system_translation_y_samples_um + system_rotation_samples_rad * die.pad_array_box[1, 0] + system_magnification_samples * die.pad_array_box[1, 1])
-            far_dx_samples_2 = (system_translation_x_samples_um - system_rotation_samples_rad * die.pad_array_box[2, 1] + system_magnification_samples * die.pad_array_box[2, 0])
-            far_dy_samples_2 = (system_translation_y_samples_um + system_rotation_samples_rad * die.pad_array_box[2, 0] + system_magnification_samples * die.pad_array_box[2, 1])
-            far_dx_samples_3 = (system_translation_x_samples_um - system_rotation_samples_rad * die.pad_array_box[3, 1] + system_magnification_samples * die.pad_array_box[3, 0])
-            far_dy_samples_3 = (system_translation_y_samples_um + system_rotation_samples_rad * die.pad_array_box[3, 0] + system_magnification_samples * die.pad_array_box[3, 1])
+            far_dx_samples_0 = (system_translation_x_samples_um - system_rotation_samples_rad * die.pad_array_box[0, 1] + system_magnification_samples_ppm * die.pad_array_box[0, 0])
+            far_dy_samples_0 = (system_translation_y_samples_um + system_rotation_samples_rad * die.pad_array_box[0, 0] + system_magnification_samples_ppm * die.pad_array_box[0, 1])
+            far_dx_samples_1 = (system_translation_x_samples_um - system_rotation_samples_rad * die.pad_array_box[1, 1] + system_magnification_samples_ppm * die.pad_array_box[1, 0])
+            far_dy_samples_1 = (system_translation_y_samples_um + system_rotation_samples_rad * die.pad_array_box[1, 0] + system_magnification_samples_ppm * die.pad_array_box[1, 1])
+            far_dx_samples_2 = (system_translation_x_samples_um - system_rotation_samples_rad * die.pad_array_box[2, 1] + system_magnification_samples_ppm * die.pad_array_box[2, 0])
+            far_dy_samples_2 = (system_translation_y_samples_um + system_rotation_samples_rad * die.pad_array_box[2, 0] + system_magnification_samples_ppm * die.pad_array_box[2, 1])
+            far_dx_samples_3 = (system_translation_x_samples_um - system_rotation_samples_rad * die.pad_array_box[3, 1] + system_magnification_samples_ppm * die.pad_array_box[3, 0])
+            far_dy_samples_3 = (system_translation_y_samples_um + system_rotation_samples_rad * die.pad_array_box[3, 0] + system_magnification_samples_ppm * die.pad_array_box[3, 1])
         far_pad_misalignment_samples_0 = np.sqrt(far_dx_samples_0**2 + far_dy_samples_0**2)
         far_pad_misalignment_samples_1 = np.sqrt(far_dx_samples_1**2 + far_dy_samples_1**2)
         far_pad_misalignment_samples_2 = np.sqrt(far_dx_samples_2**2 + far_dy_samples_2**2)
@@ -175,8 +175,8 @@ def overlay_yield_calculator(
                 for kc in range(nc):
                     c = round(kc * (PAD_ARR_COL - 1) / (nc - 1))
                     i = r * PAD_ARR_COL + c
-                    dx_array_samples_i = (system_translation_x_samples_um - system_rotation_samples_rad * current_die_pad_array[i, 1] + system_magnification_samples * current_die_pad_array[i, 0])
-                    dy_array_samples_i = (system_translation_y_samples_um + system_rotation_samples_rad * current_die_pad_array[i, 0] + system_magnification_samples * current_die_pad_array[i, 1])
+                    dx_array_samples_i = (system_translation_x_samples_um - system_rotation_samples_rad * current_die_pad_array[i, 1] + system_magnification_samples_ppm * current_die_pad_array[i, 0])
+                    dy_array_samples_i = (system_translation_y_samples_um + system_rotation_samples_rad * current_die_pad_array[i, 0] + system_magnification_samples_ppm * current_die_pad_array[i, 1])
                     pad_misalignment_samples_i = np.sqrt(dx_array_samples_i**2 + dy_array_samples_i**2)
                     upper_limit_i = MAX_ALLOWED_MISALIGNMENT - pad_misalignment_samples_i
                     lower_limit_i = -MAX_ALLOWED_MISALIGNMENT - pad_misalignment_samples_i
