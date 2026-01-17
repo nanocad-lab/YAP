@@ -1,5 +1,5 @@
 # YAP-Stack
-- YAP-Stack is a Python-based yield modeling and simulation tool for advanced packaging that supports yield analysis of 3D-stacked circuits with arbitrary I/O pad layouts. Currently, the model is specifically designed for wafer-to-wafer (W2W) and die-to-wafer (D2W) hybrid bonding.
+- **YAP-Stack** is a Python-based yield modeling and simulation tool for advanced packaging that supports yield analysis of 3D-stacked circuits with arbitrary I/O pad layouts. Currently, the model is specifically designed for wafer-to-wafer (W2W) and die-to-wafer (D2W) hybrid bonding.
 - A [GUI of YAP](http://nanocad.ee.ucla.edu:8081/yap_gui/) and the [user guide video](https://youtu.be/8hiKIQ6C7ng) is available.
 
 # File Structure
@@ -15,7 +15,7 @@
 # Installation
 1. Clone the repository
 ```
-git clone -b yap+IO_assign https://github.com/Chen-Zhichao/YAP.git
+git clone -b yap-stack https://github.com/Chen-Zhichao/YAP.git
 cd ./YAP
 ```
 2. Install dependencies:

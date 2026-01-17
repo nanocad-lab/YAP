@@ -9,7 +9,7 @@ import time
 import pickle
 import gzip
 import numpy as np
-from wafer_die_initialization import wafer_initialize
+from YAP.W2W.wafer_die_stack_initialization import wafer_initialize
 from overlay_yield_calculator import pad_overlay_yield_map_generator
 from defect_yield_calculator import pad_defect_yield_map_generator
 from Cu_expansion_yield_calculator import pad_Cu_expansion_yield_map_generator

@@ -247,3 +247,72 @@ def die_initialize(
         )
         die_list.append(die)
     return die_list, PAD_COORDS
+
+
+class DieStack:
+    def __init__(
+        self,
+        cfg,
+        num_layers: int,
+    ):
+        """
+        Die Stack object for hybrid bonding yield model.
+        """
+        self.cfg = cfg
+        self.num_layers = num_layers
+        self.num_bonding_interfaces = num_layers - 1
+        self.die_stack_list = []  # List of Die Stack objects for multiple samples
+    
+    def add_layers(self):
+        """
+        Initialize a single die stack sample.
+        """
+        layer_list = []
+        cfg = self.cfg
+        die_layer_list, _ = die_initialize(
+                NUM_DIE_SAMPLES           = self.num_layers,
+                DIE_W_um                  = cfg.DIE_W_um,
+                DIE_L_um                  = cfg.DIE_L_um,
+                PAD_ARR_W_um              = cfg.PAD_ARR_W_um,
+                PAD_ARR_L_um              = cfg.PAD_ARR_L_um,
+                PAD_ARR_ROW               = cfg.PAD_ARR_ROW,
+                PAD_ARR_COL               = cfg.PAD_ARR_COL,
+                PITCH_r_um                = cfg.PITCH_r_um,
+                PITCH_c_um                = cfg.PITCH_c_um,
+                PAD_TOP_R_um              = cfg.PAD_TOP_R_um,
+                PAD_BOT_R_um              = cfg.PAD_BOT_R_um,
+                pad_bitmap_collection     = cfg.pad_bitmap_collection,
+                pad_yield_flag            = cfg.pad_yield_flag,
+            )
+        return die_layer_list
+
+    def add_stack_samples(self, num_samples: int):
+        """
+        Initialize multiple die stack samples.
+        """
+        for _ in range(num_samples):
+            single_stack_layers = self.add_layers()
+            self.die_stack_list.append(single_stack_layers)
+
+def die_stack_initialize(
+    cfg,
+    NUM_DIE_LAYERS: int,
+    num_stack_samples: int,
+):
+    """
+    Inputs:
+    - cfg: Configuration object containing parameters
+    - NUM_DIE_LAYERS: Number of die layers in the stack
+    - num_stack_samples: Number of die stack samples to generate
+    
+    Outputs:
+    - die_stack: DieStack object containing the initialized die stack samples
+    """
+    die_stack = DieStack(
+        cfg=cfg,
+        num_layers=NUM_DIE_LAYERS,
+        
+    )
+    die_stack.add_stack_samples(num_stack_samples)
+    return die_stack
+
