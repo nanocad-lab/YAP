@@ -7,7 +7,7 @@ w2w_simulation:
   DEBUG: false                               # Debug mode knob
   DESIGN: "HBM_footprint_A"                  # Design name
   PAD_ARRANGE_PATTERN: "checkerboard"        # Pad arrangement pattern: "checkerboard" (HBM)
-  # === Wafer and Die Settings ===
+  # === Stack wafer parameters ===
   NUM_WAFER_STACKS: 10                      # Number of wafer stacks used in simulation
   NUM_WAFER_LAYERS: 8                       # Number of wafer layers per stack
   SIM_BATCH_SIZE: 1                         # Number of wafer stack samples simulated in one batch (a way to decrease memory requirements)
@@ -181,7 +181,10 @@ w2w_modeling:
   INPUT_DIR: "input/"          # Output directory for simulation results
   DESIGN: "HBM_footprint_A"                      # Design name
   PAD_ARRANGE_PATTERN: "checkerboard"        # Pad arrangement pattern: "checkerboard" (HBM)
-  # === Per Wafer Parameters ===
+
+  # === Stacked wafer Parameters ===
+  NUM_WAFER_STACKS: 10                      # Number of wafer stacks used in simulation
+  NUM_WAFER_LAYERS: 8                       # Number of wafer layers per stack
   PITCH_r_um: 55                             # Row pad PITCH_um (µm)
   PITCH_c_um: 35                              # Column pad PITCH_um (µm)
   DIE_W_um: 10850                          # Die width (µm)
