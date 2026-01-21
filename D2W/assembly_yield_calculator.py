@@ -26,7 +26,7 @@ def Pad_Yield_Map_Generator(
     '''
     # Initialize the die list
     die_list, _ = die_initialize(
-        NUM_DIES            =       1,
+        NUM_DIE_SAMPLES     =       1,
         DIE_W_um            =       cfg.DIE_W_um,
         DIE_L_um            =       cfg.DIE_L_um,
         PAD_ARR_W_um        =       cfg.PAD_ARR_W_um,

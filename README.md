@@ -17,7 +17,15 @@
 git clone -b yap+IO_assign https://github.com/Chen-Zhichao/YAP.git
 cd ./YAP
 ```
-2. Install dependencies:
+
+2. (Optional) Create and activate a virtual environment:
+```
+conda create -n myenv python=3.12
+conda activate yap_env
+
+```
+
+3. Install dependencies:
 ```
 pip install -r requirements.txt
 ```
