@@ -38,6 +38,7 @@ pip install -r requirements.txt
 
 
 # Paper Link
-To be continued...
+[YAP+: Pad-Layout-Aware Yield Modeling and Simulation for Hybrid Bonding](https://arxiv.org/abs/2511.05506)
+
 
 
