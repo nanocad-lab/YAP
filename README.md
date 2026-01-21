@@ -20,9 +20,8 @@ cd ./YAP
 
 2. (Optional) Create and activate a virtual environment:
 ```
-conda create -n myenv python=3.12
+conda create -n yap_env python=3.12
 conda activate yap_env
-
 ```
 
 3. Install dependencies:
