@@ -95,18 +95,17 @@ class void_tail:
 
 
 def defect_yield_simulator(
-    WAF_R_um,
-    D0,
-    t_0,
-    z,
-    k_r,
-    k_r0,
-    k_n,
-    k_L,
-    k_S,
-    VOID_SHAPE,
-    NUM_WAFER_SAMPLES,
-    waf_list,
+    WAF_R_um: float,
+    D0: float,
+    t_0: float,
+    z: float,
+    k_r: float,
+    k_r0: float,
+    k_n: float,
+    k_L: float,
+    k_S: float,
+    VOID_SHAPE: str,
+    waf_stack_list: list,
 ):
     def cdf_particle_thickness(t):
         return 1 - (t_0 / t) ** (z - 1)
@@ -170,23 +169,24 @@ def defect_yield_simulator(
 
         return voids, main_voids, tail_voids
     
+    NUM_BONDING_INTERFACES = waf_stack_list[0].num_bonding_interfaces
+    NUM_STACKS = len(waf_stack_list)
 
-    total_particles = np.pi * WAF_R_um**2 * NUM_WAFER_SAMPLES * D0
-    particles_per_wafer = np.random.multinomial(
-        total_particles, [1 / NUM_WAFER_SAMPLES] * NUM_WAFER_SAMPLES
-    )
-    for waf_ind in range(NUM_WAFER_SAMPLES):
-        num_particles = particles_per_wafer[waf_ind]
-        particle_thickness = np.zeros(num_particles)
-        u = np.random.rand(num_particles)
-        particle_thickness = inverse_cdf_particle_thickness(u)
-        particles = generate_particles(particle_thickness, WAF_R_um)
+    total_particles = np.pi * WAF_R_um**2 * NUM_STACKS * NUM_BONDING_INTERFACES * D0
+    particles_per_interface = np.random.multinomial(
+        total_particles, [1 / NUM_BONDING_INTERFACES * NUM_STACKS] * (NUM_BONDING_INTERFACES * NUM_STACKS)
+    ).reshape(NUM_STACKS, NUM_BONDING_INTERFACES)
 
-        # Generate the main void and void tail based on the particles for each wafer
-        voids, main_voids, tail_voids = generate_voids(particles, k_r, k_r0, k_n, k_S)
-        # transform the voids struct to array
-        voids_arr = np.zeros([len(voids), 3])
-        # for i, v in enumerate(voids):
-        #     voids_arr[i] = [v.x, v.y, v.r]
-        waf_list[waf_ind].voids = np.array(voids)
-        waf_list[waf_ind].safe_voids_mask = np.ones(len(voids))
+    for stack_ind in range(NUM_STACKS):
+        for interface_ind in range(NUM_BONDING_INTERFACES):
+            num_particles = particles_per_interface[stack_ind, interface_ind]
+            particle_thickness = np.zeros(num_particles)
+            u = np.random.rand(num_particles)
+            particle_thickness = inverse_cdf_particle_thickness(u)
+            particles = generate_particles(particle_thickness, WAF_R_um)
+
+            # Generate the main void and void tail based on the particles for each wafer
+            voids, main_voids, tail_voids = generate_voids(particles, k_r, k_r0, k_n, k_S)
+
+            # Pass the void failure parameters to the wafer_stacks interface object
+            waf_stack_list[stack_ind].interfaces.failure_params['voids'][interface_ind] = np.array(voids)

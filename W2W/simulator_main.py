@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+#### Simulator launching script
+#### Author: Zhichao Chen
+#### Date: Jan 20, 2026
 
 import os
 import numpy as np
@@ -54,14 +57,14 @@ def main():
     update_config_items(cfg=cfg, mode=args.mode)
 
     # Step 2: run assembly yield simulator
-    print("Running assembly yield simulator over {} wafers...".format(cfg.NUM_WAFERS))
+    print("Running assembly yield simulator over {} wafer stacks...".format(cfg.NUM_WAFER_STACKS))
     start_time = time.time()
     assembly_yield, _ = Assembly_Yield_Simulator(
         cfg=cfg,
         pad_bitmap_collection=pad_bitmap_collection,                                               
     )
     
-    print(f"Assembly yield over {cfg.NUM_WAFERS} simulations: {assembly_yield*100:.2f}%")
+    print(f"Assembly yield over {cfg.NUM_WAFER_STACKS} simulations: {assembly_yield*100:.2f}%")
     print("Total time taken: {:.2f} seconds".format(time.time() - start_time))
 
 

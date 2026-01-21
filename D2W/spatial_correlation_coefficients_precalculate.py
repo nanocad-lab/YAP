@@ -10,7 +10,7 @@ from scipy.integrate import quad
 from scipy.stats import norm
 import time
 
-from wafer_die_initialization import die_initialize
+from YAP.D2W.wafer_die_stack_initialization import die_initialize
 from overlay_yield_simulator import overlay_term_simulator
 from defect_yield_simulator import defect_yield_simulator
 from overall_yield_simulator import overall_yield_simulator

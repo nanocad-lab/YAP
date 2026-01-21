@@ -8,7 +8,7 @@ import numpy as np
 import time
 import os
 
-from YAP.W2W.wafer_die_stack_initialization import wafer_initialize
+from YAP.W2W.wafer_die_stack_initialization import wafer_stack_list_initialize
 from overlay_yield_simulator import overlay_term_simulator
 from defect_yield_simulator import defect_yield_simulator
 from roughness_parameters import roughness_parameters
@@ -19,26 +19,15 @@ def Assembly_Yield_Simulator(
     cfg,
     pad_bitmap_collection,
 ):
-    num_sim_epoch = cfg.NUM_WAFERS // cfg.SIM_BATCH_SIZE
+    num_sim_epoch = cfg.NUM_WAFER_STACKS // cfg.SIM_BATCH_SIZE
     epoch_yield_list = []
 
     if cfg.verbose:
         print("Verbose mode enabled: Tracking failure reasons for each die.")
-        waf_list = wafer_initialize(
-            NUM_WAFER_SAMPLES       = cfg.SIM_BATCH_SIZE,
-            DIE_W_um                = cfg.DIE_W_um,
-            DIE_L_um                = cfg.DIE_L_um,
-            PAD_ARR_W_um            = cfg.PAD_ARR_W_um,
-            PAD_ARR_L_um            = cfg.PAD_ARR_L_um,
-            PAD_ARR_ROW             = cfg.PAD_ARR_ROW,
-            PAD_ARR_COL             = cfg.PAD_ARR_COL,
-            PITCH_r_um              = cfg.PITCH_r_um,
-            PITCH_c_um              = cfg.PITCH_c_um,
-            WAF_R_um                = cfg.WAF_R_um,
-            PAD_TOP_R_um            = cfg.PAD_TOP_R_um,
-            PAD_BOT_R_um            = cfg.PAD_BOT_R_um,
-            dice_width              = cfg.dice_width,
-            pad_bitmap_collection   = pad_bitmap_collection,
+        # Initialize a temporary wafer stack to get die count and initialize fail maps/vectors
+        temp_waf_stack_list = wafer_stack_list_initialize(
+            NUM_WAFER_LAYERS          = cfg.NUM_WAFER_LAYERS,
+            num_stack_samples      = 1,
         )
         fail_map_dict = {}
         fail_map_dict['overlay']    = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL))
@@ -48,41 +37,31 @@ def Assembly_Yield_Simulator(
         fail_map_dict['overall']    = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL))
 
         fail_vec_dict = {}
-        num_dies_per_wafer = waf_list[0].num_dies
-        fail_vec_dict['overlay']    = np.zeros(cfg.NUM_WAFERS * num_dies_per_wafer)
-        fail_vec_dict['particle']   = np.zeros(cfg.NUM_WAFERS * num_dies_per_wafer)
-        fail_vec_dict['mechanical'] = np.zeros(cfg.NUM_WAFERS * num_dies_per_wafer)
-        fail_vec_dict['ESD']        = np.zeros(cfg.NUM_WAFERS * num_dies_per_wafer)
-        fail_vec_dict['overall']    = np.zeros(cfg.NUM_WAFERS * num_dies_per_wafer)
-        del waf_list
-
+        num_dies_per_wafer = temp_waf_stack_list[0].num_dies
+        fail_vec_dict['overlay']    = np.zeros(cfg.NUM_WAFER_STACKS * num_dies_per_wafer)
+        fail_vec_dict['particle']   = np.zeros(cfg.NUM_WAFER_STACKS * num_dies_per_wafer)
+        fail_vec_dict['mechanical'] = np.zeros(cfg.NUM_WAFER_STACKS * num_dies_per_wafer)
+        fail_vec_dict['ESD']        = np.zeros(cfg.NUM_WAFER_STACKS * num_dies_per_wafer)
+        fail_vec_dict['overall']    = np.zeros(cfg.NUM_WAFER_STACKS * num_dies_per_wafer)
+        del temp_waf_stack_list
+    
+    # Iterate over simulation epochs
     for epoch in range(num_sim_epoch):
         # Record the time
         start_time = time.time()
         # Initialize the wafer
-        waf_list = wafer_initialize(
-            NUM_WAFER_SAMPLES       = cfg.SIM_BATCH_SIZE,
-            DIE_W_um                = cfg.DIE_W_um,
-            DIE_L_um                = cfg.DIE_L_um,
-            PAD_ARR_W_um            = cfg.PAD_ARR_W_um,
-            PAD_ARR_L_um            = cfg.PAD_ARR_L_um,
-            PAD_ARR_ROW             = cfg.PAD_ARR_ROW,
-            PAD_ARR_COL             = cfg.PAD_ARR_COL,
-            PITCH_r_um              = cfg.PITCH_r_um,
-            PITCH_c_um              = cfg.PITCH_c_um,
-            WAF_R_um                = cfg.WAF_R_um,
-            PAD_TOP_R_um            = cfg.PAD_TOP_R_um,
-            PAD_BOT_R_um            = cfg.PAD_BOT_R_um,
-            dice_width              = cfg.dice_width,
-            pad_bitmap_collection   = pad_bitmap_collection,
+        waf_stack_list = wafer_stack_list_initialize(
+            NUM_WAFER_LAYERS          = cfg.NUM_WAFER_LAYERS,
+            num_stack_samples      = cfg.SIM_BATCH_SIZE,
         )
-        # wafer_sample = waf_list[0]
-        # Draw the swhole wafer
-        # wafer_sample.draw_wafer_die(fig_size=(15, 15))
-        # raise NotImplementedError("Stop here for debug.")
-        # Generate overlay terms
-        system_translation_x_um, system_translation_y_um, system_rotation_rad, system_magnification_ppm, MAX_ALLOWED_MISALIGNMENT_um = overlay_term_simulator(
+        # Generate overlay terms， in the shape of (NUM_STACKS, NUM_BONDING_INTERFACES)
+        system_translation_x_um, \
+        system_translation_y_um, \
+        system_rotation_rad, \
+        system_magnification_ppm, \
+        MAX_ALLOWED_MISALIGNMENT_um = overlay_term_simulator(
             cfg                             =       cfg,
+            waf_stack_list                  =       waf_stack_list,
             PAD_TOP_R_um                    =       cfg.PAD_TOP_R_um,
             PAD_BOT_R_um                    =       cfg.PAD_BOT_R_um,
             PITCH_r_um                      =       cfg.PITCH_r_um,
@@ -97,7 +76,6 @@ def Assembly_Yield_Simulator(
             SYSTEM_TRANSLATION_Y_STD_um     =       cfg.SYSTEM_TRANSLATION_Y_STD_um,
             BOW_DIFFERENCE_MEAN_um          =       cfg.BOW_DIFFERENCE_MEAN_um,
             BOW_DIFFERENCE_STD_um           =       cfg.BOW_DIFFERENCE_STD_um,
-            NUM_WAFER_SAMPLES               =       cfg.SIM_BATCH_SIZE,
             k_mag                           =       cfg.k_mag,
             M_0                             =       cfg.M_0,
         )
@@ -114,14 +92,14 @@ def Assembly_Yield_Simulator(
             k_L                 =       cfg.k_L,
             k_S                 =       cfg.k_S,
             VOID_SHAPE          =       cfg.VOID_SHAPE,
-            NUM_WAFER_SAMPLES   =       cfg.SIM_BATCH_SIZE,
-            waf_list            =       waf_list,
+            waf_stack_list      =       waf_stack_list,
         )
         
         # Calculate the overall yield
         yield_list, epoch_fail_map_dict, epoch_fail_vec_dict = overall_yield_simulator(
             cfg                             =       cfg,
-            waf_list                        =       waf_list,
+            waf_stack_list                  =       waf_stack_list,
+            num_dies_per_wafer              =       num_dies_per_wafer,
             WAF_R_um                        =       cfg.WAF_R_um,
             system_translation_x_um         =       system_translation_x_um,
             system_translation_y_um         =       system_translation_y_um,
@@ -165,7 +143,7 @@ def Assembly_Yield_Simulator(
             fail_vec_dict['ESD'][epoch*cfg.SIM_BATCH_SIZE:(epoch+1)*cfg.SIM_BATCH_SIZE * num_dies_per_wafer] = epoch_fail_vec_dict['ESD']
             fail_vec_dict['overall'][epoch*cfg.SIM_BATCH_SIZE:(epoch+1)*cfg.SIM_BATCH_SIZE * num_dies_per_wafer] = epoch_fail_vec_dict['overall']
 
-        print(f"Simulation progress: {(epoch+1)*cfg.SIM_BATCH_SIZE}/{cfg.NUM_WAFERS} wafers simulated. Epoch yield: {np.mean(yield_list):.4f}. Time taken: {time.time() - start_time:.2f} seconds.")
+        print(f"Simulation progress: {(epoch+1)*cfg.SIM_BATCH_SIZE}/{cfg.NUM_WAFER_STACKS} wafer stacks simulated. Epoch yield: {np.mean(yield_list):.4f}. Time taken: {time.time() - start_time:.2f} seconds.")
         
         
         del waf_list

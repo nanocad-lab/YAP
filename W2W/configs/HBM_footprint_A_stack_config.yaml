@@ -1,20 +1,21 @@
-#### Simulation parameters for Wafer-to-Wafer (W2W) hybrid bonding simulation.
+#### Simulation parameters for Wafer-to-Wafer 3D stacking (W2W) hybrid bonding simulation.
 w2w_simulation:
   # === General Settings ===
   MODE: "W2W_Hybrid_Bonding_Simulation"  # Name of the simulation
   OUTPUT_DIR: "output/"
   INPUT_DIR: "input/"          # Output directory for simulation results
-  DEBUG: false                                      # Enable debug mode
-  DESIGN: "HBM_footprint_A"                      # Design name
+  DEBUG: false                               # Debug mode knob
+  DESIGN: "HBM_footprint_A"                  # Design name
   PAD_ARRANGE_PATTERN: "checkerboard"        # Pad arrangement pattern: "checkerboard" (HBM)
   # === Wafer and Die Settings ===
-  NUM_WAFERS: 10                        # Number of wafers used in simulation
-  SIM_BATCH_SIZE: 1                            # Number of wafer samples simulated in one batch (a way to decrease memory requirements)
+  NUM_WAFER_STACKS: 10                      # Number of wafer stacks used in simulation
+  NUM_WAFER_LAYERS: 8                       # Number of wafer layers per stack
+  SIM_BATCH_SIZE: 1                         # Number of wafer stack samples simulated in one batch (a way to decrease memory requirements)
   PITCH_r_um: 55                            # Row pad pitch (µm)
   PITCH_c_um: 35                            # Column pad pitch (µm)
-  DIE_W_um: 10850                          # Die width (µm)
-  DIE_L_um: 8965                          # Die length (µm)
-  WAF_R_um: 150000                         # Wafer radius (µm)
+  DIE_W_um: 10850                           # Die width (µm)
+  DIE_L_um: 8965                            # Die length (µm)
+  WAF_R_um: 150000                          # Wafer radius (µm)
   PAD_ARR_ROW: 161
   PAD_ARR_COL: 308
   PAD_BOT_R_um: 9                      # Bottom Cu pad radius (um)

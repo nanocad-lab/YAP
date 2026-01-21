@@ -39,6 +39,7 @@ def die_pad_misalignment(
 
 def overlay_term_simulator(
     cfg,
+    waf_stack_list: list,
     PAD_TOP_R_um: float,
     PAD_BOT_R_um: float,
     PITCH_r_um: float,
@@ -53,7 +54,6 @@ def overlay_term_simulator(
     SYSTEM_TRANSLATION_Y_STD_um: float,
     BOW_DIFFERENCE_MEAN_um: float,
     BOW_DIFFERENCE_STD_um: float,
-    NUM_WAFER_SAMPLES: int,
     k_mag: float,
     M_0: float,
 ):
@@ -93,25 +93,35 @@ def overlay_term_simulator(
         # print("The overlay misalignment that will fail the both constraints is {} um.".format(MAX_ALLOWED_MISALIGNMENT_um))
 
         return MAX_ALLOWED_MISALIGNMENT_um
-    
+
     # Calculate the maximum allowed misalignment
     MAX_ALLOWED_MISALIGNMENT_um = MAX_ALLOWED_MISALIGNMENT_calculator(
         PAD_TOP_R_um, PAD_BOT_R_um, PITCH_r_um, PITCH_c_um, CONTACT_AREA_CONSTRAINT, CRITICAL_DIST_CONSTRAINT
     )
-    
+
+    NUM_WAFERS_PER_STACK = waf_stack_list[0].num_layers
+    NUM_STACKS = len(waf_stack_list)
+    NUM_BONDING_INTERFACES = waf_stack_list[0].num_bonding_interfaces
+
     # Calculate the systematic translation, rotation, and magnification
     system_translation_x_um = (
-        np.random.normal(SYSTEM_TRANSLATION_X_MEAN_um, SYSTEM_TRANSLATION_X_STD_um, NUM_WAFER_SAMPLES)
+        np.random.normal(SYSTEM_TRANSLATION_X_MEAN_um, SYSTEM_TRANSLATION_X_STD_um, (NUM_STACKS, NUM_BONDING_INTERFACES))
     )
     system_translation_y_um = (
-        np.random.normal(SYSTEM_TRANSLATION_Y_MEAN_um, SYSTEM_TRANSLATION_Y_STD_um, NUM_WAFER_SAMPLES)
+        np.random.normal(SYSTEM_TRANSLATION_Y_MEAN_um, SYSTEM_TRANSLATION_Y_STD_um, (NUM_STACKS, NUM_BONDING_INTERFACES))
     )
     system_rotation_rad = (
-        np.random.normal(SYSTEM_ROTATION_MEAN_rad, SYSTEM_ROTATION_STD_rad, NUM_WAFER_SAMPLES)
+        np.random.normal(SYSTEM_ROTATION_MEAN_rad, SYSTEM_ROTATION_STD_rad, (NUM_STACKS, NUM_BONDING_INTERFACES))
     )
-    bow_difference = np.random.normal(BOW_DIFFERENCE_MEAN_um, BOW_DIFFERENCE_STD_um, NUM_WAFER_SAMPLES)
+    bow_difference = np.random.normal(BOW_DIFFERENCE_MEAN_um, BOW_DIFFERENCE_STD_um, (NUM_STACKS, NUM_BONDING_INTERFACES))
     system_magnification_ppm = (
         (k_mag * bow_difference + M_0) / 1e6
     )  # systematic magnification unit (ppm)
 
+    # Pass the overlay parameters to the wafer_stacks interface object
+    for stack_idx in range(NUM_STACKS):
+        waf_stack_list[stack_idx].interfaces.failure_params['system_translation_x_um'] = system_translation_x_um[stack_idx]
+        waf_stack_list[stack_idx].interfaces.failure_params['system_translation_y_um'] = system_translation_y_um[stack_idx]
+        waf_stack_list[stack_idx].interfaces.failure_params['system_rotation_rad'] = system_rotation_rad[stack_idx]
+        waf_stack_list[stack_idx].interfaces.failure_params['system_magnification_ppm'] = system_magnification_ppm[stack_idx]
     return system_translation_x_um, system_translation_y_um, system_rotation_rad, system_magnification_ppm, MAX_ALLOWED_MISALIGNMENT_um

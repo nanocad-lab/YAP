@@ -64,8 +64,7 @@ class Wafer:
         self.num_dies = 0
         self.dice_proportion = dice_proportion
         self.voids = []
-        self.safe_voids_mask = []
-        self.roughness_voids = []
+
         self.survival_die = 0
         self.base_pad_coords = base_pad_coords
         self.dice_width = dice_width
@@ -263,70 +262,25 @@ def wafer_initialize(
     return waf_list
 
 
-class DieStack:
-    def __init__(self, 
+class BondingInterfaces:
+    def __init__(self,
                  cfg,
-                 num_layers: int,
+                 num_bonding_interfaces: int,
                  ):
         """
-        die_layer_list: List of Die objects for each layer for each stack (from bottom to top)
-        die_stack_list: List of Die Stack objects for multiple samples (simulation)
+        The set of bonding interfaces for a single wafer stack
         """
         self.cfg = cfg
-        self.num_layers = num_layers
-        self.num_bonding_interfaces = num_layers - 1
-        self.die_stack_list = []  # List of Die Stack objects for multiple samples
-    
-    def add_layers(self):
-        """
-        Initialize the die stack layers for one die stack sample.
-        """
-        cfg = self.cfg
-        die_layer_list = []
-        for layer_idx in range(self.num_layers):
-            single_die_layer = Die(
-                DIE_W_um=cfg.DIE_W_um,
-                DIE_L_um=cfg.DIE_L_um,
-                die_center=np.array([0, 0]),
-                NUM_PADS_PER_DIE=cfg.PAD_ARR_ROW * cfg.PAD_ARR_COL,
-                DIE_VERTEX_COORDS=None,
-                PAD_ARR_BOX=None,
-                pad_yield_flag=cfg.pad_yield_flag,
-            )
-            die_layer_list.append(single_die_layer)
-        return die_layer_list
-
-    def add_stack_samples(self, num_samples: int):
-        """
-        Initialize multiple die stack samples.
-        """
-        for _ in range(num_samples):
-            single_stack_layers = self.add_layers()
-            self.die_stack_list.append(single_stack_layers)
-
-def die_stack_initialize(
-    cfg,
-    NUM_DIE_LAYERS: int,
-    num_stack_samples: int,
-):
-    """
-    Inputs:
-    - cfg: Configuration object containing parameters
-    - NUM_DIE_LAYERS: Number of die layers in the stack
-    - num_stack_samples: Number of die stack samples to generate
-    
-    Outputs:
-    - die_stack: DieStack object containing the initialized die stack samples
-    """
-    die_stack = DieStack(
-        cfg=cfg,
-        num_layers=NUM_DIE_LAYERS,
-    )
-
-    # Generate die stack samples
-    die_stack.add_stack_samples(num_stack_samples)
-
-    return die_stack
+        self.failure_params = {}
+        # Overlay failure parameters for each bonding interface in each stack
+        self.failure_params['system_translation_x_um'] = np.zeros(num_bonding_interfaces)
+        self.failure_params['system_translation_y_um'] = np.zeros(num_bonding_interfaces)
+        self.failure_params['system_rotation_rad'] = np.zeros(num_bonding_interfaces)
+        self.failure_params['system_magnification_ppm'] = np.zeros(num_bonding_interfaces)
+        # Particle-induced void failure parameters for each bonding interface in each stack
+        self.failure_params['voids'] = [] # each entry is an array of voids (np.ndarray)
+        # Cu recess/stress failure parameters for each bonding interface in each stack
+        # TODO: add Cu recess/stress failure parameters when needed
 
 
 class WaferStack:
@@ -335,20 +289,25 @@ class WaferStack:
                  num_layers: int,
                  ):
         """
-        wafer_stack_layer_list: List of Wafer objects for each layer (from bottom to top)
-        wafer_stack_list: List of Wafer Stack objects for multiple samples (simulation)
+        num_bonding_interfaces: Number of bonding interfaces in each stack
+        layer_list: List of Wafer objects for each layer (from bottom to top)
+        stack_list: List of Wafer Stack objects for multiple samples (simulation)
         """
         self.cfg = cfg
         self.num_layers = num_layers
         self.num_bonding_interfaces = num_layers - 1
-        self.wafer_stack_list = []  # List of Wafer Stack objects for multiple samples
+        self.die_stack_survival = None  # A survival map for die stacks: shape (num_stacks, num_dies_per_wafer)
+        self.interfaces = BondingInterfaces(
+            cfg=cfg,
+            num_bonding_interfaces=self.num_bonding_interfaces,
+        )
 
     def add_layers(self):
         """
         Initialize the wafer stack layers for one wafer stack sample.
         """
         cfg = self.cfg
-        wafer_stack_layer_list = wafer_initialize(
+        self.waf_list = wafer_initialize(
             NUM_WAFER_SAMPLES           = self.num_layers,
             DIE_W_um                    = cfg.DIE_W_um,
             DIE_L_um                    = cfg.DIE_L_um,
@@ -365,18 +324,11 @@ class WaferStack:
             pad_bitmap_collection       = cfg.pad_bitmap_collection,
             pad_yield_flag              = cfg.pad_yield_flag,
         )
-        return wafer_stack_layer_list
 
-    def add_stack_samples(self, num_samples: int):
-        """
-        Initialize multiple wafer stack samples.
-        """
-        for _ in range(num_samples):
-            single_stack_layers = self.add_layers()
-            self.wafer_stack_list.append(single_stack_layers)
+        
 
 
-def wafer_stack_initialize(
+def wafer_stack_list_initialize(
     cfg,
     NUM_WAFER_LAYERS: int,
     num_stack_samples: int,
@@ -387,17 +339,23 @@ def wafer_stack_initialize(
     - NUM_WAFER_LAYERS: Number of wafer layers in the stack
     - num_stack_samples: Number of wafer stack samples to generate
     Outputs:
-    - wafer_stack: WaferStack object containing the initialized wafer stack samples
+    - wafer_stacks: WaferStack object containing the initialized wafer stack samples
+    Output Structure:
+    wafer_stacks -> stack_list -> layer_list
     """
+    wafer_stack_list = []
+    for _ in range(num_stack_samples):
+        wafer_stack = WaferStack(
+            cfg=cfg,
+            num_layers=NUM_WAFER_LAYERS,
+        )
+        wafer_stack.add_layers()
+        num_dies_per_wafer = wafer_stack.waf_list[0].num_dies
+        wafer_stack.die_stack_survival = np.ones((num_dies_per_wafer), dtype=bool)
+        wafer_stack_list.append(wafer_stack)
+        
     
-    wafer_stack = WaferStack(
-        cfg=cfg,
-        num_layers=NUM_WAFER_LAYERS,
-    )
-    # Generate wafer stack samples
-    wafer_stack.add_stack_samples(num_stack_samples)
-
-    return wafer_stack
+    return wafer_stack_list
 
 
 

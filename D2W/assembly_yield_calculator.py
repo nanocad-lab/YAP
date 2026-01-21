@@ -7,7 +7,7 @@
 import numpy as np
 import time
 import matplotlib.pyplot as plt
-from wafer_die_initialization import die_initialize
+from YAP.D2W.wafer_die_stack_initialization import die_initialize
 from overlay_yield_calculator import pad_overlay_yield_map_generator
 from defect_yield_calculator import pad_defect_yield_map_generator
 from Cu_expansion_yield_calculator import pad_Cu_expansion_yield_map_generator
