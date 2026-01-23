@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+/D2W_correlation_experiments/
+/Repair_Analysis/
+yap_env/
+D2W/output/*/temp/
+W2W/output/*/temp/

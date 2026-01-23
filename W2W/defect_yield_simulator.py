@@ -105,7 +105,7 @@ def defect_yield_simulator(
     k_L,
     k_S,
     VOID_SHAPE,
-    NUM_WAFERS,
+    NUM_WAFER_SAMPLES,
     waf_list,
 ):
     def cdf_particle_thickness(t):
@@ -171,11 +171,11 @@ def defect_yield_simulator(
         return voids, main_voids, tail_voids
     
 
-    total_particles = np.pi * WAF_R_um**2 * NUM_WAFERS * D0
+    total_particles = np.pi * WAF_R_um**2 * NUM_WAFER_SAMPLES * D0
     particles_per_wafer = np.random.multinomial(
-        total_particles, [1 / NUM_WAFERS] * NUM_WAFERS
+        total_particles, [1 / NUM_WAFER_SAMPLES] * NUM_WAFER_SAMPLES
     )
-    for waf_ind in range(NUM_WAFERS):
+    for waf_ind in range(NUM_WAFER_SAMPLES):
         num_particles = particles_per_wafer[waf_ind]
         particle_thickness = np.zeros(num_particles)
         u = np.random.rand(num_particles)

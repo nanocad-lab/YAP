@@ -4,80 +4,86 @@
 #### Author: Zhichao Chen
 #### Date: Sep 26, 2024
 
+import os
 import numpy as np
 from scipy.integrate import quad
 from scipy.stats import norm
 import time
 
-from wafer_die_initialization import Die, Wafer, die_initialize
-from overlay_yield_simulator import overlay_term_simulator, die_pad_misalignment
-from Cu_gap_simulator import Cu_gap_simulator
+from wafer_die_initialization import die_initialize
+from overlay_yield_simulator import overlay_term_simulator
 from defect_yield_simulator import defect_yield_simulator
-from roughness_parameters import roughness_parameters
 from overall_yield_simulator import overall_yield_simulator
+from spatial_correlation_coefficients import get_spatial_correlation_coefficients
 
 
 def Assembly_Yield_Simulator(
     cfg,
     pad_bitmap_collection,
-):
-    zeta_0 = cfg.k_et * (cfg.T_anl - cfg.T_R) + cfg.k_eb * (cfg.T_anl - cfg.T_R)    # The total expansion of the Cu pad after annealing (nm)
-    zeta_1_ = roughness_parameters(
-        Asperity_R_m             =       cfg.Asperity_R_m,
-        Roughness_sigma_m        =       cfg.Roughness_sigma_m,
-        eta_s                  =       cfg.eta_s,
-        Roughness_constant     =       cfg.Roughness_constant,
-        Adhesion_energy        =       cfg.Adhesion_energy,
-        Young_modulus_Pa          =       cfg.Young_modulus_Pa,
-        Dielectric_thickness   =       cfg.Dielectric_thickness,
-        PITCH_um                  =       cfg.PITCH_um,
-        PAD_BOT_R_um              =       cfg.PAD_BOT_R_um,
-        DISH_0_m                 =       cfg.DISH_0_m,
-        k_peel                 =       cfg.k_peel,
-    )
-    zeta_1 = max(zeta_1_, 0) 
-    
-    single_config_yield_list = []
+):   
+    num_sim_epoch = cfg.NUM_DIES // cfg.SIM_BATCH_SIZE
+    epoch_yield_list = []
 
-    for i in range(cfg.simulation_times):
-        if i % 1 == 0 and cfg.simulation_times > 1:
-            print("Processing batch {}/{}...".format(i + 1, cfg.simulation_times))
+    if cfg.verbose:
+        print("Verbose mode enabled: Tracking failure reasons for each die.")
+        fail_map_dict = {}
+        fail_map_dict['overlay']    = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL))
+        fail_map_dict['particle']   = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL))
+        fail_map_dict['mechanical'] = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL))
+        fail_map_dict['ESD']        = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL))
+        fail_map_dict['overall']    = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL))
+        fail_vec_dict = {}
+        fail_vec_dict['overlay']    = np.zeros(cfg.NUM_DIES)
+        fail_vec_dict['particle']   = np.zeros(cfg.NUM_DIES)
+        fail_vec_dict['mechanical'] = np.zeros(cfg.NUM_DIES)
+        fail_vec_dict['ESD']        = np.zeros(cfg.NUM_DIES)
+        fail_vec_dict['overall']    = np.zeros(cfg.NUM_DIES)
 
-        # Initialize the die list
+    for epoch in range(num_sim_epoch):
+        # Initialize the die list (Extract the base pad coordinates seperately for later use, so that a lot of memory can be saved)
         die_list, base_pad_coords = die_initialize(
-            NUM_DIES                =       cfg.NUM_DIES,
-            DIE_W_um                   =       cfg.DIE_W_um,
-            DIE_L_um                   =       cfg.DIE_L_um,
-            PAD_ARR_W_um               =       cfg.PAD_ARR_W_um,
-            PAD_ARR_L_um               =       cfg.PAD_ARR_L_um,
-            PAD_ARR_ROW             =       cfg.PAD_ARR_ROW,
-            PAD_ARR_COL             =       cfg.PAD_ARR_COL,
-            PITCH_um                   =       cfg.PITCH_um,
-            pad_bitmap_collection   =       pad_bitmap_collection,
+            NUM_DIE_SAMPLES             =       cfg.SIM_BATCH_SIZE,
+            DIE_W_um                    =       cfg.DIE_W_um,
+            DIE_L_um                    =       cfg.DIE_L_um,
+            PAD_ARR_W_um                =       cfg.PAD_ARR_W_um,
+            PAD_ARR_L_um                =       cfg.PAD_ARR_L_um,
+            PAD_ARR_ROW                 =       cfg.PAD_ARR_ROW,
+            PAD_ARR_COL                 =       cfg.PAD_ARR_COL,
+            PITCH_r_um                  =       cfg.PITCH_r_um,
+            PITCH_c_um                  =       cfg.PITCH_c_um,
+            PAD_TOP_R_um                =       cfg.PAD_TOP_R_um,
+            PAD_BOT_R_um                =       cfg.PAD_BOT_R_um,
+            pad_bitmap_collection       =       pad_bitmap_collection,
+            pad_yield_flag              =       cfg.pad_yield_flag,
         )
+        # die_sample = die_list[0]
+        # die_sample.draw_die(fig_size=(6, 6))
 
         # Generate overlay terms
-        system_translation_x_um, system_translation_y_um, system_rotation_um, system_magnification, MAX_ALLOWED_MISALIGNMENT = overlay_term_simulator(
-            PAD_TOP_R_um                   =       cfg.PAD_TOP_R_um,
-            PAD_BOT_R_um                   =       cfg.PAD_BOT_R_um,
-            PITCH_um                       =       cfg.PITCH_um,
-            CONTACT_AREA_CONSTRAINT     =       cfg.CONTACT_AREA_CONSTRAINT,
-            CRITICAL_DIST_CONSTRAINT    =       cfg.CRITICAL_DIST_CONSTRAINT,
+        system_translation_x_um, system_translation_y_um, system_rotation_rad, system_magnification_ppm, MAX_ALLOWED_MISALIGNMENT_um = overlay_term_simulator(
+            cfg                             =       cfg,
+            PAD_TOP_R_um                    =       cfg.PAD_TOP_R_um,
+            PAD_BOT_R_um                    =       cfg.PAD_BOT_R_um,
+            PITCH_r_um                      =       cfg.PITCH_r_um,
+            PITCH_c_um                      =       cfg.PITCH_c_um,
+            CONTACT_AREA_CONSTRAINT         =       cfg.CONTACT_AREA_CONSTRAINT,
+            CRITICAL_DIST_CONSTRAINT        =       cfg.CRITICAL_DIST_CONSTRAINT,
             SYSTEM_ROTATION_MEAN_rad        =       cfg.SYSTEM_ROTATION_MEAN_rad,
             SYSTEM_ROTATION_STD_rad         =       cfg.SYSTEM_ROTATION_STD_rad,
-            SYSTEM_TRANSLATION_X_MEAN_um   =       cfg.SYSTEM_TRANSLATION_X_MEAN_um,
-            SYSTEM_TRANSLATION_X_STD_um    =       cfg.SYSTEM_TRANSLATION_X_STD_um,
-            SYSTEM_TRANSLATION_Y_MEAN_um   =       cfg.SYSTEM_TRANSLATION_Y_MEAN_um,
-            SYSTEM_TRANSLATION_Y_STD_um    =       cfg.SYSTEM_TRANSLATION_Y_STD_um,
-            BOW_DIFFERENCE_MEAN_um         =       cfg.BOW_DIFFERENCE_MEAN_um,
-            BOW_DIFFERENCE_STD_um          =       cfg.BOW_DIFFERENCE_STD_um,
-            NUM_DIES                    =       cfg.NUM_DIES,
-            k_mag                       =       cfg.k_mag,
-            M_0                         =       cfg.M_0,
+            SYSTEM_TRANSLATION_X_MEAN_um    =       cfg.SYSTEM_TRANSLATION_X_MEAN_um,
+            SYSTEM_TRANSLATION_X_STD_um     =       cfg.SYSTEM_TRANSLATION_X_STD_um,
+            SYSTEM_TRANSLATION_Y_MEAN_um    =       cfg.SYSTEM_TRANSLATION_Y_MEAN_um,
+            SYSTEM_TRANSLATION_Y_STD_um     =       cfg.SYSTEM_TRANSLATION_Y_STD_um,
+            BOW_DIFFERENCE_MEAN_um          =       cfg.BOW_DIFFERENCE_MEAN_um,
+            BOW_DIFFERENCE_STD_um           =       cfg.BOW_DIFFERENCE_STD_um,
+            NUM_DIE_SAMPLES                 =       cfg.SIM_BATCH_SIZE,
+            k_mag                           =       cfg.k_mag,
+            M_0                             =       cfg.M_0,
         )
         
         # Generate void defects
         defect_yield_simulator(
+            cfg             =       cfg,
             D0              =       cfg.D0,  # Number of particles of all thicknesses per unit area (um^{-1}) on the die
             t_0             =       cfg.t_0,
             z               =       cfg.z,
@@ -87,50 +93,87 @@ def Assembly_Yield_Simulator(
             k_L             =       cfg.k_L,
             k_S             =       cfg.k_S,
             VOID_SHAPE      =       cfg.VOID_SHAPE,
-            DIE_W_um           =       cfg.DIE_W_um,
-            DIE_L_um           =       cfg.DIE_L_um,
-            NUM_DIES        =       cfg.NUM_DIES,
+            DIE_W_um        =       cfg.DIE_W_um,
+            DIE_L_um        =       cfg.DIE_L_um,
+            NUM_DIE_SAMPLES =       cfg.SIM_BATCH_SIZE,
             die_list        =       die_list,
         )
 
-       
-        # Calculate the overall yield
-        yield_list = overall_yield_simulator(
-            die_list                    =       die_list,
-            NUM_DIES                    =       cfg.NUM_DIES,
-            DIE_W_um                       =       cfg.DIE_W_um,
-            DIE_L_um                       =       cfg.DIE_L_um,
-            base_pad_coords             =       base_pad_coords,
-            system_translation_x_um        =       system_translation_x_um,
-            system_translation_y_um        =       system_translation_y_um,
-            system_rotation_um             =       system_rotation_um,
-            system_magnification        =       system_magnification,
-            MAX_ALLOWED_MISALIGNMENT    =       MAX_ALLOWED_MISALIGNMENT,
-            zeta_0                      =       zeta_0,
-            zeta_1                      =       zeta_1,
-            PAD_ARR_W_um                   =       cfg.PAD_ARR_W_um,
-            PAD_ARR_L_um                   =       cfg.PAD_ARR_L_um,
-            PAD_ARR_ROW                 =       cfg.PAD_ARR_ROW,
-            PAD_ARR_COL                 =       cfg.PAD_ARR_COL,
-            TOP_DISH_MEAN_nm               =       cfg.TOP_DISH_MEAN_nm,
-            TOP_DISH_STD_nm                =       cfg.TOP_DISH_STD_nm,
-            BOT_DISH_MEAN_nm               =       cfg.BOT_DISH_MEAN_nm,
-            BOT_DISH_STD_nm                =       cfg.BOT_DISH_STD_nm,
-            PITCH_um                       =       cfg.PITCH_um,
-            PAD_TOP_R_um                   =       cfg.PAD_TOP_R_um,
-            RANDOM_MISALIGNMENT_MEAN_um    =       cfg.RANDOM_MISALIGNMENT_MEAN_um,
-            RANDOM_MISALIGNMENT_STD_um     =       cfg.RANDOM_MISALIGNMENT_STD_um,
-            redundant_survival_ratio    =       cfg.redundant_survival_ratio,
-            approximate_set             =       cfg.approximate_set,
-            redundant_flag              =       cfg.redundant_flag,
-            pad_bitmap_collection       =       pad_bitmap_collection,
-        )
-        single_config_yield_list.append(yield_list)
         
-        del die_list
-    if cfg.simulation_times > 1:
-        print("The batch yield list is: ", single_config_yield_list)
-    assembly_yield = np.mean(single_config_yield_list)
-    print("The assembly yield is {:.2f}%.".format(assembly_yield * 100))
+        
+        # Calculate the overall yield
+        yield_list, epoch_fail_map_dict, epoch_fail_vec_dict = overall_yield_simulator(
+            cfg                             =       cfg,
+            die_list                        =       die_list,
+            NUM_DIE_SAMPLES                 =       cfg.SIM_BATCH_SIZE,
+            base_pad_coords                 =       base_pad_coords,
+            system_translation_x_um         =       system_translation_x_um,
+            system_translation_y_um         =       system_translation_y_um,
+            system_rotation_rad             =       system_rotation_rad,
+            system_magnification_ppm        =       system_magnification_ppm,
+            MAX_ALLOWED_MISALIGNMENT_um     =       MAX_ALLOWED_MISALIGNMENT_um,
+            PAD_ARR_W_um                    =       cfg.PAD_ARR_W_um,
+            PAD_ARR_L_um                    =       cfg.PAD_ARR_L_um, 
+            PAD_ARR_ROW                     =       cfg.PAD_ARR_ROW,
+            PAD_ARR_COL                     =       cfg.PAD_ARR_COL,
+            TOP_DISH_MEAN_nm                =       cfg.TOP_DISH_MEAN_nm,
+            TOP_DISH_STD_nm                 =       cfg.TOP_DISH_STD_nm,
+            BOT_DISH_MEAN_nm                =       cfg.BOT_DISH_MEAN_nm,
+            BOT_DISH_STD_nm                 =       cfg.BOT_DISH_STD_nm,
+            TILT_X_MEAN_DEG                 =       cfg.TILT_X_MEAN_DEG,
+            TILT_X_STD_DEG                  =       cfg.TILT_X_STD_DEG,
+            TILT_Y_MEAN_DEG                 =       cfg.TILT_Y_MEAN_DEG,
+            TILT_Y_STD_DEG                  =       cfg.TILT_Y_STD_DEG,
+            PITCH_r_um                      =       cfg.PITCH_r_um,
+            PITCH_c_um                      =       cfg.PITCH_c_um,
+            PAD_TOP_R_um                    =       cfg.PAD_TOP_R_um,
+            RANDOM_MISALIGNMENT_MEAN_um     =       cfg.RANDOM_MISALIGNMENT_MEAN_um,
+            RANDOM_MISALIGNMENT_STD_um      =       cfg.RANDOM_MISALIGNMENT_STD_um,
+            approximate_set                 =       cfg.approximate_set,
+            pad_bitmap_collection           =       pad_bitmap_collection,
+        )
+        epoch_yield_list.append(yield_list)
+        if cfg.verbose:
+            fail_map_dict['overlay']    += epoch_fail_map_dict['overlay']
+            fail_map_dict['particle']   += epoch_fail_map_dict['particle']
+            fail_map_dict['mechanical'] += epoch_fail_map_dict['mechanical']
+            fail_map_dict['ESD']        += epoch_fail_map_dict['ESD']
+            fail_map_dict['overall']    += epoch_fail_map_dict['overall']
+            fail_vec_dict['overlay'][epoch*cfg.SIM_BATCH_SIZE:(epoch+1)*cfg.SIM_BATCH_SIZE]    = epoch_fail_vec_dict['overlay']
+            fail_vec_dict['particle'][epoch*cfg.SIM_BATCH_SIZE:(epoch+1)*cfg.SIM_BATCH_SIZE]   = epoch_fail_vec_dict['particle']
+            fail_vec_dict['mechanical'][epoch*cfg.SIM_BATCH_SIZE:(epoch+1)*cfg.SIM_BATCH_SIZE] = epoch_fail_vec_dict['mechanical']
+            fail_vec_dict['ESD'][epoch*cfg.SIM_BATCH_SIZE:(epoch+1)*cfg.SIM_BATCH_SIZE]        = epoch_fail_vec_dict['ESD']
+            fail_vec_dict['overall'][epoch*cfg.SIM_BATCH_SIZE:(epoch+1)*cfg.SIM_BATCH_SIZE]    = epoch_fail_vec_dict['overall']
 
-    return assembly_yield, single_config_yield_list
+        print(f"Simulation progress: {epoch+1}/{num_sim_epoch} epochs completed.", end='\r')
+
+        del die_list
+
+    print("\nSimulation Completed.")
+    assembly_yield = np.mean(epoch_yield_list)
+    # Remove temporary files if any
+    for name in os.listdir(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp'):
+        file_path = os.path.join(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp', name)
+        if os.path.isfile(file_path):
+            os.remove(file_path)
+    
+    if cfg.verbose:
+        fail_map_dict['overlay']    /= (num_sim_epoch * cfg.SIM_BATCH_SIZE)
+        fail_map_dict['particle']   /= (num_sim_epoch * cfg.SIM_BATCH_SIZE)
+        fail_map_dict['mechanical'] /= (num_sim_epoch * cfg.SIM_BATCH_SIZE)
+        fail_map_dict['ESD']        /= (num_sim_epoch * cfg.SIM_BATCH_SIZE)
+        fail_map_dict['overall']    /= (num_sim_epoch * cfg.SIM_BATCH_SIZE)
+        # Report the failure reasons statistics
+        print("{} die failures due to overlay misalignment.".format(int(np.sum(fail_vec_dict['overlay']))))
+        print("{} die failures due to particle defects.".format(int(np.sum(fail_vec_dict['particle']))))
+        print("{} die failures due to mechanical issues.".format(int(np.sum(fail_vec_dict['mechanical']))))
+        print("{} die failures due to ESD issues.".format(int(np.sum(fail_vec_dict['ESD']))))
+        print("{} die failures in total.".format(int(np.sum(fail_vec_dict['overall']))))
+        # Save fail map dict
+        np.savez(cfg.OUTPUT_DIR + cfg.DESIGN + '/assembly_fail_map_dict.npz', **fail_map_dict)
+        print("Failure heat maps saved to {}.".format(cfg.OUTPUT_DIR + cfg.DESIGN + '/assembly_fail_map_dict.npz'))
+        # Save fail vec dict
+        np.savez(cfg.OUTPUT_DIR + cfg.DESIGN + '/assembly_fail_vec_dict.npz', **fail_vec_dict)
+        print("Failure vectors for all die samples saved to {}.".format(cfg.OUTPUT_DIR + cfg.DESIGN + '/assembly_fail_vec_dict.npz'))
+
+    return assembly_yield, epoch_yield_list 

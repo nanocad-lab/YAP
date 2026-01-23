@@ -1,50 +1,60 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-# Wafers and Dies intialization for the yield model for hybrid bonding
 #### Author: Zhichao Chen
-#### Date: Sep 26, 2024
+#### Date: Oct 23, 2025
 
 import numpy as np
 import time
 import matplotlib.pyplot as plt
 from wafer_die_initialization import die_initialize
-from overlay_yield_calculator import overlay_yield_calculator
-from defect_yield_calculator import defect_yield_calculator
-from Cu_expansion_yield_calculator import Cu_expansion_yield_calculator
+from overlay_yield_calculator import pad_overlay_yield_map_generator
+from defect_yield_calculator import pad_defect_yield_map_generator
+from Cu_expansion_yield_calculator import pad_Cu_expansion_yield_map_generator
+from utils.util import risk_map_generator
+from esd_hybrid import pad_esd_yield_map_generator
 
 
 
 
-
-def Assembly_Yield_Calculator(
+def Pad_Yield_Map_Generator(
     cfg,
     pad_bitmap_collection: dict,
 ):  
+    '''
+    This function calculates the pad-level yield map for a single die
+    '''
     # Initialize the die list
     die_list, _ = die_initialize(
-        NUM_DIES            =       1,
+        NUM_DIE_SAMPLES     =       1,
         DIE_W_um            =       cfg.DIE_W_um,
         DIE_L_um            =       cfg.DIE_L_um,
         PAD_ARR_W_um        =       cfg.PAD_ARR_W_um,
         PAD_ARR_L_um        =       cfg.PAD_ARR_L_um,
         PAD_ARR_ROW         =       cfg.PAD_ARR_ROW,
         PAD_ARR_COL         =       cfg.PAD_ARR_COL,
-        PITCH_um            =       cfg.PITCH_um,
+        PITCH_r_um          =       cfg.PITCH_r_um,
+        PITCH_c_um          =       cfg.PITCH_c_um,
+        PAD_TOP_R_um        =       cfg.PAD_TOP_R_um,
+        PAD_BOT_R_um        =       cfg.PAD_BOT_R_um,
         pad_bitmap_collection = pad_bitmap_collection,  
         pad_yield_flag      =       cfg.pad_yield_flag,
     )
     die = die_list[0]
+    valid_pad_mask = (pad_bitmap_collection['CRITICAL_PAD_BITMAP'] == 1) | (pad_bitmap_collection['REDUNDANT_PAD_BITMAP'] == 1) | (pad_bitmap_collection['DUMMY_PAD_BITMAP'] == 1)
+    valid_die_pad_coords = die.pad_coords[valid_pad_mask.flatten() == 1]
     # fig, ax = plt.subplots(figsize=(4, 6))
     # die.draw_die(ax)
 
     # Calculate the overlay yield
-    overlay_die_yield, overlay_pad_yield_map = overlay_yield_calculator(
+    overlay_pad_yield_map = pad_overlay_yield_map_generator(
+        cfg                             =       cfg,
         PAD_TOP_R_um                    =       cfg.PAD_TOP_R_um,
         PAD_BOT_R_um                    =       cfg.PAD_BOT_R_um,
         PAD_ARR_ROW                     =       cfg.PAD_ARR_ROW,
         PAD_ARR_COL                     =       cfg.PAD_ARR_COL,
-        PITCH_um                        =       cfg.PITCH_um,
+        PITCH_r_um                      =       cfg.PITCH_r_um,
+        PITCH_c_um                      =       cfg.PITCH_c_um,
         num_samples                     =       cfg.num_samples,
         CONTACT_AREA_CONSTRAINT         =       cfg.CONTACT_AREA_CONSTRAINT,
         CRITICAL_DIST_CONSTRAINT        =       cfg.CRITICAL_DIST_CONSTRAINT,
@@ -59,60 +69,102 @@ def Assembly_Yield_Calculator(
         RANDOM_MISALIGNMENT_MEAN_um     =       cfg.RANDOM_MISALIGNMENT_MEAN_um,
         RANDOM_MISALIGNMENT_STD_um      =       cfg.RANDOM_MISALIGNMENT_STD_um,
         die                             =       die,
-        redundant_flag                  =       cfg.redundant_flag,
         pad_yield_flag                  =       cfg.pad_yield_flag,
         pad_yield_map_sub_factor        =       cfg.pad_yield_map_sub_factor,
     )
-    die.die_yield['Y_ovl'], die.pad_yield_map['Y_ovl'] = overlay_die_yield, overlay_pad_yield_map
+    die.pad_yield_map['Y_ovl'] = overlay_pad_yield_map
+    # raise Exception("Overlay yield calculation done. Stop execution here for debugging.")
 
     # Calculate the defect yield
     start_time = time.time()
-    defect_die_yield, defect_pad_yield_map = defect_yield_calculator(
+    defect_pad_yield_map = pad_defect_yield_map_generator(
         cfg               =       cfg,
-        eff_DIE_R         =       cfg.eff_DIE_R,
         D0                =       cfg.D0,
         t_0               =       cfg.t_0,
         z                 =       cfg.z,
         k_r               =       cfg.k_r,
         k_r0              =       cfg.k_r0,
-        k_n               =       cfg.k_n,
-        k_S               =       cfg.k_S,
-        k_L               =       cfg.k_L,
         PAD_TOP_R_um      =       cfg.PAD_TOP_R_um,
-        PITCH_um          =       cfg.PITCH_um,
         PAD_ARR_ROW       =       cfg.PAD_ARR_ROW,
         PAD_ARR_COL       =       cfg.PAD_ARR_COL,
-        PAD_ARR_W_um      =       cfg.PAD_ARR_W_um,
-        PAD_ARR_L_um      =       cfg.PAD_ARR_L_um,
-        VOID_SHAPE        =       cfg.VOID_SHAPE,
         die               =       die,
-        pad_bitmap_collection  = pad_bitmap_collection,
         pad_yield_flag    =       cfg.pad_yield_flag,
         pad_yield_map_sub_factor = cfg.pad_yield_map_sub_factor,
     )
-    die.die_yield['Y_df'], die.pad_yield_map['Y_df'] = defect_die_yield, defect_pad_yield_map
+    die.pad_yield_map['Y_df'] = defect_pad_yield_map
     print(f"Defect yield calculation took {time.time() - start_time:.2f} seconds")
 
     # Calculate the Cu expansion yield
-    Cu_expansion_die_yield, Cu_expansion_pad_yield_map = Cu_expansion_yield_calculator(
+    Cu_expansion_start_time = time.time()
+    Cu_expansion_pad_yield_map = pad_Cu_expansion_yield_map_generator(
         cfg                 =       cfg,
         die                 =       die,
         TOP_DISH_MEAN_nm    =       cfg.TOP_DISH_MEAN_nm,
         TOP_DISH_STD_nm     =       cfg.TOP_DISH_STD_nm,
         BOT_DISH_MEAN_nm    =       cfg.BOT_DISH_MEAN_nm,
         BOT_DISH_STD_nm     =       cfg.BOT_DISH_STD_nm,
-        k_et                =       cfg.k_et,
-        k_eb                =       cfg.k_eb,
-        T_R                 =       cfg.T_R,
-        T_anl               =       cfg.T_anl,
-        pad_bitmap_collection  = pad_bitmap_collection,
-        pad_yield_flag      =       cfg.pad_yield_flag,
+        pad_bitmap_collection =   pad_bitmap_collection,
     )
-    die.die_yield['Y_cr'], die.pad_yield_map['Y_cr'] = Cu_expansion_die_yield, Cu_expansion_pad_yield_map
-    assembly_die_yield = overlay_die_yield * defect_die_yield * Cu_expansion_die_yield
-    assembly_pad_yield_map = overlay_pad_yield_map * defect_pad_yield_map * Cu_expansion_pad_yield_map if cfg.pad_yield_flag else None
-    die.die_yield['Y_asmb'], die.pad_yield_map['Y_asmb'] = assembly_die_yield, assembly_pad_yield_map
-    die_yield = die.die_yield
-    pad_yield_map = die.pad_yield_map
-    del die
-    return die_yield, pad_yield_map
+    die.pad_yield_map['Y_ce'] = Cu_expansion_pad_yield_map
+    print(f"Cu expansion yield calculation took {time.time() - Cu_expansion_start_time:.2f} seconds")
+
+    esd_start_time = time.time()
+    # Calculate the ESD yield
+    esd_valid_pad_yield_vec, _, _ = pad_esd_yield_map_generator(
+        cfg                   = cfg,
+        pad_coords_um         = valid_die_pad_coords,
+        pad_size_um           = cfg.PAD_TOP_R_um * 2,
+        pad_pitch_um          = cfg.PITCH_r_um,
+        top_die_w_um          = cfg.DIE_W_um,
+        top_die_h_um          = cfg.DIE_L_um,
+        n_tilts               = cfg.n_tilts_samples,
+        n_dishes              = cfg.n_dishes_samples,
+        tilt_x_mean_deg       = cfg.TILT_X_MEAN_DEG,
+        tilt_x_std_deg        = cfg.TILT_X_STD_DEG,
+        tilt_y_mean_deg       = cfg.TILT_Y_MEAN_DEG,
+        tilt_y_std_deg        = cfg.TILT_Y_STD_DEG,
+        top_dish_mean_nm      = cfg.TOP_DISH_MEAN_nm,
+        top_dish_std_nm       = cfg.TOP_DISH_STD_nm,
+        bot_dish_mean_nm      = cfg.BOT_DISH_MEAN_nm,
+        bot_dish_std_nm       = cfg.BOT_DISH_STD_nm,
+    )
+    
+    esd_pad_yield_map = np.full((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL), np.nan)
+    esd_pad_yield_map[valid_pad_mask == 1] = esd_valid_pad_yield_vec
+    die.pad_yield_map['Y_esd'] = esd_pad_yield_map
+    die.glb_pad_yield_min_max_dict['Y_esd'] = (np.nanmin(die.pad_yield_map['Y_esd']), np.nanmax(die.pad_yield_map['Y_esd']))
+    if cfg.plot_flag:
+        # Draw the pad yield map
+        plt.figure(figsize=(12, 6))
+        plt.imshow(
+            die.pad_yield_map['Y_esd'],
+            cmap='viridis', 
+            vmin=die.glb_pad_yield_min_max_dict['Y_esd'][0],
+            vmax=die.glb_pad_yield_min_max_dict['Y_esd'][1],
+            interpolation='nearest',
+            )
+        plt.colorbar(label='Pad ESD Yield')
+        plt.xlabel('Pad Column Index')
+        plt.ylabel('Pad Row Index')
+        plt.show()
+    
+    print(f"ESD yield calculation took {time.time() - esd_start_time:.2f} seconds")
+    die.pad_yield_map['Y_bond'] = die.pad_yield_map['Y_ovl'] * die.pad_yield_map['Y_df'] * die.pad_yield_map['Y_ce'] * die.pad_yield_map['Y_esd']
+    die.glb_pad_yield_min_max_dict['Y_bond'] = (np.nanmin(die.pad_yield_map['Y_bond']), np.nanmax(die.pad_yield_map['Y_bond']))
+    print(f"Overall pad bonding yield min: {die.glb_pad_yield_min_max_dict['Y_bond'][0]:.6f}, max: {die.glb_pad_yield_min_max_dict['Y_bond'][1]:.6f}")
+    if cfg.plot_flag:
+        # Draw the pad yield map
+        plt.figure(figsize=(8, 6))
+        plt.imshow(
+            die.pad_yield_map['Y_bond'],
+            cmap='viridis', 
+            vmin=die.glb_pad_yield_min_max_dict['Y_bond'][0],
+            vmax=die.glb_pad_yield_min_max_dict['Y_bond'][1],
+            interpolation='nearest',
+            )
+        plt.colorbar(label='Pad Bonding Yield')
+        plt.xlabel('Pad Column Index')
+        plt.ylabel('Pad Row Index')
+        plt.show()
+
+    risk_map_generator(cfg=cfg, die=die)    # Generate and save the risk map in the specified output directory

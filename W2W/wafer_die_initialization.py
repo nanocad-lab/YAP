@@ -15,7 +15,6 @@ class Die:
     def __init__(
         self, DIE_W_um, DIE_L_um, die_center, NUM_PADS_PER_DIE,
         DIE_VERTEX_COORDS, PAD_ARR_BOX, 
-        pad_boundary_bitmap_coords,
         pad_yield_flag: bool,
     ):
         self.DIE_W_um = DIE_W_um
@@ -24,8 +23,6 @@ class Die:
         self.num_pads = NUM_PADS_PER_DIE
         self.vertices_coords = self.get_vertices_coords(die_center, DIE_VERTEX_COORDS)
         self.pad_array_box = PAD_ARR_BOX + die_center
-        # Calculate the outermost critical pad and redundant pad coordinates based on the pad boundary bitmap index
-        self.ovl_critical_pad_boundary_coords = pad_boundary_bitmap_coords + die_center
 
         self.survival = True
         self.voids_occur = False
@@ -53,7 +50,6 @@ class Wafer:
         PAD_BOT_R_um: float,
         base_pad_coords: np.ndarray,
         dice_width: float,
-        die_pad_PITCH_um: float,
         pad_yield_flag: bool,
         dice_proportion=1.0,
     ):
@@ -73,11 +69,10 @@ class Wafer:
         self.survival_die = 0
         self.base_pad_coords = base_pad_coords
         self.dice_width = dice_width
-        self.die_pad_PITCH_um = die_pad_PITCH_um
         self.pad_yield_flag = pad_yield_flag
         self.glb_pad_yield_min_max_dict = {}
 
-    def generate_die(self, NUM_PADS_PER_DIE, DIE_VERTEX_COORDS, PAD_ARR_BOX, pad_boundary_bitmap_coords):
+    def generate_die(self, NUM_PADS_PER_DIE, DIE_VERTEX_COORDS, PAD_ARR_BOX):
         die_row = 2 * self.wafer_radius // (self.DIE_L_um + self.dice_width) + 1
         die_col = 2 * self.wafer_radius // (self.DIE_W_um + self.dice_width) + 1
         flag_die_outside = False
@@ -86,7 +81,7 @@ class Wafer:
                 flag_die_outside = False
                 die_center = np.array(
                     [
-                        -die_col * (self.DIE_W_um + self.dice_width) / 2
+                        - die_col * (self.DIE_W_um + self.dice_width) / 2
                         + (self.DIE_W_um + self.dice_width) / 2
                         + j * (self.DIE_W_um + self.dice_width),
                         die_row * (self.DIE_L_um + self.dice_width) / 2
@@ -107,7 +102,6 @@ class Wafer:
                     NUM_PADS_PER_DIE,
                     DIE_VERTEX_COORDS,
                     PAD_ARR_BOX,
-                    pad_boundary_bitmap_coords,
                     pad_yield_flag=self.pad_yield_flag
                 )
                 for vertex in die.vertices_coords:
@@ -132,10 +126,10 @@ class Wafer:
         for die in self.die_list:
             # Draw the pad array box
             polygon_coords = np.array([
-                die.pad_array_box[0],  # top-left
-                die.pad_array_box[1],  # top-right
-                die.pad_array_box[3],  # bottom-right
-                die.pad_array_box[2],  # bottom-left
+                die.vertices_coords[0],  # top-left
+                die.vertices_coords[1],  # top-right
+                die.vertices_coords[3],  # bottom-right
+                die.vertices_coords[2],  # bottom-left
             ])
             die_box = Polygon(polygon_coords, color="blue", fill=False)
             ax.add_patch(die_box)
@@ -145,47 +139,35 @@ class Wafer:
                 die_box = Polygon(polygon_coords, color="green", fill=False)
             ax.add_patch(die_box)
 
-            # Draw the overlay pad yield map
-            if draw_pad_yield_map_option == 'Y_ovl':  # Draw the overlay yield map
-                if hasattr(die, 'pad_yield_map') and "Y_ovl" in die.pad_yield_map:
-                    overlay_yield_map = die.pad_yield_map['Y_ovl']
-                    ax.imshow(
-                        overlay_yield_map,
-                        extent=[
-                            die.pad_array_box[0][0], # x_min
-                            die.pad_array_box[1][0], # x_max
-                            die.pad_array_box[2][1], # y_min
-                            die.pad_array_box[0][1]  # y_max
-                        ],
-                        origin='upper',
-                        cmap='viridis',
-                        vmin=self.glb_pad_yield_min_max_dict['Y_ovl'][0], # global min
-                        vmax=self.glb_pad_yield_min_max_dict['Y_ovl'][1], # global max
-                        alpha=0.5,
-                    )
-            # Draw the defect pad yield map
-            if draw_pad_yield_map_option == 'Y_df':  # Draw the defect yield map
-                if hasattr(die, 'pad_yield_map') and "Y_df" in die.pad_yield_map:
-                    defect_yield_map = die.pad_yield_map['Y_df']
-                    ax.imshow(
-                        defect_yield_map,
-                        extent=[
-                            die.pad_array_box[0][0], # x_min
-                            die.pad_array_box[1][0], # x_max
-                            die.pad_array_box[2][1], # y_min
-                            die.pad_array_box[0][1]  # y_max
-                        ],
-                        origin='upper',
-                        cmap='viridis',
-                        vmin=self.glb_pad_yield_min_max_dict['Y_df'][0], # global min
-                        vmax=self.glb_pad_yield_min_max_dict['Y_df'][1], # global max
-                        alpha=0.5,
-                    )
+            # Draw the pad yield map
+            '''draw_pad_yield_map_option:
+                - 'Y_ovl' : overlay yield map
+                - 'Y_df': defect-free yield map
+                - 'Y_ce': Cu expansion yield map
+                - 'Y_esd': ESD yield map
+            '''
+            if hasattr(die, 'pad_yield_map') and draw_pad_yield_map_option in die.pad_yield_map:
+                draw_pad_yield_map = die.pad_yield_map[draw_pad_yield_map_option]
+                ax.imshow(
+                    draw_pad_yield_map,
+                    extent=[
+                        die.vertices_coords[0][0], # x_min
+                        die.vertices_coords[1][0], # x_max
+                        die.vertices_coords[2][1], # y_min
+                        die.vertices_coords[0][1]  # y_max
+                    ],
+                    origin='upper',
+                    cmap='viridis',
+                    vmin=self.glb_pad_yield_min_max_dict[draw_pad_yield_map_option][0], # global min
+                    vmax=self.glb_pad_yield_min_max_dict[draw_pad_yield_map_option][1], # global max
+                    alpha=0.5,
+                )
             # draw pads
-            # die_pad_coords = die.center + PAD_COORDS
+            # die_pad_coords = die.die_center + self.base_pad_coords
             # for pad in die_pad_coords:
-            #     ax.add_artist(patches.Circle((pad[0], pad[1]), self.PAD_TOP_R_um, color='blue', fill=False))
-            #     ax.add_artist(patches.Circle((pad[0], pad[1]), self.PAD_BOT_R_um, color='orange', fill=False))
+            #     if pad[0] != np.nan and pad[1] != np.nan:   # There is a pad/bump
+            #         ax.add_artist(patches.Circle((pad[0], pad[1]), self.PAD_BOT_R_um, color='darkorange', fill=True, alpha=1.0))
+            #         ax.add_artist(patches.Circle((pad[0], pad[1]), self.PAD_TOP_R_um, color='lightgreen', fill=True, alpha=1.0))
 
         # Draw voids
         for v in self.voids:
@@ -200,14 +182,15 @@ class Wafer:
 
 
 def wafer_initialize(
-    NUM_WAFERS,
+    NUM_WAFER_SAMPLES,
     DIE_W_um,
     DIE_L_um,
     PAD_ARR_W_um,
     PAD_ARR_L_um,
     PAD_ARR_ROW,
     PAD_ARR_COL,
-    PITCH_um,
+    PITCH_r_um,
+    PITCH_c_um,
     WAF_R_um,
     PAD_TOP_R_um,
     PAD_BOT_R_um,
@@ -232,48 +215,34 @@ def wafer_initialize(
             [-PAD_ARR_W_um / 2, -PAD_ARR_L_um / 2], 
             [PAD_ARR_W_um / 2, -PAD_ARR_L_um / 2]])
     
-    NUM_PADS_PER_DIE = PAD_ARR_ROW * PAD_ARR_COL  # number of pads in a die
+    # Calculate the total number of pads per die
+    NUM_PADS_PER_DIE = pad_bitmap_collection['num_critical_pads'] + pad_bitmap_collection['num_redundant_pads'] + pad_bitmap_collection['num_dummy_pads']
     
-    # Calculate the top-left pad coordinates of the pad array
-    if PITCH_um >= 1.0:
-        PAD_COORDS = np.zeros([PAD_ARR_ROW * PAD_ARR_COL, 2], dtype=np.float32)  # pad coordinates: [x, y]
-    
-        # Create grid of row and column indices
-        col_indices = np.arange(PAD_ARR_COL)
-        row_indices = np.arange(PAD_ARR_ROW)
-        col_grid, row_grid = np.meshgrid(col_indices, row_indices)
 
-        # Calculate x and y coordinates
-        x_coords = (-PAD_ARR_W_um / 2 + col_grid * PITCH_um).astype(np.float32)
-        y_coords = (PAD_ARR_L_um / 2 - row_grid * PITCH_um).astype(np.float32)
-
-        # Combine x and y coordinates
-        PAD_COORDS = np.stack((x_coords, y_coords), axis=-1).reshape(-1, 2)
+    if pad_bitmap_collection['pad_coords'] is not None:
+        PAD_COORDS = pad_bitmap_collection['pad_coords']
     else:
-        print("Too many Cu pads... Will not generate the pad coordinates.")
-        PAD_COORDS = None
+        if PITCH_r_um >= 1.0 and PITCH_c_um >= 1.0:
+            # Specify the pad coordinates based on pitch and array size
+            PAD_COORDS = np.zeros([PAD_ARR_ROW * PAD_ARR_COL, 2], dtype=np.float32)  # pad coordinates: [x, y]
+        
+            # Create grid of row and column indices
+            col_indices = np.arange(PAD_ARR_COL)
+            row_indices = np.arange(PAD_ARR_ROW)
+            col_grid, row_grid = np.meshgrid(col_indices, row_indices)
 
-    # Get the outer coordinates of the critical pads
-    # (row, col) of the critical pads, top left corner, top right corner, bottom left corner, bottom right corner
-    pad_block_size = pad_bitmap_collection["pad_block_size"]
-    critical_pad_boundary_bitmap_row_col_block_ind = pad_bitmap_collection["critical_pad_boundary_bitmap_row_col_block_ind"]    
-    critical_pad_boundary_bitmap_row_col_block_ind_non_zero_mask = (critical_pad_boundary_bitmap_row_col_block_ind != 0).astype(int)
-    # We did some fine tuning here to make sure the coordinates are correct
-    origin = [-PAD_ARR_W_um / 2, -PAD_ARR_L_um / 2]
-    bias = critical_pad_boundary_bitmap_row_col_block_ind * pad_block_size * PITCH_um - critical_pad_boundary_bitmap_row_col_block_ind_non_zero_mask * [(DIE_W_um - PAD_ARR_W_um), (DIE_L_um - PAD_ARR_L_um)]
-    critical_pad_boundary_bitmap_coords = bias + origin
-    redundant_copy_pad_boundary_bitmap_row_col_block_ind = pad_bitmap_collection["redundant_copy_pad_boundary_bitmap_row_col_block_ind"]
-    
-    # If there are redundant pads, concatenate their coordinates and critical pad coordinates as the pad boundary coordinates (considered in the overlahy error)
-    if redundant_copy_pad_boundary_bitmap_row_col_block_ind is not None:
-        redundant_pad_boundary_bitmap_coords = redundant_copy_pad_boundary_bitmap_row_col_block_ind * pad_block_size * PITCH_um + [-PAD_ARR_W_um / 2, PAD_ARR_L_um / 2]
-        pad_boundary_bitmap_coords = np.concatenate((critical_pad_boundary_bitmap_coords, redundant_pad_boundary_bitmap_coords), axis=0)
-    else:
-        pad_boundary_bitmap_coords = critical_pad_boundary_bitmap_coords
-    
+            # Calculate x and y coordinates
+            x_coords = (-PAD_ARR_W_um / 2 + col_grid * PITCH_c_um).astype(np.float32)
+            y_coords = (PAD_ARR_L_um / 2 - row_grid * PITCH_r_um).astype(np.float32)
 
+            # Combine x and y coordinates
+            PAD_COORDS = np.stack((x_coords, y_coords), axis=-1).reshape(-1, 2)
+        else:
+            print("Too many Cu pads... Will not generate the pad coordinates.")
+            PAD_COORDS = None
+    
     # Initialize the wafer
-    for i in range(NUM_WAFERS):
+    for i in range(NUM_WAFER_SAMPLES):
         wafer = Wafer(
             wafer_radius=WAF_R_um,
             DIE_W_um=DIE_W_um,
@@ -284,10 +253,9 @@ def wafer_initialize(
             PAD_BOT_R_um=PAD_BOT_R_um,
             base_pad_coords=PAD_COORDS,
             dice_width=dice_width,
-            die_pad_PITCH_um=PITCH_um,
             pad_yield_flag=pad_yield_flag,
         )
-        wafer.generate_die(NUM_PADS_PER_DIE, DIE_VERTEX_COORDS, PAD_ARR_BOX, pad_boundary_bitmap_coords)
+        wafer.generate_die(NUM_PADS_PER_DIE, DIE_VERTEX_COORDS, PAD_ARR_BOX)
         # wafer.draw_wafer_die()
         # break
         wafer.survival_die = len(wafer.die_list)

@@ -17,7 +17,6 @@ class particle:
     def __init__(self, x, y, t):
         self.x = x
         self.y = y
-        self.dist_from_center = np.sqrt(x**2 + y**2)
         self.thickness = t
 
 
@@ -29,20 +28,28 @@ class single_void:
 
 
 class void_tail:
-    def __init__(self, x, y, thickness, k_n, k_S, k_L, VOID_SHAPE, DIE_W_um, DIE_L_um):
+    def __init__(self, cfg, x, y, thickness, k_n, k_S, k_L, VOID_SHAPE, DIE_W_um, DIE_L_um):
         self.x = x
         self.y = y
-        self.dist_from_center = np.sqrt(x**2 + y**2)
-        self.L = k_L * self.dist_from_center * np.sqrt(thickness)  # void tail length
+        if cfg.first_contact == 'center':
+            self.dist_from_contact = np.sqrt(x**2 + y**2)
+        elif cfg.first_contact == 'vertical-edge':
+            self.dist_from_contact = np.abs(cfg.DIE_W_um / 2 + x)
+        elif cfg.first_contact == 'horizontal-edge':
+            self.dist_from_contact = np.abs(cfg.DIE_L_um / 2 + y)
+        elif cfg.first_contact == 'corner':
+            self.dist_from_contact = np.sqrt((cfg.DIE_W_um / 2 + x)**2 + (cfg.DIE_L_um / 2 + y)**2)
+        self.dist_from_contact = np.sqrt(x**2 + y**2)
+        self.L = k_L * self.dist_from_contact * np.sqrt(thickness)  # void tail length
         self.n = np.round(
-            k_n * self.dist_from_center * np.sqrt(thickness)
+            k_n * self.dist_from_contact * np.sqrt(thickness)
         )  # number of voids in the tail
-        self.S = k_S * self.dist_from_center * np.sqrt(thickness)  # void tail area
-        # self.S = k_S * self.dist_from_center * thickness  # void tail area
+        self.S = k_S * self.dist_from_contact * np.sqrt(thickness)  # void tail area
+        # self.S = k_S * self.dist_from_contact * thickness  # void tail area
         self.voids = []
         if self.n > 0:
-            x_incrt = self.L * x / self.dist_from_center / self.n
-            y_incrt = self.L * y / self.dist_from_center / self.n
+            x_incrt = self.L * x / self.dist_from_contact / self.n
+            y_incrt = self.L * y / self.dist_from_contact / self.n
             if VOID_SHAPE == "circle":  # r_vt is the radius of the circular void
                 r_vt1 = np.sqrt(
                     self.S / ((np.pi * (self.n + 2) * (self.n + 1) * self.n) / 6)
@@ -61,6 +68,7 @@ class void_tail:
 
 
 def defect_yield_simulator(
+    cfg,
     D0,
     t_0,
     z,
@@ -72,7 +80,7 @@ def defect_yield_simulator(
     VOID_SHAPE,
     DIE_W_um,
     DIE_L_um,
-    NUM_DIES,
+    NUM_DIE_SAMPLES,
     die_list,
 ):
     def cdf_particle_thickness(t):
@@ -90,20 +98,28 @@ def defect_yield_simulator(
         return particles
     
     # Generate the main void and void tail based on the particles
-    def generate_voids(particles, k_r, k_r0, k_n, k_S):
+    def generate_voids(cfg, particles, k_r, k_r0, k_n, k_S):
         voids = []
         main_voids = []
         tail_voids = []
         num_main_void = 0
         num_void_in_tail = 0
         for p in particles:
+            if cfg.first_contact == 'center':
+                distance_to_contact = np.sqrt(p.x**2 + p.y**2)
+            elif cfg.first_contact == 'vertical-edge':
+                distance_to_contact = np.abs(cfg.DIE_W_um / 2 + p.x)
+            elif cfg.first_contact == 'horizontal-edge':
+                distance_to_contact = np.abs(cfg.DIE_L_um / 2 + p.y)
+            elif cfg.first_contact == 'corner':
+                distance_to_contact = np.sqrt((cfg.DIE_W_um / 2 + p.x)**2 + (cfg.DIE_L_um / 2 + p.y)**2)
             # generate main void
-            r_mv = (k_r * p.dist_from_center + k_r0) * np.sqrt(p.thickness)
+            r_mv = (k_r * distance_to_contact + k_r0) * np.sqrt(p.thickness)
             voids.append(single_void(p.x, p.y, r_mv))
             main_voids.append(single_void(p.x, p.y, r_mv))
             num_main_void += 1
             # generate void tail
-            void_tail_obj = void_tail(p.x, p.y, p.thickness, k_n, k_S, k_L, VOID_SHAPE, DIE_W_um, DIE_L_um)
+            void_tail_obj = void_tail(cfg, p.x, p.y, p.thickness, k_n, k_S, k_L, VOID_SHAPE, DIE_W_um, DIE_L_um)
             voids += void_tail_obj.voids
             tail_voids += void_tail_obj.voids
             num_void_in_tail += void_tail_obj.n
@@ -111,11 +127,11 @@ def defect_yield_simulator(
         return voids, main_voids, tail_voids
     
     drop_particle_range = 2 # the range of the particles to drop regarding the die size
-    total_particles = (drop_particle_range * DIE_W_um) * (drop_particle_range * DIE_L_um) * D0 * NUM_DIES     # Put the particles on the 2*DIE_W_um * 2*DIE_L_um area
+    total_particles = (drop_particle_range * DIE_W_um) * (drop_particle_range * DIE_L_um) * D0 * NUM_DIE_SAMPLES     # Put the particles on the 2*DIE_W_um * 2*DIE_L_um area
     particles_per_die = np.random.multinomial(
-        total_particles, [1 / NUM_DIES] * NUM_DIES
+        total_particles, [1 / NUM_DIE_SAMPLES] * NUM_DIE_SAMPLES
     )
-    for die_ind in range(NUM_DIES):
+    for die_ind in range(NUM_DIE_SAMPLES):
         num_particles = particles_per_die[die_ind]
         particle_thickness = np.zeros(num_particles)
         u = np.random.rand(num_particles)
@@ -123,7 +139,7 @@ def defect_yield_simulator(
         particles = generate_particles(particle_thickness, DIE_W_um, DIE_L_um, drop_particle_range)
 
         # Generate the main void and void tail based on the particles for each die
-        voids, main_voids, tail_voids = generate_voids(particles, k_r, k_r0, k_n, k_S)
+        voids, main_voids, tail_voids = generate_voids(cfg, particles, k_r, k_r0, k_n, k_S)
         # transform the voids struct to array
         voids_arr = np.zeros([len(voids), 3])
         for i, v in enumerate(voids):

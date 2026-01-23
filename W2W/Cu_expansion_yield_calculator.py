@@ -3,73 +3,47 @@
 
 # Wafers and Dies intialization for the yield model for hybrid bonding
 #### Author: Zhichao Chen
-#### Date: Sep 26, 2024
+#### Date: Oct 24, 2025
 
 import numpy as np
 from scipy.integrate import quad
 from scipy.stats import norm
-from roughness_parameters import roughness_parameters
+from debond import debond_dishing_bounds_calculator
+import matplotlib.pyplot as plt
+import time
 
 
-def Cu_expansion_yield_calculator(*,
+def pad_Cu_expansion_yield_map_generator(*,
         cfg,
         wafer,
         TOP_DISH_MEAN_nm: float,
         TOP_DISH_STD_nm: float,
         BOT_DISH_MEAN_nm: float,
         BOT_DISH_STD_nm: float,
-        k_et: float,
-        k_eb: float,
-        T_R: float,
-        T_anl: float,
         pad_bitmap_collection: dict,
-        pad_yield_flag: bool = False,
     ):
-    zeta_0 = k_et * (T_anl - T_R) + k_eb * (T_anl - T_R)
-    zeta_1_ = roughness_parameters(
-        Asperity_R_m          =   cfg.Asperity_R_m,
-        Roughness_sigma_m     =   cfg.Roughness_sigma_m,
-        eta_s               =   cfg.eta_s,
-        Roughness_constant  =   cfg.Roughness_constant,
-        Adhesion_energy     =   cfg.Adhesion_energy,
-        Young_modulus_Pa       =   cfg.Young_modulus_Pa,
-        Dielectric_thickness=   cfg.Dielectric_thickness,
-        PITCH_um               =   cfg.PITCH_um,
-        PAD_BOT_R_um           =   cfg.PAD_BOT_R_um,
-        DISH_0_m              =   cfg.DISH_0_m,
-        k_peel              =   cfg.k_peel,
-    )
-    zeta_1 = max(zeta_1_, 0)
-    upper_limit = - zeta_1
-    lower_limit = - zeta_0
-    print("upper_limit: ", upper_limit)
-    print("lower_limit: ", lower_limit)
-
-    num_critical_pads = pad_bitmap_collection["num_critical_pads"]
-    num_redundant_logical_pads = pad_bitmap_collection["num_redundant_logical_pads"]
-    redundant_logical_pad_copy = pad_bitmap_collection["redundant_logical_pad_copy"]
-
-    pos_pad, _ = quad(lambda x: norm.pdf(x, loc=TOP_DISH_MEAN_nm + BOT_DISH_MEAN_nm, scale=np.sqrt(TOP_DISH_STD_nm**2 + BOT_DISH_STD_nm**2)), lower_limit, upper_limit)
-    
-    # TODO: When calculate the pad-level yield map, we ignore the pad type difference
-    Cu_expansion_pad_yield_map = None
-    if pad_yield_flag:
-        pass
-        # for die, i in zip(wafer.die_list, range(wafer.NUM_DIES)):
-            # TODO: upper_limit_map_die_i = Input from Cain
-            # TODO: lower_limit_map_die_i = Input from Cain
-            # pos_pad_map_i, _ = quad(lambda x: norm.pdf(x, loc=TOP_DISH_MEAN_nm + BOT_DISH_MEAN_nm, 
-            #                       scale=np.sqrt(TOP_DISH_STD_nm**2 + BOT_DISH_STD_nm**2)), 
-            #                       lower_limit_map, upper_limit_map)
-            # die.pad_yield_map['Y_Cr'] = pos_pad_map_i
-            # Cu_expansion_die_yield_i = pos_pad_map_i multiply together
-            # die.die_yield['Y_Cr'] = Cu_expansion_die_yield_i
-        # Cu_expansion_die_yield = mean of all die.die_yield['Y_Cr']
-
-
-    Cu_expansion_die_yield_critical = pos_pad ** num_critical_pads
-    Cu_expansion_die_yield_redundant = (1 - (1 - pos_pad) ** redundant_logical_pad_copy) ** num_redundant_logical_pads
-    
-    Cu_expansion_die_yield = Cu_expansion_die_yield_critical * Cu_expansion_die_yield_redundant
-
-    return min(Cu_expansion_die_yield, 1.0)
+    glb_cu_expansion_pad_yield_min = 1.0  # Initialize to a high value
+    glb_cu_expansion_pad_yield_max = 0.0  # Initialize to a low value
+    valid_pad_mask = (pad_bitmap_collection['CRITICAL_PAD_BITMAP'] == 1) | (pad_bitmap_collection['REDUNDANT_PAD_BITMAP'] == 1) | (pad_bitmap_collection['DUMMY_PAD_BITMAP'] == 1)
+    for i, die in enumerate(wafer.die_list):
+        die_pad_coords = wafer.base_pad_coords + die.die_center
+        valid_die_pad_coords = die_pad_coords[valid_pad_mask.flatten() == 1]
+        start_time = time.time()
+        valid_dishing_bound_array = debond_dishing_bounds_calculator(cfg, valid_die_pad_coords) # (num_pads, 2) array: (dishing_low_nm, dishing_high_nm)
+        print("Dishing bound calculation time for die {}: {:.2f} seconds".format(i, time.time() - start_time))
+        
+        upper_limits_valid_pads = - valid_dishing_bound_array[:, 0] * 2 # - upper limits of the sum of top and bottom Cu heights
+        lower_limits_valid_pads = - valid_dishing_bound_array[:, 1] * 2 # - lower limits of the sum of top and bottom Cu heights
+        pos_valid_pads = norm.cdf(upper_limits_valid_pads, loc=TOP_DISH_MEAN_nm + BOT_DISH_MEAN_nm, scale=np.sqrt(TOP_DISH_STD_nm**2 + BOT_DISH_STD_nm**2)) - \
+                   norm.cdf(lower_limits_valid_pads, loc=TOP_DISH_MEAN_nm + BOT_DISH_MEAN_nm, scale=np.sqrt(TOP_DISH_STD_nm**2 + BOT_DISH_STD_nm**2))
+        pad_yield_map = np.full((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL), np.nan)
+        pad_yield_map[valid_pad_mask == 1] = pos_valid_pads
+        
+        glb_cu_expansion_pad_yield_min = min(glb_cu_expansion_pad_yield_min, np.nanmin(pad_yield_map))
+        glb_cu_expansion_pad_yield_max = max(glb_cu_expansion_pad_yield_max, np.nanmax(pad_yield_map))
+        die.pad_yield_map['Y_ce'] = pad_yield_map
+        print("Generated pad-level Cu expansion yield map for die {}.".format(i))
+        
+    wafer.glb_pad_yield_min_max_dict['Y_ce'] = (glb_cu_expansion_pad_yield_min, glb_cu_expansion_pad_yield_max)
+    print("Global min of the pad-level Cu expansion yield: {}".format(glb_cu_expansion_pad_yield_min))
+    print("Global max of the pad-level Cu expansion yield: {}".format(glb_cu_expansion_pad_yield_max))

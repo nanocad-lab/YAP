@@ -49,13 +49,8 @@ def roughness_parameters(
     eta_s: float,
     Roughness_constant: float,
     Adhesion_energy: float,
-    Young_modulus_Pa: float,
-    Dielectric_thickness: float,
-    PITCH_um: float,
-    PAD_BOT_R_um: float,
-    DISH_0_m: float,
-    k_peel: float,
-):
+    Dielectric_Young_modulus_Pa: float,
+) -> float:
     '''
     This function calculates the maximum acceptable annealing-induced stress
     before dielectric delamination based on surface roughness parameters.
@@ -63,7 +58,7 @@ def roughness_parameters(
     zeta_1 is the maximum allowable sum of top and bottom Cu pad dishing (in nm).
     '''
     Roughness_sigma_m_renorm = Roughness_sigma_m * np.sqrt(2)
-    Young_modulus_Pa_renorm = Young_modulus_Pa * 0.5
+    Young_modulus_Pa_renorm = Dielectric_Young_modulus_Pa * 0.5
     # Calculate theta
     theta = theta_func(R=Asperity_R_m,
                           sigma=Roughness_sigma_m_renorm,
@@ -74,16 +69,5 @@ def roughness_parameters(
     s_star_b = root_scalar(lambda s_star: P_star(s_star, constant=constant, theta=theta), bracket=[-10, 10], method='brentq')
     # A_star_b: normalized effective contact area
     A_star_b = A_star(s_star_b.root, constant=constant)
-    max_acceptable_stress = np.sqrt(2 * Young_modulus_Pa_renorm * Adhesion_energy / Dielectric_thickness)
-    max_acceptable_stress = max_acceptable_stress * A_star_b
 
-    # Calculate the Cu pattern density
-    D_cu = np.pi * PAD_BOT_R_um ** 2 / PITCH_um ** 2
-
-    # The equilibirum condition for dielectric layer delamination is max_acceptable_stress = peak_annealing_stress
-    zeta_1_ = DISH_0_m - max_acceptable_stress / (k_peel * D_cu)
-    zeta_1_ = zeta_1_ * 1e9     # Convert to nm
-    zeta_1_ = zeta_1_ * 2        # Convert to the sum of the top and bottom Cu pad expansion
-
-
-    return zeta_1_
+    return A_star_b
