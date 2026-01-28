@@ -41,7 +41,7 @@ def load_base_config(base_config_path: str,
     """
     full_cfg = OmegaConf.load(base_config_path)
     cfg = full_cfg[mode]
-    cfg = update_config_with_design_params(cfg,
+    cfg = update_config_with_3dblox_params(cfg,
                                            input_ds_dir=input_ds_dir,
                                            blox_3dbv_path=blox_3dbv_path,
                                            blox_bmap_path=blox_bmap_path)
@@ -126,7 +126,7 @@ def update_config_from_bmap(cfg, blox_bmap_path, y_tol=0.1, x_tol=0.1):
 
 
 
-def update_config_with_design_params(cfg, 
+def update_config_with_3dblox_params(cfg, 
                                     input_ds_dir: str,
                                     blox_3dbv_path: str,
                                     blox_bmap_path: str):
@@ -174,9 +174,15 @@ def update_config_with_design_params(cfg,
                      values=[float(blox_3dbv.ChipletDef[cfg.INTERFACE_TOP].design_area[0]),
                              float(blox_3dbv.ChipletDef[cfg.INTERFACE_TOP].design_area[1])])
     # Read bump size, size/2 = radius
+    bump_type_list = list(top_3dbf.Bump_Types.keys())   # silicon_individual_bonding, organic_individual_bonding, ...
+    for bump_type in bump_type_list:
+        # Check if bump_type in the bmap file first line
+        if bump_type in open(blox_bmap_path).readline().split()[1]:
+            selected_bump_type = bump_type
+            break
     add_config_items(cfg, keys=['PAD_TOP_R_um', 'PAD_BOT_R_um'], 
-                        values=[float(top_3dbf.Bump_Types.silicon_individual_bonding.bump_size) / 2,
-                                float(bot_3dbf.Bump_Types.silicon_individual_bonding.bump_size) / 2])
+                        values=[float(top_3dbf.Bump_Types[selected_bump_type].bump_size) / 2,
+                                float(bot_3dbf.Bump_Types[selected_bump_type].bump_size) / 2])
     # Read pad pitch (top chip pitch) TODO: currently assume row and col pitch are the same
     add_config_items(cfg, keys=['PITCH_r_um', 'PITCH_c_um'], 
                         values=[float(top_3dbf.Chiplet_Grid.pitch), 
@@ -434,7 +440,7 @@ def convert_3dblox_to_pad_bitmap(cfg,
     # Build a mapping array from physical bump location (r, c) to bump id
     mapping_physical_to_bumpid = np.full((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL), np.nan, dtype=np.float32) # Shape: (PAD_ARR_ROW, PAD_ARR_COL)
 
-    if pad_arrange_pattern == 'checkerboard' or 'rectangular':
+    if pad_arrange_pattern in ('checkerboard', 'rectangular'):
         for bump in bump_data:
             x = bump['x']
             y = bump['y']

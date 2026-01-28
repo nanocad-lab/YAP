@@ -32,7 +32,7 @@ def load_base_config(base_config_path: str,
                      debug=False):
     full_cfg = OmegaConf.load(base_config_path)
     cfg = full_cfg[mode]
-    cfg = update_config_with_design_params(cfg,
+    cfg = update_config_with_3dblox_params(cfg,
                                            input_ds_dir=input_ds_dir,
                                            blox_3dbv_path=blox_3dbv_path,
                                            blox_bmap_path=blox_bmap_path)
@@ -113,7 +113,7 @@ def update_config_from_bmap(cfg, blox_bmap_path, y_tol=0.1, x_tol=0.1):
                         values=[(num_rows - 1) * cfg.PITCH_r_um,
                                 (num_cols - 1) * cfg.PITCH_c_um])
 
-def update_config_with_design_params(cfg, 
+def update_config_with_3dblox_params(cfg, 
                                     input_ds_dir: str,
                                     blox_3dbv_path: str,
                                     blox_bmap_path: str):
@@ -457,7 +457,7 @@ def convert_3dblox_to_pad_bitmap(cfg,
     # Build a mapping array from physical bump location (r, c) to bump id
     mapping_physical_to_bumpid = np.full((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL), np.nan, dtype=np.float32) # Shape: (PAD_ARR_ROW, PAD_ARR_COL)
 
-    if pad_arrange_pattern == 'checkerboard' or 'rectangular': # This case is for UCIe standard
+    if pad_arrange_pattern in ('checkerboard', 'rectangular'): # This case is for UCIe standard
         for bump in bump_data:
             x = bump['x']
             y = bump['y']
