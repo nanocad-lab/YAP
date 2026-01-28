@@ -151,20 +151,20 @@ def update_config_with_3dblox_params(cfg,
 
     ## Extract interface name from .bmap file name
     cfg.INTERFACE = blox_bmap_path.split('/')[-1].split('.')[0]
-    if cfg.INTERFACE.split('_')[1] == 'From':
-        cfg.INTERFACE_TOP = cfg.INTERFACE.split('_')[0]
-        cfg.INTERFACE_BOT = cfg.INTERFACE.split('_')[2].split('.')[0]
-    elif cfg.INTERFACE.split('_')[1] == 'To':
-        cfg.INTERFACE_TOP = cfg.INTERFACE.split('_')[2].split('.')[0]
-        cfg.INTERFACE_BOT = cfg.INTERFACE.split('_')[0]
+    if 'From' in cfg.INTERFACE:
+        cfg.INTERFACE_TOP = cfg.INTERFACE.split('_From_')[0]
+        cfg.INTERFACE_BOT = cfg.INTERFACE.split('_From_')[1]
+    elif 'To' in cfg.INTERFACE:
+        cfg.INTERFACE_TOP = cfg.INTERFACE.split('_To_')[1]
+        cfg.INTERFACE_BOT = cfg.INTERFACE.split('_To_')[0]
     else:
         raise ValueError(f"Unknown INTERFACE format: {cfg.INTERFACE}. Expected format like 'CPU_From_interposer' or 'interposer_To_CPU'.")
 
     ### Read .3dbv and .bmap files
     ## Extract design parameters from .3dbv and .3dbf file
     blox_3dbv = OmegaConf.load(blox_3dbv_path)
-    top_3dbf_path = input_ds_dir + "/" + blox_3dbv.ChipletDef[cfg.INTERFACE_TOP].external["3dbf_file"]
-    bot_3dbf_path = input_ds_dir + "/" + blox_3dbv.ChipletDef[cfg.INTERFACE_BOT].external["3dbf_file"]
+    top_3dbf_path = input_ds_dir + "/" + cfg.INTERFACE_TOP + ".3dbf"
+    bot_3dbf_path = input_ds_dir + "/" + cfg.INTERFACE_BOT + ".3dbf"
     top_3dbf = OmegaConf.load(top_3dbf_path)
     bot_3dbf = OmegaConf.load(bot_3dbf_path)
     # Check unit

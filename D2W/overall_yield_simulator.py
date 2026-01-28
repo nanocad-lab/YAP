@@ -118,6 +118,7 @@ def overall_yield_simulator(
             die.pad_misalignment = die.pad_misalignment.reshape(cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL)
             if cfg.verbose:
                 epoch_fail_map_dict['overlay'] += (die.pad_misalignment >= MAX_ALLOWED_MISALIGNMENT_um).astype(int) 
+                epoch_fail_map_dict['overall'] += (die.pad_misalignment >= MAX_ALLOWED_MISALIGNMENT_um).astype(int)
 
             critical_pad_misalignment = die.pad_misalignment * die_critical_pad_bitmap
             # Check if any critical pad misalignment is greater than the maximum allowed misalignment
@@ -212,6 +213,7 @@ def overall_yield_simulator(
                     # Record the fail pads due to voids
                     if cfg.verbose:
                         epoch_fail_map_dict['particle'][PAD_ARR_ROW-j_max-1:PAD_ARR_ROW-j_min, i_min:i_max+1][overlap_void_pad_mask] += 1
+                        epoch_fail_map_dict['overall'][PAD_ARR_ROW-j_max-1:PAD_ARR_ROW-j_min, i_min:i_max+1][overlap_void_pad_mask] += 1
 
                     # Check if any void overlaps with the critical pads
                     overlap_critical = overlap_void_pad_mask & check_critical_pad_bitmap.astype(bool)
@@ -271,6 +273,7 @@ def overall_yield_simulator(
 
         if cfg.verbose:
             epoch_fail_map_dict['mechanical'] += ((Cu_gap_map > zeta_1) | (Cu_gap_map < zeta_0)).astype(int)
+            epoch_fail_map_dict['overall'] += ((Cu_gap_map > zeta_1) | (Cu_gap_map < zeta_0)).astype(int)
 
         # Check critical pad Cu gap
         critical_pad_Cu_gap = Cu_gap_map * die_critical_pad_bitmap  # shape: (PAD_ARR_ROW, PAD_ARR_COL)
@@ -326,6 +329,7 @@ def overall_yield_simulator(
             r_idx, c_idx = first_contact_pad_idx // PAD_ARR_COL, first_contact_pad_idx % PAD_ARR_COL
             if cfg.verbose:
                 epoch_fail_map_dict['ESD'][r_idx, c_idx] += 1
+                epoch_fail_map_dict['overall'][r_idx, c_idx] += 1
             if die_esd_critical_pad_bitmap[r_idx, c_idx] == 1:  # If the failing pad is critical w.r.t. ESD
                 print(f"Die {die_ind} fails due to ESD on critical pad.")
                 die.survival = False

@@ -26,8 +26,8 @@ def Assembly_Yield_Simulator(
     num_sim_epoch = cfg.NUM_DIES // cfg.SIM_BATCH_SIZE
     epoch_yield_list = []
 
-    for k, v in cfg.items():
-        print(f"{k}: {v}")
+    # for k, v in cfg.items():
+    #     print(f"{k}: {v}")
         
     if cfg.verbose:
         print("Verbose mode enabled: Tracking failure reasons for each die.")
