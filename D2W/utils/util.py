@@ -176,8 +176,8 @@ def update_config_with_3dblox_params(cfg,
     # Read bump size, size/2 = radius
     bump_type_list = list(top_3dbf.Bump_Types.keys())   # silicon_individual_bonding, organic_individual_bonding, ...
     for bump_type in bump_type_list:
-        # Check if bump_type in the bmap file first line
-        if bump_type in open(blox_bmap_path).readline().split()[1]:
+        # Check if bump_type in the bmap file
+        if bump_type in open(blox_bmap_path).readline().split()[1]: # Read the first line of the .bmap file to get the bump type
             selected_bump_type = bump_type
             break
     add_config_items(cfg, keys=['PAD_TOP_R_um', 'PAD_BOT_R_um'], 
