@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 #### Overall yield simulator for hybrid bonding
 #### Author: Zhichao Chen
-#### Date: Sep 26, 2024
+#### Date: Jan 27, 2026
 
 import os
 import numpy as np
@@ -15,15 +15,20 @@ from overlay_yield_simulator import overlay_term_simulator
 from defect_yield_simulator import defect_yield_simulator
 from overall_yield_simulator import overall_yield_simulator
 from spatial_correlation_coefficients import get_spatial_correlation_coefficients
+from utils.util import result_wrapper
 
 
 def Assembly_Yield_Simulator(
     cfg,
-    pad_bitmap_collection,
+    mode: str,
+    pad_bitmap_collection: dict,
 ):   
     num_sim_epoch = cfg.NUM_DIES // cfg.SIM_BATCH_SIZE
     epoch_yield_list = []
 
+    for k, v in cfg.items():
+        print(f"{k}: {v}")
+        
     if cfg.verbose:
         print("Verbose mode enabled: Tracking failure reasons for each die.")
         fail_map_dict = {}
@@ -152,8 +157,8 @@ def Assembly_Yield_Simulator(
     print("\nSimulation Completed.")
     assembly_yield = np.mean(epoch_yield_list)
     # Remove temporary files if any
-    for name in os.listdir(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp'):
-        file_path = os.path.join(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp', name)
+    for name in os.listdir(cfg.OUTPUT_DIR + cfg.INTERFACE + '/temp'):
+        file_path = os.path.join(cfg.OUTPUT_DIR + cfg.INTERFACE + '/temp', name)
         if os.path.isfile(file_path):
             os.remove(file_path)
     
@@ -170,10 +175,18 @@ def Assembly_Yield_Simulator(
         print("{} die failures due to ESD issues.".format(int(np.sum(fail_vec_dict['ESD']))))
         print("{} die failures in total.".format(int(np.sum(fail_vec_dict['overall']))))
         # Save fail map dict
-        np.savez(cfg.OUTPUT_DIR + cfg.DESIGN + '/assembly_fail_map_dict.npz', **fail_map_dict)
-        print("Failure heat maps saved to {}.".format(cfg.OUTPUT_DIR + cfg.DESIGN + '/assembly_fail_map_dict.npz'))
+        np.savez(cfg.OUTPUT_DIR + cfg.INTERFACE + '/assembly_fail_map_dict.npz', **fail_map_dict)
+        print("Failure heat maps saved to {}.".format(cfg.OUTPUT_DIR + cfg.INTERFACE + '/assembly_fail_map_dict.npz'))
         # Save fail vec dict
-        np.savez(cfg.OUTPUT_DIR + cfg.DESIGN + '/assembly_fail_vec_dict.npz', **fail_vec_dict)
-        print("Failure vectors for all die samples saved to {}.".format(cfg.OUTPUT_DIR + cfg.DESIGN + '/assembly_fail_vec_dict.npz'))
+        np.savez(cfg.OUTPUT_DIR + cfg.INTERFACE + '/assembly_fail_vec_dict.npz', **fail_vec_dict)
+        print("Failure vectors for all die samples saved to {}.".format(cfg.OUTPUT_DIR + cfg.INTERFACE + '/assembly_fail_vec_dict.npz'))
+
+        # Plot the results and save the figures
+        result_wrapper(
+            mode = mode,
+            output_dir = cfg.OUTPUT_DIR,
+            interface = cfg.INTERFACE,
+            fail_map_dict = fail_map_dict,
+        )
 
     return assembly_yield, epoch_yield_list 

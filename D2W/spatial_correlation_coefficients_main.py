@@ -13,8 +13,8 @@ def parse_args():
     p = argparse.ArgumentParser(description="Simulate assembly yield for D2W hybrid bonding")
     p.add_argument("--config", "-c", required=True, help="Path to modeling config yaml")
     p.add_argument("--mode", "-m", default="d2w_modeling", help="Mode to load from config (default: d2w_modeling)")
-    p.add_argument("--bmap", "-b", required=True, help="Path to .bmap file (overrides default input/<DESIGN>.bmap)")
-    p.add_argument("--criticality", "-cr", required=True, help="Path to criticality file (overrides default input/<DESIGN>_criticality.txt)")
+    p.add_argument("--bmap", "-b", required=True, help="Path to .bmap file (overrides default input/<INTERFACE>.bmap)")
+    p.add_argument("--criticality", "-cr", required=True, help="Path to criticality file (overrides default input/<INTERFACE>_criticality.txt)")
     p.add_argument("--plot", "-plot", default=False, action="store_true", help="Enable plotting of the pad risk map")
     p.add_argument("--debug", action="store_true", help="Enable debug output when loading config")
     return p.parse_args()
@@ -29,8 +29,8 @@ def main():
     cfg.plot_flag = args.plot
     
     # Create output directory if it doesn't exist
-    if not os.path.exists(cfg.OUTPUT_DIR + cfg.DESIGN):
-        os.makedirs(cfg.OUTPUT_DIR + cfg.DESIGN)
+    if not os.path.exists(cfg.OUTPUT_DIR + cfg.INTERFACE):
+        os.makedirs(cfg.OUTPUT_DIR + cfg.INTERFACE)
 
 
 
@@ -52,11 +52,11 @@ def main():
     # Step 2: run assembly yield simulator
     print("Running spatial correlation coefficient precalculation...")
     start_time = time.time()
-    if 'HBM' in cfg.DESIGN:
+    if 'HBM' in cfg.INTERFACE:
         cfg.NUM_DIES = 100  # For correlation coefficient precalculation, only 1 die is needed
         cfg.SYSTEM_ROTATION_MEAN_rad = 7e-4
         cfg.D0 = 1e-7
-    elif 'UCIe' in cfg.DESIGN:
+    elif 'UCIe' in cfg.INTERFACE:
         cfg.NUM_DIES = 1000  # For correlation coefficient precalculation, only 1 die is needed
     else:
         cfg.NUM_DIES = 10  # Default value

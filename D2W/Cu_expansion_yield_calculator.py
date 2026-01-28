@@ -35,14 +35,14 @@ def pad_Cu_expansion_yield_map_generator(*,
     valid_pad_mask = (pad_bitmap_collection['CRITICAL_PAD_BITMAP'] == 1) | (pad_bitmap_collection['REDUNDANT_PAD_BITMAP'] == 1) | (pad_bitmap_collection['DUMMY_PAD_BITMAP'] == 1)
     valid_die_pad_coords = die.pad_coords[valid_pad_mask.flatten() == 1]
     
-    # if not os.path.exists(cfg.OUTPUT_DIR + cfg.DESIGN + '/' + cfg.DESIGN + "_dishing_bound_array.npy") or cfg.DEBUG:
+    # if not os.path.exists(cfg.OUTPUT_DIR + cfg.INTERFACE + '/' + cfg.INTERFACE + "_dishing_bound_array.npy") or cfg.DEBUG:
     #     start_time = time.time()
     #     valid_pad_dishing_bound_array = debond_dishing_bounds_calculator(cfg, valid_die_pad_coords) # (num_pads, 2) array: (dishing_low_nm, dishing_high_nm)
     #     print("Dishing bound calculation time: {:.2f} seconds".format(time.time() - start_time))
-    #     np.save(cfg.OUTPUT_DIR + cfg.DESIGN + '/' + cfg.DESIGN + "_dishing_bound_array.npy", valid_pad_dishing_bound_array)
+    #     np.save(cfg.OUTPUT_DIR + cfg.INTERFACE + '/' + cfg.INTERFACE + "_dishing_bound_array.npy", valid_pad_dishing_bound_array)
     # else:
-    #     print("Loading dishing bound array from file {}".format(cfg.OUTPUT_DIR + cfg.DESIGN + '/' + cfg.DESIGN + "_dishing_bound_array.npy"))
-    #     valid_pad_dishing_bound_array = np.load(cfg.OUTPUT_DIR + cfg.DESIGN + '/' + cfg.DESIGN + "_dishing_bound_array.npy")
+    #     print("Loading dishing bound array from file {}".format(cfg.OUTPUT_DIR + cfg.INTERFACE + '/' + cfg.INTERFACE + "_dishing_bound_array.npy"))
+    #     valid_pad_dishing_bound_array = np.load(cfg.OUTPUT_DIR + cfg.INTERFACE + '/' + cfg.INTERFACE + "_dishing_bound_array.npy")
 
     start_time = time.time()
     valid_pad_dishing_bound_array = debond_dishing_bounds_calculator(cfg, valid_die_pad_coords) # (num_pads, 2) array: (dishing_low_nm, dishing_high_nm)
@@ -112,7 +112,7 @@ def pad_Cu_expansion_yield_map_generator(*,
         #     s=8,
         #     alpha=0.6,
         #     )
-        # np.savez(cfg.OUTPUT_DIR + cfg.DESIGN + '/' + cfg.DESIGN + "_cu_expansion_yield_vs_distance_300warp_0d5dish.npz",
+        # np.savez(cfg.OUTPUT_DIR + cfg.INTERFACE + '/' + cfg.INTERFACE + "_cu_expansion_yield_vs_distance_300warp_0d5dish.npz",
         #          pad_distances_um=pad_distances_um[valid_pad_mask.flatten() == 1],
         #             pad_yields=pad_yield_map[valid_pad_mask == 1],
         #             )

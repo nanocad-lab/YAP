@@ -149,7 +149,7 @@ def __init_params(cfg):
     S_INIT_B_M = cfg.S_INIT_B_M
 
     # ---------- (J) Optional plotting ----------
-    USE_PLOT = False
+    USE_PLOT = True
 
 # =============================================================================
 # ============================== PAD-SCALE CORE ===============================
@@ -396,6 +396,7 @@ class WaferResult:
 def process_wafer(cfg: WaferConfig) -> WaferResult:
     top_eq = equiv_from_three(cfg.top)
     bot_eq = equiv_from_three(cfg.bottom)
+
     D = warpage_D_two_layer_exact(cfg.L_m, top_eq.t_m, bot_eq.t_m,
                                 top_eq.E_Pa, bot_eq.E_Pa,
                                 top_eq.alpha_perC, bot_eq.alpha_perC,

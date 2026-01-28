@@ -5,3 +5,4 @@ __pycache__/
 yap_env/
 D2W/output/*/temp/
 W2W/output/*/temp/
+*.png

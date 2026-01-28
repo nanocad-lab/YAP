@@ -7,7 +7,7 @@ d2w_simulation:
   DEBUG: false                          # Enable debug mode
   OUTPUT_DIR: "output/"
   INPUT_DIR: "input/"          # Output directory for simulation results
-  DESIGN: "HBM_footprint_A"                      # Design name  
+  INTERFACE: "HBM_footprint_A"                      # Design name  
   # === Die Settings ===
   NUM_DIES: 10000                            # Number of Dies used in simulation
   SIM_BATCH_SIZE: 10                            # Number of Dies samples simulated in one batch (a way to 
@@ -175,7 +175,7 @@ d2w_modeling:
   DEBUG: false                          # Enable debug mode
   OUTPUT_DIR: "output/"
   INPUT_DIR: "input/"          # Output directory for simulation results
-  DESIGN: "HBM_footprint_A"                      # Design name  
+  INTERFACE: "HBM_footprint_A"                      # Design name  
   # === Per Wafer Parameters ===
   PITCH_r_um: 55                            # Row pad pitch (µm) (In checkerboard layout, this is sqrt(2)/2 times of the real pitch)
   PITCH_c_um: 35                            # Column pad pitch (µm) (In checkerboard layout, this is sqrt(2)/2 times of the real pitch)

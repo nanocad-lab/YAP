@@ -9,20 +9,40 @@ from matplotlib.colors import ListedColormap, BoundaryNorm
 import scipy.io as sio
 import os
 
-def load_modeling_config(path, mode, debug=False):
-    full_cfg = OmegaConf.load(path)
+def add_config_items(cfg, keys, values):
+    """
+    Add items to the configuration dictionary.
+    
+    Args:
+        cfg (dict): Configuration dictionary.
+        keys (list): List of keys to add.
+        values (list): List of values corresponding to the keys.
+    """
+    if len(keys) != len(values):
+        raise ValueError("Keys and values must have the same length.")
+    
+    for key, value in zip(keys, values):
+        cfg[key] = value
+
+def load_base_config(base_config_path: str,
+                     input_ds_dir: str,
+                     blox_3dbv_path: str,
+                     blox_bmap_path: str,
+                     mode, 
+                     debug=False):
+    full_cfg = OmegaConf.load(base_config_path)
     cfg = full_cfg[mode]
+    cfg = update_config_with_design_params(cfg,
+                                           input_ds_dir=input_ds_dir,
+                                           blox_3dbv_path=blox_3dbv_path,
+                                           blox_bmap_path=blox_bmap_path)
 
     if mode == "w2w_simulation" or mode == "w2w_modeling":
-        cfg.PAD_ARR_L_um = (cfg.PAD_ARR_ROW - 1) * cfg.PITCH_r_um  # pad array length (um)
-        cfg.PAD_ARR_W_um = (cfg.PAD_ARR_COL - 1) * cfg.PITCH_c_um  # pad array width (um)
         cfg.SYSTEM_MAGNIFICATION_MEAN_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_MEAN_um + cfg.M_0) / 1e6
         cfg.SYSTEM_MAGNIFICATION_STD_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_STD_um) ** 2 / 1e6
         cfg.S_INIT_A_M = 10e-6 * (cfg.WAF_R_um / 150000) ** 2
         cfg.S_INIT_B_M = 0.0
     elif mode == "d2w_simulation" or mode == "d2w_modeling":
-        cfg.PAD_ARR_L_um = (cfg.PAD_ARR_ROW - 1) * cfg.PITCH_r_um  # pad array length (um)
-        cfg.PAD_ARR_W_um = (cfg.PAD_ARR_COL - 1) * cfg.PITCH_c_um  # pad array width (um)
         cfg.SYSTEM_MAGNIFICATION_MEAN_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_MEAN_um + cfg.M_0) / 1e6
         cfg.SYSTEM_MAGNIFICATION_STD_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_STD_um) ** 2 / 1e6
         cfg.eff_DIE_R = float(np.sqrt((cfg.DIE_W_um / 2) ** 2 + (cfg.DIE_L_um / 2) ** 2))  # Effective die radius (um)
@@ -40,44 +60,120 @@ def load_modeling_config(path, mode, debug=False):
     return cfg
 
 
-def add_config_items(cfg, keys, values):
+def update_config_from_bmap(cfg, blox_bmap_path, y_tol=0.1, x_tol=0.1):
     """
-    Add items to the configuration dictionary.
-    
-    Args:
-        cfg (dict): Configuration dictionary.
-        keys (list): List of keys to add.
-        values (list): List of values corresponding to the keys.
-    """
-    if len(keys) != len(values):
-        raise ValueError("Keys and values must have the same length.")
-    
-    for key, value in zip(keys, values):
-        cfg[key] = value
+    Extract pad array layout from .bmap file.
 
-def update_config_items(cfg, mode):
-    if mode == "w2w_simulation" or mode == "w2w_modeling":
-        # cfg.PAD_ARR_ROW = int(np.floor(float(cfg.DIE_L_um / cfg.PITCH_r_um)))  # number of pads in a row of pad array
-        # cfg.PAD_ARR_COL = int(np.floor(float(cfg.DIE_W_um / cfg.PITCH_c_um)))  # number of pads in a column of pad array
-        cfg.PAD_ARR_L_um = (cfg.PAD_ARR_ROW - 1) * cfg.PITCH_r_um  # pad array length (um)
-        cfg.PAD_ARR_W_um = (cfg.PAD_ARR_COL - 1) * cfg.PITCH_c_um  # pad array width (um)
-        cfg.SYSTEM_MAGNIFICATION_MEAN_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_MEAN_um + cfg.M_0) / 1e6
-        cfg.SYSTEM_MAGNIFICATION_STD_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_STD_um) ** 2 / 1e6
-        cfg.S_INIT_A_M = 10e-6 * (cfg.WAF_R_um / 150000) ** 2
-        cfg.S_INIT_B_M = 0.0
-    elif mode == "d2w_simulation" or mode == "d2w_modeling":
-        # cfg.PAD_ARR_ROW = int(np.floor(float(cfg.DIE_L_um / cfg.PITCH_um)))  # number of pads in a row of pad array
-        # cfg.PAD_ARR_COL = int(np.floor(float(cfg.DIE_W_um / cfg.PITCH_um)))  # number of pads in a column of pad array
-        cfg.PAD_ARR_L_um = (cfg.PAD_ARR_ROW - 1) * cfg.PITCH_r_um  # pad array length (um)
-        cfg.PAD_ARR_W_um = (cfg.PAD_ARR_COL - 1) * cfg.PITCH_c_um  # pad array width (um)
-        cfg.SYSTEM_MAGNIFICATION_MEAN_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_MEAN_um + cfg.M_0) / 1e6
-        cfg.SYSTEM_MAGNIFICATION_STD_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_STD_um) ** 2 / 1e6
-        cfg.eff_DIE_R = float(np.sqrt((cfg.DIE_W_um / 2) ** 2 + (cfg.DIE_L_um / 2) ** 2))  # Effective die radius (um)
-        cfg.S_INIT_A_M = 10e-6 * (cfg.eff_DIE_R / 150000) ** 2
-        cfg.S_INIT_B_M = 0.0
+    args:
+        cfg: configuration object
+        blox_bmap_path: path to .bmap file
+        y_tol: tolerance for clustering y coordinates (um), if the difference between two y coordinates is less than y_tol, they are considered in the same row
+        x_tol: tolerance for clustering x coordinates (um), if the difference between two x coordinates is less than x_tol, they are considered in the same column
+    """
+    coords = []
+
+    with open(blox_bmap_path, 'r') as f:
+        for line in f:
+            parts = line.strip().split()
+            if len(parts) < 4:
+                continue
+            try:
+                x, y = float(parts[2]), float(parts[3])
+                coords.append((x, y))
+            except ValueError:
+                continue
+
+    if not coords:
+        print("No valid pad coordinates found in the .bmap file.") 
+        return
+
+    coords = np.array(coords)
+
+    # Rank by y descending
+    coords = coords[np.argsort(-coords[:, 1])]
+
+    # Cluster to get unique rows
+    y_vals = []
+    for y in coords[:, 1]:
+        if not y_vals or abs(y - y_vals[-1]) > y_tol:
+            y_vals.append(y)
+    num_rows = len(y_vals)
+
+    # Cluster to get unique columns
+    first_row_y = y_vals[0]
+    first_row = coords[np.abs(coords[:, 1] - first_row_y) < y_tol]
+    x_vals = []
+    for x in sorted(first_row[:, 0]):
+        if not x_vals or abs(x - x_vals[-1]) > x_tol:
+            x_vals.append(x)
+    num_cols = len(x_vals)
+    
+    add_config_items(cfg, keys=['PAD_ARR_ROW', 'PAD_ARR_COL'], values=[num_rows, num_cols])
+    add_config_items(cfg, keys=['PAD_ARR_L_um', 'PAD_ARR_W_um'],
+                        values=[(num_rows - 1) * cfg.PITCH_r_um,
+                                (num_cols - 1) * cfg.PITCH_c_um])
+
+def update_config_with_design_params(cfg, 
+                                    input_ds_dir: str,
+                                    blox_3dbv_path: str,
+                                    blox_bmap_path: str):
+    """
+    Update configuration with design parameters from .3dbv and .bmap files.
+    args:
+        cfg: configuration object
+        input_ds_dir: path to design input files directory
+        blox_3dbv_path: path to .3dbv file
+        blox_bmap_path: path to .bmap file
+    file structure:
+        input_ds_dir/
+          |-  generated_chiplet_definitions.3dbv
+          |-  generated_stack_config.3dbx (not used for now)
+          |-  3dbf_files/
+          |-  bmap_files/
+            |-  <INTERFACE>.bmap
+          |-criticality_files/
+            |-  <INTERFACE>_criticality.txt
+    """
+    ### Update cfg with design parameters from .3dbv and .bmap files
+
+    ## Extract interface name from .bmap file name
+    cfg.INTERFACE = blox_bmap_path.split('/')[-1].split('.')[0]
+    if cfg.INTERFACE.split('_')[1] == 'From':
+        cfg.INTERFACE_TOP = cfg.INTERFACE.split('_')[0]
+        cfg.INTERFACE_BOT = cfg.INTERFACE.split('_')[2].split('.')[0]
+    elif cfg.INTERFACE.split('_')[1] == 'To':
+        cfg.INTERFACE_TOP = cfg.INTERFACE.split('_')[2].split('.')[0]
+        cfg.INTERFACE_BOT = cfg.INTERFACE.split('_')[0]
     else:
-        raise ValueError(f"Unknown mode: {mode}. Supported modes are 'w2w_simulation', 'w2w_modeling', 'd2w_simulation', and 'd2w_modeling'.")
+        raise ValueError(f"Unknown INTERFACE format: {cfg.INTERFACE}. Expected format like 'CPU_From_interposer' or 'interposer_To_CPU'.")
 
+    ### Read .3dbv and .bmap files
+    ## Extract design parameters from .3dbv and .3dbf file
+    blox_3dbv = OmegaConf.load(blox_3dbv_path)
+    top_3dbf_path = input_ds_dir + "/" + blox_3dbv.ChipletDef[cfg.INTERFACE_TOP].external["3dbf_file"]
+    bot_3dbf_path = input_ds_dir + "/" + blox_3dbv.ChipletDef[cfg.INTERFACE_BOT].external["3dbf_file"]
+    top_3dbf = OmegaConf.load(top_3dbf_path)
+    bot_3dbf = OmegaConf.load(bot_3dbf_path)
+    # Check unit
+    assert blox_3dbv.Header.unit == 'micron', "Only support .3dbv file with unit in microns."
+    # Read die width and length
+    add_config_items(cfg, keys=['DIE_W_um', 'DIE_L_um'], 
+                     values=[float(blox_3dbv.ChipletDef[cfg.INTERFACE_TOP].design_area[0]),
+                             float(blox_3dbv.ChipletDef[cfg.INTERFACE_TOP].design_area[1])])
+    # Read bump size, size/2 = radius
+    add_config_items(cfg, keys=['PAD_TOP_R_um', 'PAD_BOT_R_um'], 
+                        values=[float(top_3dbf.Bump_Types.silicon_individual_bonding.bump_size) / 2,
+                                float(bot_3dbf.Bump_Types.silicon_individual_bonding.bump_size) / 2])
+    # Read pad pitch (top chip pitch) TODO: currently assume row and col pitch are the same
+    add_config_items(cfg, keys=['PITCH_r_um', 'PITCH_c_um'], 
+                        values=[float(top_3dbf.Chiplet_Grid.pitch), 
+                                float(top_3dbf.Chiplet_Grid.pitch)])
+    
+
+    ## Extract design parameters from .bmap file
+    update_config_from_bmap(cfg, blox_bmap_path, y_tol=cfg.PITCH_r_um * 0.1, x_tol=cfg.PITCH_c_um * 0.1)
+
+    return cfg
 
 
 def draw_pad_bitmap(cfg, bitmap_collection):
@@ -118,7 +214,7 @@ def draw_pad_bitmap(cfg, bitmap_collection):
 
 
     # Save the pad bitmaps
-    plt.savefig(cfg.OUTPUT_DIR + cfg.DESIGN + "/" + cfg.DESIGN + "_pad_bitmap.png")
+    plt.savefig(cfg.OUTPUT_DIR + cfg.INTERFACE + "/" + cfg.INTERFACE + "_pad_bitmap.png")
     print("Pad bitmap collections info saved.")
     return
 
@@ -186,10 +282,10 @@ def criticality_generator(cfg,
             "mechanical_criticality": mechanical_criticality
         })
         bump_set.add((bump['net'], port))
-    with open(cfg.OUTPUT_DIR + cfg.DESIGN + "/" + cfg.DESIGN + "_criticality.txt", 'w') as f:
+    with open(cfg.OUTPUT_DIR + cfg.INTERFACE + "/" + cfg.INTERFACE + "_criticality.txt", 'w') as f:
         for bump_crit in bump_criticality:
             f.write(f"{bump_crit['port']} {bump_crit['esd_criticality']:.6f} {bump_crit['mechanical_criticality']:.6f}\n")
-    print("Criticality file saved in ", cfg.OUTPUT_DIR + cfg.DESIGN + "/" + cfg.DESIGN + "_criticality.txt")
+    print("Criticality file saved in ", cfg.OUTPUT_DIR + cfg.INTERFACE + "/" + cfg.INTERFACE + "_criticality.txt")
     return
 
 
@@ -265,10 +361,10 @@ def risk_map_generator(cfg,
             "particle_failure_probability": 1 - pad_df_yield,
             "mechanical_failure_probability": 1 - pad_ce_yield,
         })
-    with open(cfg.OUTPUT_DIR + cfg.DESIGN + "/" + cfg.DESIGN + "_risk_map.map", 'w') as f:
+    with open(cfg.OUTPUT_DIR + cfg.INTERFACE + "/" + cfg.INTERFACE + "_risk_map.map", 'w') as f:
         for pad_risk in risk_map:
             f.write(f"{pad_risk['pad_coords_x']} {pad_risk['pad_coords_y']} {pad_risk['esd_failure_probability']} {pad_risk['overlay_failure_probability']} {pad_risk['particle_failure_probability']} {pad_risk['mechanical_failure_probability']}\n")
-    print("Risk map file saved in ", cfg.OUTPUT_DIR + cfg.DESIGN + "/" + cfg.DESIGN + "_risk_map.map")
+    print("Risk map file saved in ", cfg.OUTPUT_DIR + cfg.INTERFACE + "/" + cfg.INTERFACE + "_risk_map.map")
     return
 
 def convert_3dblox_to_pad_bitmap(cfg, 
@@ -282,8 +378,8 @@ def convert_3dblox_to_pad_bitmap(cfg,
     '''
 
     # Create output directory if not exist
-    if not os.path.exists(cfg.OUTPUT_DIR + cfg.DESIGN):
-        os.makedirs(cfg.OUTPUT_DIR + cfg.DESIGN)
+    if not os.path.exists(cfg.OUTPUT_DIR + cfg.INTERFACE):
+        os.makedirs(cfg.OUTPUT_DIR + cfg.INTERFACE)
 
     sort_pads_bmap(blox_bmap_path, blox_bmap_path)
 
@@ -361,7 +457,7 @@ def convert_3dblox_to_pad_bitmap(cfg,
     # Build a mapping array from physical bump location (r, c) to bump id
     mapping_physical_to_bumpid = np.full((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL), np.nan, dtype=np.float32) # Shape: (PAD_ARR_ROW, PAD_ARR_COL)
 
-    if pad_arrange_pattern == 'checkerboard': # This case is for UCIe standard
+    if pad_arrange_pattern == 'checkerboard' or 'rectangular': # This case is for UCIe standard
         for bump in bump_data:
             x = bump['x']
             y = bump['y']
@@ -416,10 +512,33 @@ def convert_3dblox_to_pad_bitmap(cfg,
     
     
     # Save the bitmap collection as npy file and mat file
-    np.save(cfg.OUTPUT_DIR + cfg.DESIGN + "/" + cfg.DESIGN + "_bitmap_collection.npy", bitmap_collection)
+    np.save(cfg.OUTPUT_DIR + cfg.INTERFACE + "/" + cfg.INTERFACE + "_bitmap_collection.npy", bitmap_collection)
     # sio.savemat(cfg.OUTPUT_DIR + "bitmap_collection.mat", bitmap_collection)
 
     # # Draw the critical and redundant pad bitmaps in one figure (critical light red, redundant light blue, dummy light gray)
     draw_pad_bitmap(cfg, bitmap_collection)
 
     return bitmap_collection
+
+
+
+def result_wrapper(
+        mode: str,
+        output_dir: str,
+        interface: str,
+        fail_map_dict = None,
+):
+    """
+    Wrap up the results, plot them and save the figures.
+    """
+    save_path = output_dir + interface
+    if mode == "d2w_simulation" or "w2w_simulation":
+        for mechanism, fail_map in fail_map_dict.items():
+            # Draw the failure map and save the figure to the output directory
+            figure = plt.figure(figsize=(10, 10))
+            plt.imshow(fail_map, cmap='hot', interpolation='nearest')
+            plt.colorbar(label='Failure Count')
+            plt.title(f'Assembly Failure Map - {mechanism}')
+            plt.savefig(save_path + f'/failure_map_{mechanism}.png')
+            plt.close(figure)
+            print(f"Failure map for {mechanism} saved to {save_path + f'failure_map_{mechanism}.png'}")

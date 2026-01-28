@@ -5,7 +5,7 @@ w2w_simulation:
   OUTPUT_DIR: "output/"
   INPUT_DIR: "input/"          # Output directory for simulation results
   DEBUG: false                                      # Enable debug mode
-  DESIGN: "random_10x10_50"                      # Design name
+  INTERFACE: "random_10x10_50"                      # Design name
   PAD_ARRANGE_PATTERN: "checkerboard"        # Pad arrangement pattern: "checkerboard" (HBM)
   # === Wafer and Die Settings ===
   NUM_WAFERS: 10                        # Number of wafers used in simulation
@@ -178,7 +178,7 @@ w2w_modeling:
   DEBUG: false                          # Enable debug mode
   OUTPUT_DIR: "output/"
   INPUT_DIR: "input/"          # Output directory for simulation results
-  DESIGN: "random_10x10_50"                      # Design name
+  INTERFACE: "random_10x10_50"                      # Design name
   PAD_ARRANGE_PATTERN: "checkerboard"        # Pad arrangement pattern: "checkerboard" (HBM)
   # === Per Wafer Parameters ===
   PITCH_r_um: 50                             # Row pad PITCH_um (µm)

@@ -49,15 +49,15 @@ def overall_yield_simulator(
     # Get the valid pad mask
     valid_pad_mask = (pad_bitmap_collection['CRITICAL_PAD_BITMAP'] == 1) | (pad_bitmap_collection['REDUNDANT_PAD_BITMAP'] == 1) | (pad_bitmap_collection['DUMMY_PAD_BITMAP'] == 1)
     valid_die_pad_coords = die_list[0].pad_coords[valid_pad_mask.flatten() == 1]
-    if not os.path.exists(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp/' + cfg.DESIGN + "_dishing_bound_array.npy") or cfg.DEBUG:
-        if not os.path.exists(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp/'):
-            os.makedirs(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp/')
+    if not os.path.exists(cfg.OUTPUT_DIR + cfg.INTERFACE + '/temp/' + cfg.INTERFACE + "_dishing_bound_array.npy") or cfg.DEBUG:
+        if not os.path.exists(cfg.OUTPUT_DIR + cfg.INTERFACE + '/temp/'):
+            os.makedirs(cfg.OUTPUT_DIR + cfg.INTERFACE + '/temp/')
         # start_time = time.time()
         valid_pad_dishing_bound_array = debond_dishing_bounds_calculator(cfg, valid_die_pad_coords) # (num_pads, 2) array: (dishing_low_nm, dishing_high_nm)
         # print("Dishing bound calculation time: {:.2f} seconds".format(time.time() - start_time))
-        np.save(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp/' + cfg.DESIGN + "_dishing_bound_array.npy", valid_pad_dishing_bound_array)
+        np.save(cfg.OUTPUT_DIR + cfg.INTERFACE + '/temp/' + cfg.INTERFACE + "_dishing_bound_array.npy", valid_pad_dishing_bound_array)
     else:
-        valid_pad_dishing_bound_array = np.load(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp/' + cfg.DESIGN + "_dishing_bound_array.npy")
+        valid_pad_dishing_bound_array = np.load(cfg.OUTPUT_DIR + cfg.INTERFACE + '/temp/' + cfg.INTERFACE + "_dishing_bound_array.npy")
 
     epoch_fail_map_dict = {}    # This dict stores the fail bump maps for all die samples in this epoch for each mechanism
     epoch_fail_vec_dict = {}    # This dict stores failure reason (each mechanism) for all die samples in this epoch

@@ -5,7 +5,7 @@ w2w_simulation:
   OUTPUT_DIR: "output/"
   INPUT_DIR: "input/"          # Output directory for simulation results
   DEBUG: false                                      # Enable debug mode
-  DESIGN: "HBM_footprint_B"                      # Design name
+  INTERFACE: "HBM_footprint_B"                      # Design name
   PAD_ARRANGE_PATTERN: "checkerboard"        # Pad arrangement pattern: "checkerboard" (HBM)
   # === Wafer and Die Settings ===
   NUM_WAFERS: 1                        # Number of wafers used in simulation
@@ -178,7 +178,7 @@ w2w_modeling:
   DEBUG: false                          # Enable debug mode
   OUTPUT_DIR: "output/"
   INPUT_DIR: "input/"          # Output directory for simulation results
-  DESIGN: "HBM_footprint_B"                      # Design name
+  INTERFACE: "HBM_footprint_B"                      # Design name
   PAD_ARRANGE_PATTERN: "checkerboard"        # Pad arrangement pattern: "checkerboard" (HBM)
   # === Per Wafer Parameters ===
   PITCH_r_um: 55                             # Row pad PITCH_um (µm)
