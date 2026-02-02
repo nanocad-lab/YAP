@@ -272,6 +272,8 @@ class BondingInterfaces:
         """
         self.cfg = cfg
         self.failure_params = {}
+        self.top_chip = None
+        self.bot_chip = None
         # Overlay failure parameters for each bonding interface in each stack
         self.failure_params['system_translation_x_um'] = np.zeros(num_bonding_interfaces)
         self.failure_params['system_translation_y_um'] = np.zeros(num_bonding_interfaces)
