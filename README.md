@@ -44,13 +44,13 @@ pip install -r requirements.txt
   Example command to run the pad risk map calculator for W2W hybrid bonding
 
   ```
-  python pad_risk_map_calculator.py --config configs/design0.yaml --mode w2w_modeling --ds_dir input/design_0 --bmap input/design_0/bmap_files/CPU_From_interposer.bmap --criticality input/design_0/criticality_files/CPU_From_interposer_criticality.txt --verbose
+  python pad_risk_map_calculator.py --config configs/design_6.yaml --mode w2w_modeling --ds_dir input/design_6 --bmap input/design_6/bmap_files/CPU_From_interposer.bmap --criticality input/design_6/criticality_files/CPU_From_interposer_criticality.txt --verbose
   ```
 
   Example command to run the simulator main for W2W hybrid bonding
 
   ```
-  python simulator_main.py --config configs/design0.yaml --mode w2w_simulation --ds_dir input/design_0 --bmap input/design_0/bmap_files/CPU_From_interposer.bmap --criticality input/design_0/criticality_files/CPU_From_interposer_criticality.txt --verbose
+  python simulator_main.py --config configs/design_6.yaml --mode w2w_simulation --ds_name design_6 --ds_dir input/design_6 --verbose
   ```
 
 - Run the simulator and model for D2W hybrid bonding.
@@ -61,13 +61,13 @@ pip install -r requirements.txt
   Example command to run the pad risk map calculator for D2W hybrid bonding
 
   ```
-  python pad_risk_map_calculator.py --config configs/design0.yaml --mode d2w_modeling --ds_dir input/design_0 --bmap input/design_0/bmap_files/CPU_From_interposer.bmap --criticality input/design_0/criticality_files/CPU_From_interposer_criticality.txt --verbose
+  python pad_risk_map_calculator.py --config configs/design_6.yaml --mode d2w_modeling --ds_dir input/design_6 --bmap input/design_6/bmap_files/CPU_From_interposer.bmap --criticality input/design_6/criticality_files/CPU_From_interposer_criticality.txt --verbose
   ```
 
   Example command to run the simulator main for D2W hybrid bonding
 
   ```
-  python simulator_main.py --config configs/design0.yaml --mode d2w_simulation --ds_dir input/design_0 --bmap input/design_0/bmap_files/CPU_From_interposer.bmap --criticality input/design_0/criticality_files/CPU_From_interposer_criticality.txt --verbose
+  python simulator_main.py --config configs/design_6.yaml --mode d2w_simulation --ds_name design_6 --ds_dir input/design_6 --verbose
   ```
 
 # File Formats

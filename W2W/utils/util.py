@@ -24,66 +24,63 @@ def add_config_items(cfg, keys, values):
     for key, value in zip(keys, values):
         cfg[key] = value
 
-def load_base_config(base_config_path: str,
+def get_config_dict(cfg_skeleton: str,
                      input_ds_dir: str,
-                     blox_3dbv_path: str,
-                     blox_3dbx_path: str,
-                     blox_bmap_path: str,
+                     _3dbv_path: str,
+                     _3dbx_path: str,
                      mode, 
                      debug=False):
     """
     Load base configuration from a YAML file and update with .3dbv and .bmap design parameters.
     args:
-        base_config_path: path to base config yaml file
-        blox_3dbv_path: path to .3dbv file
-        blox_bmap_path: path to .bmap file
+        cfg_skeleton: base config yaml file
+        _3dbv_path: path to .3dbv file
         mode: mode to load from config (w2w_simulation, w2w_modeling, d2w_simulation, d2w_modeling)
         debug: whether to enable debug output
+    returns:
+        cfg_dict: dictionary of configuration objects for each stack layer
     """
-    full_cfg = OmegaConf.load(base_config_path)
-    cfg = full_cfg[mode]
-    cfg = update_config_with_3dblox_params(cfg,
-                                           input_ds_dir=input_ds_dir,
-                                           blox_3dbv_path=blox_3dbv_path,
-                                           blox_3dbx_path=blox_3dbx_path,
-                                           blox_bmap_path=blox_bmap_path)
-
-    if mode == "w2w_simulation" or mode == "w2w_modeling":
-        cfg.SYSTEM_MAGNIFICATION_MEAN_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_MEAN_um + cfg.M_0) / 1e6
-        cfg.SYSTEM_MAGNIFICATION_STD_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_STD_um) ** 2 / 1e6
-        cfg.S_INIT_A_M = 10e-6 * (cfg.WAF_R_um / 150000) ** 2
-        cfg.S_INIT_B_M = 0.0
-    elif mode == "d2w_simulation" or mode == "d2w_modeling":
-        cfg.SYSTEM_MAGNIFICATION_MEAN_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_MEAN_um + cfg.M_0) / 1e6
-        cfg.SYSTEM_MAGNIFICATION_STD_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_STD_um) ** 2 / 1e6
-        cfg.eff_DIE_R = float(np.sqrt((cfg.DIE_W_um / 2) ** 2 + (cfg.DIE_L_um / 2) ** 2))  # Effective die radius (um)
-        cfg.S_INIT_A_M = 10e-6 * (cfg.eff_DIE_R / 150000) ** 2
-        cfg.S_INIT_B_M = 0.0
-    else:
-        raise ValueError(f"Unknown mode: {mode}. Supported modes are 'w2w_simulation', 'w2w_modeling', 'd2w_simulation', and 'd2w_modeling'.")
+    cfg_dict = update_config_with_3dblox_params(cfg_skeleton=cfg_skeleton,
+                                                input_ds_dir=input_ds_dir,
+                                                _3dbv_path=_3dbv_path,
+                                                _3dbx_path=_3dbx_path,)
+    for interface, cfg in cfg_dict.items():
+        if mode == "w2w_simulation" or mode == "w2w_modeling":
+            cfg.SYSTEM_MAGNIFICATION_MEAN_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_MEAN_um + cfg.M_0) / 1e6
+            cfg.SYSTEM_MAGNIFICATION_STD_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_STD_um) ** 2 / 1e6
+            cfg.S_INIT_A_M = 10e-6 * (cfg.WAF_R_um / 150000) ** 2
+            cfg.S_INIT_B_M = 0.0
+        elif mode == "d2w_simulation" or mode == "d2w_modeling":
+            cfg.SYSTEM_MAGNIFICATION_MEAN_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_MEAN_um + cfg.M_0) / 1e6
+            cfg.SYSTEM_MAGNIFICATION_STD_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_STD_um) ** 2 / 1e6
+            cfg.eff_DIE_R = float(np.sqrt((cfg.DIE_W_um / 2) ** 2 + (cfg.DIE_L_um / 2) ** 2))  # Effective die radius (um)
+            cfg.S_INIT_A_M = 10e-6 * (cfg.eff_DIE_R / 150000) ** 2
+            cfg.S_INIT_B_M = 0.0
+        else:
+            raise ValueError(f"Unknown mode: {mode}. Supported modes are 'w2w_simulation', 'w2w_modeling', 'd2w_simulation', and 'd2w_modeling'.")
 
 
-    if debug:
-        cfg.DEBUG = True
-        print("Configuration loaded:")
-        print(OmegaConf.to_yaml(cfg))
+        if debug:
+            cfg.DEBUG = True
+            print("Configuration loaded:")
+            print(OmegaConf.to_yaml(cfg))
 
-    return cfg
+    return cfg_dict
 
 
-def update_config_from_bmap(cfg, blox_bmap_path, y_tol=0.1, x_tol=0.1):
+def update_config_from_bmap(cfg, _bmap_path, y_tol=0.1, x_tol=0.1):
     """
     Extract pad array layout from .bmap file.
 
     args:
         cfg: configuration object
-        blox_bmap_path: path to .bmap file
+        _bmap_path: path to .bmap file
         y_tol: tolerance for clustering y coordinates (um), if the difference between two y coordinates is less than y_tol, they are considered in the same row
         x_tol: tolerance for clustering x coordinates (um), if the difference between two x coordinates is less than x_tol, they are considered in the same column
     """
     coords = []
 
-    with open(blox_bmap_path, 'r') as f:
+    with open(_bmap_path, 'r') as f:
         for line in f:
             parts = line.strip().split()
             if len(parts) < 4:
@@ -124,75 +121,87 @@ def update_config_from_bmap(cfg, blox_bmap_path, y_tol=0.1, x_tol=0.1):
                         values=[(num_rows - 1) * cfg.PITCH_r_um,
                                 (num_cols - 1) * cfg.PITCH_c_um])
 
-def update_config_with_3dblox_params(cfg, 
+def update_config_with_3dblox_params(cfg_skeleton: object, 
                                     input_ds_dir: str,
-                                    blox_3dbv_path: str,
-                                    blox_3dbx_path: str,
-                                    blox_bmap_path: str):
+                                    _3dbv_path: str,
+                                    _3dbx_path: str,):
     """
     Update configuration with design parameters from .3dbv and .bmap files.
     args:
-        cfg: configuration object
+        cfg_skeleton: configuration object skeleton
         input_ds_dir: path to design input files directory
-        blox_3dbv_path: path to .3dbv file (chiplet definitions)
-        blox_3dbx_path: path to .3dbx file (stack configuration)
-        blox_bmap_path: path to .bmap file (bump map)
+        _3dbv_path: path to .3dbv file (chiplet definitions)
+        _3dbx_path: path to .3dbx file (stack configuration)
+        _bmap_path: path to .bmap file (bump map)
     file structure:
         input_ds_dir/
           |-  generated_chiplet_definitions.3dbv
           |-  generated_stack_config.3dbx
-          |-  3dbf_files/
-          |-  bmap_files/
-            |-  <INTERFACE>.bmap
-          |-criticality_files/
-            |-  <INTERFACE>_criticality.txt
+          |-  XX_From_XX.bmap
+          |-  XX.3dbf
+          |-  XX_From_XX_criticality.txt
     """
-    ### Update cfg with design parameters from .3dbv and .bmap files
+    ### Update cfg_list with design parameters from .3dbv and .bmap files
+    cfg_dict = dict()
+    stack_config_3dbx = OmegaConf.load(_3dbx_path)
 
-    ## Extract interface name from .bmap file name
-    cfg.INTERFACE = blox_bmap_path.split('/')[-1].split('.')[0]
-    if 'From' in cfg.INTERFACE:
-        cfg.INTERFACE_TOP = cfg.INTERFACE.split('_From_')[0]
-        cfg.INTERFACE_BOT = cfg.INTERFACE.split('_From_')[1]
-    elif 'To' in cfg.INTERFACE:
-        cfg.INTERFACE_TOP = cfg.INTERFACE.split('_To_')[1]
-        cfg.INTERFACE_BOT = cfg.INTERFACE.split('_To_')[0]
-    else:
-        raise ValueError(f"Unknown INTERFACE format: {cfg.INTERFACE}. Expected format like 'CPU_From_interposer' or 'interposer_To_CPU'.")
+    for interface in stack_config_3dbx.Connection.keys():
+        cfg = cfg_skeleton.copy()
 
-    ### Read .3dbv, .3dbx, and .bmap files
-    ## Extract design parameters from .3dbv and .3dbf file
-    blox_3dbv = OmegaConf.load(blox_3dbv_path)
-    top_3dbf_path = input_ds_dir + "/" + cfg.INTERFACE_TOP + ".3dbf"
-    bot_3dbf_path = input_ds_dir + "/" + cfg.INTERFACE_BOT + ".3dbf"
-    top_3dbf = OmegaConf.load(top_3dbf_path)
-    bot_3dbf = OmegaConf.load(bot_3dbf_path)
-    # Check unit
-    assert blox_3dbv.Header.unit == 'micron', "Only support .3dbv file with unit in microns."
-    # Read die width and length
-    add_config_items(cfg, keys=['DIE_W_um', 'DIE_L_um'], 
-                     values=[float(blox_3dbv.ChipletDef[cfg.INTERFACE_TOP].design_area[0]),
-                             float(blox_3dbv.ChipletDef[cfg.INTERFACE_TOP].design_area[1])])
-    # Read bump size, size/2 = radius
-    bump_type_list = list(top_3dbf.Bump_Types.keys())   # silicon_individual_bonding, organic_individual_bonding, ...
-    for bump_type in bump_type_list:
-        # Check if bump_type in the bmap file
-        if bump_type in open(blox_bmap_path).readline().split()[1]: # Read the first line of the .bmap file to get the bump type
-            selected_bump_type = bump_type
-            break
-    add_config_items(cfg, keys=['PAD_TOP_R_um', 'PAD_BOT_R_um'], 
-                        values=[float(top_3dbf.Bump_Types[selected_bump_type].bump_size) / 2,
-                                float(bot_3dbf.Bump_Types[selected_bump_type].bump_size) / 2])
-    # Read pad pitch (top chip pitch) TODO: currently assume row and col pitch are the same
-    add_config_items(cfg, keys=['PITCH_r_um', 'PITCH_c_um'], 
-                        values=[float(top_3dbf.Chiplet_Grid.pitch), 
-                                float(top_3dbf.Chiplet_Grid.pitch)])
-    
+        # Extract interface names
+        cfg.INTERFACE_TOP = str(((interface.bot).split('.')[-1]).split('To_')[-1])
+        cfg.INTERFACE_BOT = str(((interface.top).split('.')[-1]).split('From_')[-1])
+        cfg.INTERFACE = f"{cfg.INTERFACE_TOP}_From_{cfg.INTERFACE_BOT}"
 
-    ## Extract design parameters from .bmap file
-    update_config_from_bmap(cfg, blox_bmap_path, y_tol=cfg.PITCH_r_um * 0.1, x_tol=cfg.PITCH_c_um * 0.1)
+        ### Read .3dbv, .3dbx, and .bmap files
+        ## Extract design parameters from .3dbv and .3dbf file
+        _3dbv = OmegaConf.load(_3dbv_path)
+        _bmap_path = os.path.join(input_ds_dir, f"{cfg.INTERFACE}.bmap")
+        top_3dbf_path = os.path.join(input_ds_dir, f"{cfg.INTERFACE_TOP}.3dbf")
+        bot_3dbf_path = os.path.join(input_ds_dir, f"{cfg.INTERFACE_BOT}.3dbf")
+        top_3dbf = OmegaConf.load(top_3dbf_path)
+        bot_3dbf = OmegaConf.load(bot_3dbf_path)
 
-    return cfg
+        # Check unit
+        assert _3dbv.Header.unit == 'micron', "Only support .3dbv file with unit in microns."
+        
+        # Read die width and length
+        add_config_items(cfg, keys=['DIE_W_um', 'DIE_L_um'], 
+                        values=[float(_3dbv.ChipletDef[cfg.INTERFACE_TOP].design_area[0]),
+                                float(_3dbv.ChipletDef[cfg.INTERFACE_TOP].design_area[1])])
+        
+        # Read bump size, size/2 = radius. Find matching bum type
+        bump_type_list = list(top_3dbf.Bump_Types.keys())   # silicon_individual_bonding, organic_individual_bonding, ...
+        selected_bump_type = None
+
+        with open(_bmap_path, 'r') as f:
+            first_line = f.readline()
+            for bump_type in bump_type_list:
+                if bump_type in first_line.split()[1]:
+                    selected_bump_type = bump_type
+                    break
+
+        if selected_bump_type is None:
+            raise ValueError(f"No matching bump type found in {_bmap_path} for top chiplet {cfg.INTERFACE_TOP}.")
+        
+        add_config_items(cfg, keys=['PAD_TOP_R_um', 'PAD_BOT_R_um'], 
+                            values=[float(top_3dbf.Bump_Types[selected_bump_type].bump_size) / 2,
+                                    float(bot_3dbf.Bump_Types[selected_bump_type].bump_size) / 2])
+        
+        # Read pad pitch (top chip pitch) NOTE: currently assume row and col pitch are the same
+        add_config_items(cfg, keys=['PITCH_r_um', 'PITCH_c_um'], 
+                            values=[float(top_3dbf.Chiplet_Grid.pitch), 
+                                    float(top_3dbf.Chiplet_Grid.pitch)])
+        
+
+        ## Extract design parameters from .bmap file
+        update_config_from_bmap(cfg, _bmap_path, 
+                                y_tol=cfg.PITCH_r_um * 0.1, x_tol=cfg.PITCH_c_um * 0.1)
+
+        # Store in config dictionary
+        cfg_dict[cfg.INTERFACE] = cfg
+
+    return cfg_dict
 
 
 
@@ -390,7 +399,7 @@ def risk_map_generator(cfg,
     return
 
 def convert_3dblox_to_pad_bitmap(cfg, 
-                                 blox_bmap_path: str, 
+                                 _bmap_path: str, 
                                  criticality_path: str,
                                  pad_arrange_pattern: str,
                                  ):
@@ -403,13 +412,13 @@ def convert_3dblox_to_pad_bitmap(cfg,
     if not os.path.exists(cfg.OUTPUT_DIR + cfg.DESIGN):
         os.makedirs(cfg.OUTPUT_DIR + cfg.DESIGN)
 
-    sort_pads_bmap(blox_bmap_path, blox_bmap_path)
+    sort_pads_bmap(_bmap_path, _bmap_path)
 
     # Read the bump data from the .bmap file
     bump_data = []
     # Initialize the pad array boundaries
     [pad_array_left, pad_array_right, pad_array_top, pad_array_bottom] = [float('inf'), float('-inf'), float('-inf'), float('inf')]
-    with open(blox_bmap_path, 'r') as f:
+    with open(_bmap_path, 'r') as f:
         bumpid = 0  # Initialize bumpid
         for line in f:
             parts = line.strip().split()

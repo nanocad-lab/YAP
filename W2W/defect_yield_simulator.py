@@ -95,6 +95,7 @@ class void_tail:
 
 
 def defect_yield_simulator(
+    cfg: object,
     WAF_R_um: float,
     D0: float,
     t_0: float,
@@ -169,24 +170,23 @@ def defect_yield_simulator(
 
         return voids, main_voids, tail_voids
     
-    NUM_BONDING_INTERFACES = waf_stack_list[0].num_bonding_interfaces
     NUM_STACKS = len(waf_stack_list)
+    interface = cfg.INTERFACE
 
-    total_particles = np.pi * WAF_R_um**2 * NUM_STACKS * NUM_BONDING_INTERFACES * D0
+    total_particles = np.pi * WAF_R_um**2 * NUM_STACKS * D0
     particles_per_interface = np.random.multinomial(
-        total_particles, [1 / NUM_BONDING_INTERFACES * NUM_STACKS] * (NUM_BONDING_INTERFACES * NUM_STACKS)
-    ).reshape(NUM_STACKS, NUM_BONDING_INTERFACES)
+        total_particles, [1 / NUM_STACKS] * NUM_STACKS
+    )
 
     for stack_ind in range(NUM_STACKS):
-        for interface_ind in range(NUM_BONDING_INTERFACES):
-            num_particles = particles_per_interface[stack_ind, interface_ind]
-            particle_thickness = np.zeros(num_particles)
-            u = np.random.rand(num_particles)
-            particle_thickness = inverse_cdf_particle_thickness(u)
-            particles = generate_particles(particle_thickness, WAF_R_um)
+        num_particles = particles_per_interface[stack_ind]
+        particle_thickness = np.zeros(num_particles)
+        u = np.random.rand(num_particles)
+        particle_thickness = inverse_cdf_particle_thickness(u)
+        particles = generate_particles(particle_thickness, WAF_R_um)
 
-            # Generate the main void and void tail based on the particles for each wafer
-            voids, main_voids, tail_voids = generate_voids(particles, k_r, k_r0, k_n, k_S)
+        # Generate the main void and void tail based on the particles for each wafer
+        voids, main_voids, tail_voids = generate_voids(particles, k_r, k_r0, k_n, k_S)
 
-            # Pass the void failure parameters to the wafer_stacks interface object
-            waf_stack_list[stack_ind].interfaces.failure_params['voids'][interface_ind] = np.array(voids)
+        # Pass the void failure parameters to the wafer_stacks interface object
+        waf_stack_list[stack_ind].interfaces.failure_params[interface]['voids'] = np.array(voids)

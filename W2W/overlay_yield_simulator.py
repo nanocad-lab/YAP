@@ -119,9 +119,11 @@ def overlay_term_simulator(
     )  # systematic magnification unit (ppm)
 
     # Pass the overlay parameters to the wafer_stacks interface object
+    interface = cfg.INTERFACE
     for stack_idx in range(NUM_STACKS):
-        waf_stack_list[stack_idx].interfaces.failure_params['system_translation_x_um'] = system_translation_x_um[stack_idx]
-        waf_stack_list[stack_idx].interfaces.failure_params['system_translation_y_um'] = system_translation_y_um[stack_idx]
-        waf_stack_list[stack_idx].interfaces.failure_params['system_rotation_rad'] = system_rotation_rad[stack_idx]
-        waf_stack_list[stack_idx].interfaces.failure_params['system_magnification_ppm'] = system_magnification_ppm[stack_idx]
+        waf_stack_list[stack_idx].interfaces.failure_params[interface]['MAX_ALLOWED_MISALIGNMENT_um'] = MAX_ALLOWED_MISALIGNMENT_um
+        waf_stack_list[stack_idx].interfaces.failure_params[interface]['system_translation_x_um'] = system_translation_x_um[stack_idx]
+        waf_stack_list[stack_idx].interfaces.failure_params[interface]['system_translation_y_um'] = system_translation_y_um[stack_idx]
+        waf_stack_list[stack_idx].interfaces.failure_params[interface]['system_rotation_rad'] = system_rotation_rad[stack_idx]
+        waf_stack_list[stack_idx].interfaces.failure_params[interface]['system_magnification_ppm'] = system_magnification_ppm[stack_idx]
     return system_translation_x_um, system_translation_y_um, system_rotation_rad, system_magnification_ppm, MAX_ALLOWED_MISALIGNMENT_um
