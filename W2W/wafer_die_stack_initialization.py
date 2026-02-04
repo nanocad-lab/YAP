@@ -265,32 +265,32 @@ def wafer_interface_initialize(
 class Bonding_Interfaces:
     def __init__(self,
                  cfg_dict: dict,
+                 pad_bitmap_collection_dict: dict,
                  ):
         """
         The set of bonding interfaces for a single wafer stack
         """
         self.cfg_dict = cfg_dict
+        self.pad_bitmap_collection_dict = pad_bitmap_collection_dict
         self.failure_params_dict = {}
         self.interface_dict = {}
-        for interface in cfg_dict.keys():
-            self.failure_params_dict[interface] = {}
-        # Overlay failure parameters for each bonding interface in each stack
-            self.failure_params_dict[interface]['MAX_ALLOWED_MISALIGNMENT_um'] = None
-            self.failure_params_dict[interface]['system_translation_x_um'] = None
-            self.failure_params_dict[interface]['system_translation_y_um'] = None
-            self.failure_params_dict[interface]['system_rotation_rad'] = None
-            self.failure_params_dict[interface]['system_magnification_ppm'] = None
+        
+        for interface_name in cfg_dict.keys():
+            self.failure_params_dict[interface_name] = {}
+            # Overlay failure parameters for each bonding interface in each stack
+            self.failure_params_dict[interface_name]['MAX_ALLOWED_MISALIGNMENT_um'] = None
+            self.failure_params_dict[interface_name]['system_translation_x_um'] = None
+            self.failure_params_dict[interface_name]['system_translation_y_um'] = None
+            self.failure_params_dict[interface_name]['system_rotation_rad'] = None
+            self.failure_params_dict[interface_name]['system_magnification_ppm'] = None
             # Particle-induced void failure parameters for each bonding interface in each stack
-            self.failure_params_dict[interface]['voids'] = [] # each entry is an array of voids (np.ndarray)
-            # Cu recess/stress failure parameters for each bonding interface in each stack
-            # TODO: add Cu recess/stress failure parameters when needed
+            self.failure_params_dict[interface_name]['voids'] = None # each entry is an array of voids (np.ndarray)
 
     def add_interfaces(self):
         """
         Initialize the wafer stack interfaces for one wafer stack sample.
         """
         for interface_name, cfg in self.cfg_dict.items():
-            cfg = self.cfg_dict[interface_name]
             interface_list = wafer_interface_initialize(
                 NUM_WAFER_SAMPLES           = 1,
                 DIE_W_um                    = cfg.DIE_W_um,
@@ -305,7 +305,7 @@ class Bonding_Interfaces:
                 PAD_TOP_R_um                = cfg.PAD_TOP_R_um,
                 PAD_BOT_R_um                = cfg.PAD_BOT_R_um,
                 dice_width                  = cfg.dice_width,
-                pad_bitmap_collection       = cfg.pad_bitmap_collection,
+                pad_bitmap_collection       = self.pad_bitmap_collection_dict[interface_name],
                 pad_yield_flag              = cfg.pad_yield_flag,
             )
             self.interface_dict[interface_name] = interface_list[0]
@@ -313,21 +313,23 @@ class Bonding_Interfaces:
 class WaferStack:
     def __init__(self, 
                  cfg_dict: dict,
+                 pad_bitmap_collection_dict: dict,
                  ):
         """
         num_bonding_interfaces: Number of bonding interfaces in each stack
-        layer_list: List of Wafer objects for each layer (from bottom to top)
-        stack_list: List of Wafer Stack objects for multiple samples (simulation)
+        interfaces: Bonding_Interfaces object containing all bonding interfaces
+        num_dies_per_wafer: Number of dies per wafer (assumed same for all interfaces)
         die_stack_survival: Boolean array indicating whether each die stack survives
         """
         self.cfg_dict = cfg_dict
         self.num_bonding_interfaces = len(cfg_dict)
-        self.num_dies_per_wafer = self.interfaces.interface_dict[list(cfg_dict.keys())[0]].num_dies
-        self.die_stack_survival = np.ones((self.num_dies_per_wafer), dtype=bool)  # Initialize all die stacks as survived
         self.interfaces = Bonding_Interfaces(
             cfg_dict=cfg_dict,
+            pad_bitmap_collection_dict=pad_bitmap_collection_dict,
         )
         self.interfaces.add_interfaces()
+        self.num_dies_per_wafer = self.interfaces.interface_dict[list(cfg_dict.keys())[0]].num_dies
+        self.die_stack_survival = np.ones((self.num_dies_per_wafer), dtype=bool)  # Initialize all die stacks as survived
         
 
 
@@ -338,6 +340,7 @@ class WaferStack:
 
 def wafer_stack_list_initialize(
     cfg_dict: dict,
+    pad_bitmap_collection_dict: dict,
     num_stack_samples: int,
 ):
     """
@@ -353,8 +356,8 @@ def wafer_stack_list_initialize(
     for _ in range(num_stack_samples):
         wafer_stack = WaferStack(
             cfg_dict=cfg_dict,
+            pad_bitmap_collection_dict=pad_bitmap_collection_dict,
         )
-        wafer_stack.add_interfaces()
         wafer_stack_list.append(wafer_stack)
         
     

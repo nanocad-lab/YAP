@@ -26,37 +26,31 @@ def Assembly_Yield_Simulator(
     NUM_WAFER_STACKS = cfg_skeleton.NUM_WAFER_STACKS
     SIM_BATCH_SIZE = cfg_skeleton.SIM_BATCH_SIZE
     num_sim_epoch = NUM_WAFER_STACKS // SIM_BATCH_SIZE
-    
+
+    failure_mechanism_list = ['overlay', 'particle', 'mechanical', 'ESD', 'overall']
     epoch_yield_list = []
 
     if input_args['verbose']:
         print("Verbose mode enabled: Tracking failure reasons for each die.")
         # Initialize a temporary wafer stack to get die count and initialize fail maps/vectors
         temp_waf_stack_list = wafer_stack_list_initialize(
-            cfg_dict                =       cfg_dict,
-            _3dbv_path              =       _3dbv_path,
-            _3dbx_path              =       _3dbx_path,
-            num_stack_samples       =       1,
+            cfg_dict                    =       cfg_dict,
+            pad_bitmap_collection_dict  =       pad_bitmap_collection_dict,
+            num_stack_samples           =       1,
         )
         fail_map_per_interface_dict = {}
         fail_vec_per_interface_dict = {}
+        num_dies_per_wafer = temp_waf_stack_list[0].num_dies_per_wafer
         for interface_name, waf_interface in temp_waf_stack_list[0].interfaces.interface_dict.items():
             cfg = cfg_dict[interface_name]
             fail_map_per_interface_dict[interface_name] = {}
-            fail_map_per_interface_dict[interface_name]['overlay']    = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL))
-            fail_map_per_interface_dict[interface_name]['particle']   = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL))
-            fail_map_per_interface_dict[interface_name]['mechanical'] = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL))
-            fail_map_per_interface_dict[interface_name]['ESD']        = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL))
-            fail_map_per_interface_dict[interface_name]['overall']    = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL))
+            for failure_mechanism in failure_mechanism_list:
+                fail_map_per_interface_dict[interface_name][failure_mechanism] = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL))
 
             fail_vec_per_interface_dict[interface_name] = {}
-            num_dies_per_wafer = waf_interface.num_dies_per_wafer
-            fail_vec_per_interface_dict[interface_name]['overlay']    = np.zeros((NUM_WAFER_STACKS, waf_interface.num_dies_per_wafer))
-            fail_vec_per_interface_dict[interface_name]['particle']   = np.zeros((NUM_WAFER_STACKS, waf_interface.num_dies_per_wafer))
-            fail_vec_per_interface_dict[interface_name]['mechanical'] = np.zeros((NUM_WAFER_STACKS, waf_interface.num_dies_per_wafer))
-            fail_vec_per_interface_dict[interface_name]['ESD']        = np.zeros((NUM_WAFER_STACKS, waf_interface.num_dies_per_wafer))
-            fail_vec_per_interface_dict[interface_name]['overall']    = np.zeros((NUM_WAFER_STACKS, waf_interface.num_dies_per_wafer))
-            del temp_waf_stack_list
+            for failure_mechanism in failure_mechanism_list:
+                fail_vec_per_interface_dict[interface_name][failure_mechanism] = np.zeros((NUM_WAFER_STACKS, num_dies_per_wafer))
+        del temp_waf_stack_list
     
     # Iterate over simulation epochs
     for epoch in range(num_sim_epoch):
@@ -64,20 +58,16 @@ def Assembly_Yield_Simulator(
         start_time = time.time()
         # Initialize the wafer stack
         waf_stack_list = wafer_stack_list_initialize(
-            cfg_dict                =       cfg_dict,
-            _3dbv_path              =       _3dbv_path,
-            _3dbx_path              =       _3dbx_path,
-            num_stack_samples       =       SIM_BATCH_SIZE,
+            cfg_dict                    =       cfg_dict,
+            pad_bitmap_collection_dict  =       pad_bitmap_collection_dict,
+            num_stack_samples           =       SIM_BATCH_SIZE,
         )
         num_dies_per_wafer = waf_stack_list[0].num_dies_per_wafer
+
         # Generate overlay terms， in the shape of (NUM_STACKS, )
         for interface, pad_bitmap_collection in pad_bitmap_collection_dict.items():
             cfg = cfg_dict[interface]
-            system_translation_x_um, \
-            system_translation_y_um, \
-            system_rotation_rad, \
-            system_magnification_ppm, \
-            MAX_ALLOWED_MISALIGNMENT_um = overlay_term_simulator(
+            overlay_term_simulator(
                 cfg                             =       cfg,
                 waf_stack_list                  =       waf_stack_list,
                 PAD_TOP_R_um                    =       cfg.PAD_TOP_R_um,
@@ -128,17 +118,13 @@ def Assembly_Yield_Simulator(
         for interface_name, waf_interface in temp_waf_stack_list[0].interfaces.interface_dict.items():
             cfg = cfg_dict[interface_name]
             if input_args['verbose']:
-                fail_map_per_interface_dict[interface_name]['overlay']    += epoch_fail_map_per_interface_dict[interface_name]['overlay']
-                fail_map_per_interface_dict[interface_name]['particle']   += epoch_fail_map_per_interface_dict[interface_name]['particle']
-                fail_map_per_interface_dict[interface_name]['mechanical'] += epoch_fail_map_per_interface_dict[interface_name]['mechanical']
-                fail_map_per_interface_dict[interface_name]['ESD']        += epoch_fail_map_per_interface_dict[interface_name]['ESD']
-                fail_map_per_interface_dict[interface_name]['overall']    += epoch_fail_map_per_interface_dict[interface_name]['overall']
+                for failure_mechanism in failure_mechanism_list:
+                    fail_map_per_interface_dict[interface_name][failure_mechanism]   \
+                          += epoch_fail_map_per_interface_dict[interface_name][failure_mechanism]
 
-                fail_vec_per_interface_dict[interface_name]['overlay'][epoch*SIM_BATCH_SIZE:(epoch+1)*SIM_BATCH_SIZE, :] = epoch_fail_vec_per_interface_dict[interface_name]['overlay']
-                fail_vec_per_interface_dict[interface_name]['particle'][epoch*SIM_BATCH_SIZE:(epoch+1)*SIM_BATCH_SIZE, :] = epoch_fail_vec_per_interface_dict[interface_name]['particle']
-                fail_vec_per_interface_dict[interface_name]['mechanical'][epoch*SIM_BATCH_SIZE:(epoch+1)*SIM_BATCH_SIZE, :] = epoch_fail_vec_per_interface_dict[interface_name]['mechanical']
-                fail_vec_per_interface_dict[interface_name]['ESD'][epoch*SIM_BATCH_SIZE:(epoch+1)*SIM_BATCH_SIZE, :] = epoch_fail_vec_per_interface_dict[interface_name]['ESD']
-                fail_vec_per_interface_dict[interface_name]['overall'][epoch*SIM_BATCH_SIZE:(epoch+1)*SIM_BATCH_SIZE, :] = epoch_fail_vec_per_interface_dict[interface_name]['overall']
+                for failure_mechanism in failure_mechanism_list:
+                    fail_vec_per_interface_dict[interface_name][failure_mechanism][epoch*SIM_BATCH_SIZE:(epoch+1)*SIM_BATCH_SIZE, :] \
+                        = epoch_fail_vec_per_interface_dict[interface_name][failure_mechanism]
         print(f"Simulation progress: {(epoch+1)*SIM_BATCH_SIZE}/{NUM_WAFER_STACKS} wafer stacks simulated. Epoch yield: {np.mean(yield_list):.4f}. Time taken: {time.time() - start_time:.2f} seconds.")
         
         
@@ -153,11 +139,9 @@ def Assembly_Yield_Simulator(
             os.remove(file_path)
     for interface_name, cfg in cfg_dict.items():
         if input_args['verbose']:
-            fail_map_per_interface_dict[interface_name]['overlay']    /= (num_sim_epoch * SIM_BATCH_SIZE * num_dies_per_wafer)
-            fail_map_per_interface_dict[interface_name]['particle']   /= (num_sim_epoch * SIM_BATCH_SIZE * num_dies_per_wafer)
-            fail_map_per_interface_dict[interface_name]['mechanical'] /= (num_sim_epoch * SIM_BATCH_SIZE * num_dies_per_wafer)
-            fail_map_per_interface_dict[interface_name]['ESD']        /= (num_sim_epoch * SIM_BATCH_SIZE * num_dies_per_wafer)
-            fail_map_per_interface_dict[interface_name]['overall']    /= (num_sim_epoch * SIM_BATCH_SIZE * num_dies_per_wafer)
+            for failure_mechanism in failure_mechanism_list:
+                fail_map_per_interface_dict[interface_name][failure_mechanism]   \
+                      /= (num_sim_epoch * SIM_BATCH_SIZE * num_dies_per_wafer)
             # Report the failure reasons statistics
             print("{} die failures due to overlay misalignment.".format(int(np.sum(fail_vec_per_interface_dict[interface_name]['overlay']))))
             print("{} die failures due to particle defects.".format(int(np.sum(fail_vec_per_interface_dict[interface_name]['particle']))))

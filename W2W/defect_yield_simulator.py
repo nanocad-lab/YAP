@@ -189,4 +189,4 @@ def defect_yield_simulator(
         voids, main_voids, tail_voids = generate_voids(particles, k_r, k_r0, k_n, k_S)
 
         # Pass the void failure parameters to the wafer_stacks interface object
-        waf_stack_list[stack_ind].interfaces.failure_params[interface]['voids'] = np.array(voids)
+        waf_stack_list[stack_ind].interfaces.failure_params_dict[interface]['voids'] = np.array(voids)

@@ -33,7 +33,9 @@ def main():
     cfg_skeleton = OmegaConf.load(args.config)[args.mode]
 
     # Load config and update with design and ADK parameters (from .3dbv and .bmap)
-    cfg_dict = get_config_dict(cfg_skeleton=cfg_skeleton, 
+    cfg_dict = get_config_dict(cfg_folder=args.config.rsplit('/', 1)[0],
+                                cfg_skeleton=cfg_skeleton, 
+                                ds_name=args.ds_name,
                                 input_ds_dir=input_ds_dir,
                                 _3dbv_path=_3dbv_path,
                                 _3dbx_path=_3dbx_path,
@@ -58,8 +60,8 @@ def main():
     bmap_path_dict = {}
     criticality_path_dict = {}
     pad_bitmap_collection_dict = {}
+    # Step 1: convert .bmap -> pad bitmap collection
     for interface, cfg in cfg_dict.items():
-        # Step 1: convert .bmap -> pad bitmap collection
         bmap_path_dict[interface] = os.path.join(input_ds_dir, f"{cfg.INTERFACE}.bmap")
         criticality_path_dict[interface] = os.path.join(input_ds_dir, f"{cfg.INTERFACE}_criticality.txt")
         pad_bitmap_collection_dict[interface] = convert_3dblox_to_pad_bitmap(cfg=cfg,
@@ -70,7 +72,7 @@ def main():
     # Step 2: run assembly yield simulator
     print("Running assembly yield simulator over {} wafers...".format(cfg_skeleton.NUM_WAFER_STACKS))
     start_time = time.time()
-    assembly_yield_dict, _ = Assembly_Yield_Simulator(
+    stack_assembly_yield, _ = Assembly_Yield_Simulator(
         input_args=vars(args),
         cfg_skeleton=cfg_skeleton,
         _3dbv_path=_3dbv_path,
@@ -79,9 +81,7 @@ def main():
         pad_bitmap_collection_dict=pad_bitmap_collection_dict,                                             
     )
     
-    print(f"Yield simulation results for {args.ds_name}:")
-    for interface, yield_rate in assembly_yield_dict.items():
-        print("  Interface {}: {:.2f}%".format(interface, yield_rate * 100))
+    print(f"Yield simulation results for {args.ds_name}: {stack_assembly_yield}")
     print("Total time taken: {:.2f} seconds".format(time.time() - start_time))
 
 if __name__ == "__main__":

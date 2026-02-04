@@ -50,7 +50,7 @@ pip install -r requirements.txt
   Example command to run the simulator main for W2W hybrid bonding
 
   ```
-  python simulator_main.py --config configs/design_6.yaml --mode w2w_simulation --ds_name design_6 --ds_dir input/design_6 --verbose
+  python simulator_main.py --config configs/design_6/design_6.yaml --mode w2w_simulation --ds_name design_6 --ds_dir input/design_6 --verbose
   ```
 
 - Run the simulator and model for D2W hybrid bonding.
@@ -67,7 +67,7 @@ pip install -r requirements.txt
   Example command to run the simulator main for D2W hybrid bonding
 
   ```
-  python simulator_main.py --config configs/design_6.yaml --mode d2w_simulation --ds_name design_6 --ds_dir input/design_6 --verbose
+  python simulator_main.py --config configs/design_6/design_6.yaml --mode d2w_simulation --ds_name design_6 --ds_dir input/design_6 --verbose
   ```
 
 # File Formats

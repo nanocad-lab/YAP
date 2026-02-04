@@ -24,16 +24,22 @@ def add_config_items(cfg, keys, values):
     for key, value in zip(keys, values):
         cfg[key] = value
 
-def get_config_dict(cfg_skeleton: str,
-                     input_ds_dir: str,
-                     _3dbv_path: str,
-                     _3dbx_path: str,
-                     mode, 
-                     debug=False):
+def get_config_dict(
+                    cfg_folder: str,
+                    cfg_skeleton: str,
+                    ds_name: str,
+                    input_ds_dir: str,
+                    _3dbv_path: str,
+                    _3dbx_path: str,
+                    mode: str,
+                    debug=False):
     """
     Load base configuration from a YAML file and update with .3dbv and .bmap design parameters.
     args:
+        cfg_folder: folder path of the config files
         cfg_skeleton: base config yaml file
+        ds_name: design name
+        input_ds_dir: input design directory
         _3dbv_path: path to .3dbv file
         mode: mode to load from config (w2w_simulation, w2w_modeling, d2w_simulation, d2w_modeling)
         debug: whether to enable debug output
@@ -45,6 +51,7 @@ def get_config_dict(cfg_skeleton: str,
                                                 _3dbv_path=_3dbv_path,
                                                 _3dbx_path=_3dbx_path,)
     for interface, cfg in cfg_dict.items():
+        cfg.DESIGN = ds_name
         if mode == "w2w_simulation" or mode == "w2w_modeling":
             cfg.SYSTEM_MAGNIFICATION_MEAN_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_MEAN_um + cfg.M_0) / 1e6
             cfg.SYSTEM_MAGNIFICATION_STD_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_STD_um) ** 2 / 1e6
@@ -65,6 +72,8 @@ def get_config_dict(cfg_skeleton: str,
             print("Configuration loaded:")
             print(OmegaConf.to_yaml(cfg))
 
+        # Save updated config file for reference
+        OmegaConf.save(cfg, cfg_folder + f"/{interface}.yaml")
     return cfg_dict
 
 
@@ -145,12 +154,12 @@ def update_config_with_3dblox_params(cfg_skeleton: object,
     cfg_dict = dict()
     stack_config_3dbx = OmegaConf.load(_3dbx_path)
 
-    for interface in stack_config_3dbx.Connection.keys():
+    for _, connection in stack_config_3dbx.Connection.items():
         cfg = cfg_skeleton.copy()
 
         # Extract interface names
-        cfg.INTERFACE_TOP = str(((interface.bot).split('.')[-1]).split('To_')[-1])
-        cfg.INTERFACE_BOT = str(((interface.top).split('.')[-1]).split('From_')[-1])
+        cfg.INTERFACE_TOP = str(((connection.bot).split('.')[-1]).split('To_')[-1])
+        cfg.INTERFACE_BOT = str(((connection.top).split('.')[-1]).split('From_')[-1])
         cfg.INTERFACE = f"{cfg.INTERFACE_TOP}_From_{cfg.INTERFACE_BOT}"
 
         ### Read .3dbv, .3dbx, and .bmap files
@@ -245,7 +254,7 @@ def draw_pad_bitmap(cfg, bitmap_collection):
 
 
     # Save the pad bitmaps
-    plt.savefig(cfg.OUTPUT_DIR + cfg.DESIGN + "/" + cfg.DESIGN + "_pad_bitmap.png")
+    plt.savefig(cfg.OUTPUT_DIR + cfg.DESIGN + "/" + cfg.INTERFACE + "/" + cfg.INTERFACE + "_pad_bitmap.png")
     print("Pad bitmap collections info saved.")
     return
 
@@ -313,10 +322,10 @@ def criticality_generator(cfg,
             "mechanical_criticality": mechanical_criticality
         })
         bump_set.add((bump['net'], port))
-    with open(cfg.OUTPUT_DIR + cfg.DESIGN + "/" + cfg.DESIGN + "_criticality.txt", 'w') as f:
+    with open(cfg.OUTPUT_DIR + cfg.DESIGN + "/" + cfg.INTERFACE + "/" + cfg.INTERFACE + "_criticality.txt", 'w') as f:
         for bump_crit in bump_criticality:
             f.write(f"{bump_crit['port']} {bump_crit['esd_criticality']:.6f} {bump_crit['mechanical_criticality']:.6f}\n")
-    print("Criticality file saved in ", cfg.OUTPUT_DIR + cfg.DESIGN + "/" + cfg.DESIGN + "_criticality.txt")
+    print("Criticality file saved in ", cfg.OUTPUT_DIR + cfg.DESIGN + "/" + cfg.INTERFACE + "/" + cfg.INTERFACE + "_criticality.txt")
     return
 
 
@@ -346,32 +355,6 @@ def risk_map_generator(cfg,
     avg_esd_pad_yield_map /= num_dies
     avg_bond_pad_yield_map /= num_dies
 
-    # # Draw the pad yield map as a heatmap
-    # plt.figure(figsize=(10, 6))
-    # plt.imshow(avg_ovl_pad_yield_map, cmap='viridis', vmin=np.nanmin(avg_ovl_pad_yield_map), vmax=np.nanmax(avg_ovl_pad_yield_map))
-    # plt.colorbar(label='Average Pad Overlay Yield')
-    # plt.title('Wafer Average Pad Overlay Yield Map')
-
-    # plt.figure(figsize=(10, 6))
-    # plt.imshow(avg_df_pad_yield_map, cmap='viridis', vmin=np.nanmin(avg_df_pad_yield_map), vmax=np.nanmax(avg_df_pad_yield_map))
-    # plt.colorbar(label='Average Pad Defect Yield')
-    # plt.title('Wafer Average Pad Defect Yield Map')
-
-    # plt.figure(figsize=(10, 6))
-    # plt.imshow(avg_ce_pad_yield_map, cmap='viridis', vmin=np.nanmin(avg_ce_pad_yield_map), vmax=np.nanmax(avg_ce_pad_yield_map))
-    # plt.colorbar(label='Average Pad Mechanical Yield')
-    # plt.title('Wafer Average Pad Mechanical Yield Map')
-
-    # plt.figure(figsize=(10, 6))
-    # plt.imshow(avg_esd_pad_yield_map, cmap='viridis', vmin=np.nanmin(avg_esd_pad_yield_map), vmax=np.nanmax(avg_esd_pad_yield_map))
-    # plt.colorbar(label='Average Pad ESD Yield')
-    # plt.title('Wafer Average Pad ESD Yield Map')
-
-    # plt.figure(figsize=(10, 6))
-    # plt.imshow(avg_bond_pad_yield_map, cmap='viridis', vmin=np.nanmin(avg_bond_pad_yield_map), vmax=np.nanmax(avg_bond_pad_yield_map))
-    # plt.colorbar(label='Average Pad Bond Yield')
-    # plt.title('Wafer Average Pad Bond Yield Map')
-
 
     die_coords = wafer.base_pad_coords
     risk_map = list()
@@ -392,10 +375,10 @@ def risk_map_generator(cfg,
             "particle_failure_probability": 1 - pad_df_yield,
             "mechanical_failure_probability": 1 - pad_ce_yield,
         })
-    with open(cfg.OUTPUT_DIR + cfg.DESIGN + "/" + cfg.DESIGN + "_risk_map.map", 'w') as f:
+    with open(cfg.OUTPUT_DIR + cfg.DESIGN + "/" + cfg.INTERFACE + "/" + cfg.INTERFACE + "_risk_map.map", 'w') as f:
         for pad_risk in risk_map:
             f.write(f"{pad_risk['pad_coords_x']} {pad_risk['pad_coords_y']} {pad_risk['esd_failure_probability']} {pad_risk['overlay_failure_probability']} {pad_risk['particle_failure_probability']} {pad_risk['mechanical_failure_probability']}\n")
-    print("Risk map file saved in ", cfg.OUTPUT_DIR + cfg.DESIGN + "/" + cfg.DESIGN + "_risk_map.map")
+    print("Risk map file saved in ", cfg.OUTPUT_DIR + cfg.DESIGN + "/" + cfg.INTERFACE + "/" + cfg.INTERFACE + "_risk_map.map")
     return
 
 def convert_3dblox_to_pad_bitmap(cfg, 
@@ -407,10 +390,9 @@ def convert_3dblox_to_pad_bitmap(cfg,
     This module converts the 3DBlox .bmap file to pad bitmap for YAP to process.
         - pad_arrange_pattern: 'checkerboard' for UCIe standard and HBM
     '''
-
     # Create output directory if not exist
-    if not os.path.exists(cfg.OUTPUT_DIR + cfg.DESIGN):
-        os.makedirs(cfg.OUTPUT_DIR + cfg.DESIGN)
+    if not os.path.exists(cfg.OUTPUT_DIR + cfg.DESIGN + '/' + cfg.INTERFACE):
+        os.makedirs(cfg.OUTPUT_DIR + cfg.DESIGN + '/' + cfg.INTERFACE)
 
     sort_pads_bmap(_bmap_path, _bmap_path)
 
@@ -521,8 +503,8 @@ def convert_3dblox_to_pad_bitmap(cfg,
     num_dummy_pads = 0 if DUMMY_PAD_BITMAP is None else np.sum(DUMMY_PAD_BITMAP)
 
     
-    # Count the number of logical pads in redundant pads & Initialize the redundant net alive count dict
-    print("redundant_net_to_bumpids:", redundant_net_to_bumpids)
+    # # Count the number of logical pads in redundant pads & Initialize the redundant net alive count dict
+    # print("redundant_net_to_bumpids:", redundant_net_to_bumpids)
 
 
     bitmap_collection = {}
@@ -543,10 +525,10 @@ def convert_3dblox_to_pad_bitmap(cfg,
     
     
     # Save the bitmap collection as npy file and mat file
-    np.save(cfg.OUTPUT_DIR + cfg.DESIGN + "/" + cfg.DESIGN + "_bitmap_collection.npy", bitmap_collection)
+    np.save(cfg.OUTPUT_DIR + cfg.DESIGN + "/" + cfg.INTERFACE + "/" + cfg.INTERFACE + "_bitmap_collection.npy", bitmap_collection)
     # sio.savemat(cfg.OUTPUT_DIR + "bitmap_collection.mat", bitmap_collection)
 
     # # Draw the critical and redundant pad bitmaps in one figure (critical light red, redundant light blue, dummy light gray)
-    draw_pad_bitmap(cfg, bitmap_collection)
+    # draw_pad_bitmap(cfg, bitmap_collection)
 
     return bitmap_collection

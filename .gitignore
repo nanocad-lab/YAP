@@ -2,3 +2,6 @@ __pycache__/
 *.pyc
 # design_*/
 # design_*.yaml
+*.npy
+*.png
+temp/

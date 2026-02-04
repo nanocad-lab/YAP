@@ -35,7 +35,6 @@ def overall_yield_simulator(
     cfg_dict: dict,
     waf_stack_list: list,
     num_dies_per_wafer: int,
-    WAF_R_um: float,
     pad_bitmap_collection_dict: dict,
 ):
     die_stack_yield_list = []
@@ -46,35 +45,32 @@ def overall_yield_simulator(
 
     epoch_fail_map_per_interface_dict = {}    # This dict stores the fail bump maps for all die samples in this epoch for each mechanism
     epoch_fail_vec_per_interface_dict = {}    # This dict stores failure reason (each mechanism) for all die samples in this epoch
+    failure_mechanism_list = ['overlay', 'particle', 'mechanical', 'ESD', 'overall']
+
     if input_args['verbose']:
         for interface_name, waf_interface in waf_stack_list[0].interfaces.interface_dict.items():
             cfg = cfg_dict[interface_name]
             epoch_fail_map_per_interface_dict[interface_name] = {}
-            epoch_fail_map_per_interface_dict[interface_name]['overlay']    = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL))
-            epoch_fail_map_per_interface_dict[interface_name]['particle']   = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL))
-            epoch_fail_map_per_interface_dict[interface_name]['mechanical'] = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL))
-            epoch_fail_map_per_interface_dict[interface_name]['ESD']        = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL))
-            epoch_fail_map_per_interface_dict[interface_name]['overall']    = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL))
+            for failure_mechanism in failure_mechanism_list:
+                epoch_fail_map_per_interface_dict[interface_name][failure_mechanism] = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL))
             epoch_fail_vec_per_interface_dict[interface_name] = {}
-            epoch_fail_vec_per_interface_dict[interface_name]['overlay']    = np.zeros((NUM_STACKS, waf_interface.num_dies_per_wafer))
-            epoch_fail_vec_per_interface_dict[interface_name]['particle']   = np.zeros((NUM_STACKS, waf_interface.num_dies_per_wafer))
-            epoch_fail_vec_per_interface_dict[interface_name]['mechanical'] = np.zeros((NUM_STACKS, waf_interface.num_dies_per_wafer))
-            epoch_fail_vec_per_interface_dict[interface_name]['ESD']        = np.zeros((NUM_STACKS, waf_interface.num_dies_per_wafer))
-            epoch_fail_vec_per_interface_dict[interface_name]['overall']    = np.zeros((NUM_STACKS, waf_interface.num_dies_per_wafer))
+            for failure_mechanism in failure_mechanism_list:
+                epoch_fail_vec_per_interface_dict[interface_name][failure_mechanism] = np.zeros((NUM_STACKS, num_dies_per_wafer))
     
     for stack_ind, waf_stack in enumerate(waf_stack_list):
         for interface_ind, (interface_name, waf_interface) in enumerate(waf_stack.interfaces.interface_dict.items()):
+            print("Simulating stack {}/{} interface {}/{}: {}...".format(stack_ind+1, NUM_STACKS, interface_ind+1, len(waf_stack.interfaces.interface_dict), interface_name))
             # Read the configuration and pad_bitmap_collection data for this interface
             pad_bitmap_collection = pad_bitmap_collection_dict[interface_name]
             cfg = cfg_dict[interface_name]
 
             # Read the parameters needed for this interface
             WAF_R_um                        =       cfg.WAF_R_um
-            system_translation_x_um_list    =       waf_stack.interfaces.failure_params[interface_name]['system_translation_x_um']
-            system_translation_y_um_list    =       waf_stack.interfaces.failure_params[interface_name]['system_translation_y_um']   
-            system_rotation_rad_list        =       waf_stack.interfaces.failure_params[interface_name]['system_rotation_rad']
-            system_magnification_ppm_list   =       waf_stack.interfaces.failure_params[interface_name]['system_magnification_ppm']
-            MAX_ALLOWED_MISALIGNMENT_um     =       waf_stack.interfaces.failure_params[interface_name]['MAX_ALLOWED_MISALIGNMENT_um']
+            system_translation_x_um_list    =       waf_stack.interfaces.failure_params_dict[interface_name]['system_translation_x_um']
+            system_translation_y_um_list    =       waf_stack.interfaces.failure_params_dict[interface_name]['system_translation_y_um']   
+            system_rotation_rad_list        =       waf_stack.interfaces.failure_params_dict[interface_name]['system_rotation_rad']
+            system_magnification_ppm_list   =       waf_stack.interfaces.failure_params_dict[interface_name]['system_magnification_ppm']
+            MAX_ALLOWED_MISALIGNMENT_um     =       waf_stack.interfaces.failure_params_dict[interface_name]['MAX_ALLOWED_MISALIGNMENT_um']
             PAD_ARR_W_um                    =       cfg.PAD_ARR_W_um
             PAD_ARR_L_um                    =       cfg.PAD_ARR_L_um
             PAD_ARR_ROW                     =       cfg.PAD_ARR_ROW
@@ -191,7 +187,7 @@ def overall_yield_simulator(
                 # # Check the void overlap with the pad
                 # Assuming wafer.voids is an array of shape (N, 3), where N is the number of voids. [x, y, r]
                 # Critical pad bitmap is a 2D array of shape (PAD_ARR_ROW, PAD_ARR_COL) with 1s for critical pads and 0s for non-critical pads
-                voids = np.array(waf_stack.interfaces.failure_params[waf_interface]['voids'])  # shape (N, 3), N is the number of voids
+                voids = np.array(waf_stack.interfaces.failure_params_dict[interface_name]['voids'])  # shape (N, 3), N is the number of voids
                 if voids.size > 0:
                     # Coordinates and dimensions of the die pad array box
                     pad_array_box_x = die.pad_array_box[2][0]
@@ -299,15 +295,15 @@ def overall_yield_simulator(
                 Cu_gap_map[valid_pad_mask == 1] = Cu_gap_in_valid_pads
 
                 # Calculate the safe range for single pad Cu recess
-                if not os.path.exists(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp/' + cfg.DESIGN + "_dishing_bound_array_die_{}.npy".format(die_ind)) or cfg.DEBUG:
-                    if not os.path.exists(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp/'):
-                        os.makedirs(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp/')
+                if not os.path.exists(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp/' + cfg.INTERFACE + "/" + cfg.INTERFACE + "_dishing_bound_array_die_{}.npy".format(die_ind)) or cfg.DEBUG:
+                    if not os.path.exists(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp/' + cfg.INTERFACE + '/'):
+                        os.makedirs(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp/' + cfg.INTERFACE + '/')
                     # start_time = time.time()
                     valid_pad_dishing_bound_array = debond_dishing_bounds_calculator(cfg, valid_die_pad_coords) # (num_pads, 2) array: (dishing_low_nm, dishing_high_nm)
                     # print("Dishing bound calculation time: {:.2f} seconds".format(time.time() - start_time))
-                    np.save(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp/' + cfg.DESIGN + "_dishing_bound_array_die_{}.npy".format(die_ind), valid_pad_dishing_bound_array)
+                    np.save(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp/' + cfg.INTERFACE + "/" + cfg.INTERFACE + "_dishing_bound_array_die_{}.npy".format(die_ind), valid_pad_dishing_bound_array)
                 else:
-                    valid_pad_dishing_bound_array = np.load(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp/' + cfg.DESIGN + "_dishing_bound_array_die_{}.npy".format(die_ind))
+                    valid_pad_dishing_bound_array = np.load(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp/' + cfg.INTERFACE + "/" + cfg.INTERFACE + "_dishing_bound_array_die_{}.npy".format(die_ind))
                 zeta_0 = np.full((PAD_ARR_ROW, PAD_ARR_COL), np.nan)
                 zeta_1 = np.full((PAD_ARR_ROW, PAD_ARR_COL), np.nan)
                 zeta_0[valid_pad_mask == 1] = - valid_pad_dishing_bound_array[:, 1] * 2 # lower limits of the sum of top and bottom Cu heights

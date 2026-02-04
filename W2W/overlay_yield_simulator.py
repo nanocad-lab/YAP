@@ -99,7 +99,6 @@ def overlay_term_simulator(
         PAD_TOP_R_um, PAD_BOT_R_um, PITCH_r_um, PITCH_c_um, CONTACT_AREA_CONSTRAINT, CRITICAL_DIST_CONSTRAINT
     )
 
-    NUM_WAFERS_PER_STACK = waf_stack_list[0].num_layers
     NUM_STACKS = len(waf_stack_list)
     NUM_BONDING_INTERFACES = waf_stack_list[0].num_bonding_interfaces
 
@@ -121,9 +120,9 @@ def overlay_term_simulator(
     # Pass the overlay parameters to the wafer_stacks interface object
     interface = cfg.INTERFACE
     for stack_idx in range(NUM_STACKS):
-        waf_stack_list[stack_idx].interfaces.failure_params[interface]['MAX_ALLOWED_MISALIGNMENT_um'] = MAX_ALLOWED_MISALIGNMENT_um
-        waf_stack_list[stack_idx].interfaces.failure_params[interface]['system_translation_x_um'] = system_translation_x_um[stack_idx]
-        waf_stack_list[stack_idx].interfaces.failure_params[interface]['system_translation_y_um'] = system_translation_y_um[stack_idx]
-        waf_stack_list[stack_idx].interfaces.failure_params[interface]['system_rotation_rad'] = system_rotation_rad[stack_idx]
-        waf_stack_list[stack_idx].interfaces.failure_params[interface]['system_magnification_ppm'] = system_magnification_ppm[stack_idx]
-    return system_translation_x_um, system_translation_y_um, system_rotation_rad, system_magnification_ppm, MAX_ALLOWED_MISALIGNMENT_um
+        waf_stack_list[stack_idx].interfaces.failure_params_dict[interface]['MAX_ALLOWED_MISALIGNMENT_um'] = MAX_ALLOWED_MISALIGNMENT_um
+        waf_stack_list[stack_idx].interfaces.failure_params_dict[interface]['system_translation_x_um'] = system_translation_x_um[stack_idx]
+        waf_stack_list[stack_idx].interfaces.failure_params_dict[interface]['system_translation_y_um'] = system_translation_y_um[stack_idx]
+        waf_stack_list[stack_idx].interfaces.failure_params_dict[interface]['system_rotation_rad'] = system_rotation_rad[stack_idx]
+        waf_stack_list[stack_idx].interfaces.failure_params_dict[interface]['system_magnification_ppm'] = system_magnification_ppm[stack_idx]
+    # return system_translation_x_um, system_translation_y_um, system_rotation_rad, system_magnification_ppm, MAX_ALLOWED_MISALIGNMENT_um

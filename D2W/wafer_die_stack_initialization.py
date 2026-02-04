@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-# Wafers and Dies intialization for the yield model for hybrid bonding
+# Dies intialization for the yield model for hybrid bonding
 #### Author: Zhichao Chen
-#### Date: Sep 26, 2024
+#### Date: Feb 3, 2026
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -176,7 +176,7 @@ class Wafer:
         # fig.savefig("wafer_die.png")    
 
 
-def die_initialize(
+def die_interface_initialize(
     NUM_DIE_SAMPLES: int,
     DIE_W_um: float,
     DIE_L_um: float,
@@ -191,7 +191,7 @@ def die_initialize(
     pad_bitmap_collection,
     pad_yield_flag: bool = False,
 ):
-    die_list = []
+    die_interface_list = []
     # Calculate the die center standard coordinates
     DIE_VERTEX_COORDS = np.array(
         [
@@ -245,56 +245,42 @@ def die_initialize(
             pad_yield_flag=pad_yield_flag,
             BASE_PAD_COORDS=PAD_COORDS,
         )
-        die_list.append(die)
-    return die_list, PAD_COORDS
+        die_interface_list.append(die)
+    return die_interface_list, PAD_COORDS
 
 
 
-class BondingInterfaces:
+class Bonding_Interfaces:
     def __init__(self,
-                 cfg,
-                 num_bonding_interfaces: int,
+                 cfg_dict: dict,
+                 pad_bitmap_collection_dict: dict,
                  ):
         """
-        The set of bonding interfaces for a single wafer stack
+        The set of bonding interfaces for a single die stack
         """
-        self.cfg = cfg
-        self.failure_params = {}
-        # Overlay failure parameters for each bonding interface in each stack
-        self.failure_params['system_translation_x_um'] = np.zeros(num_bonding_interfaces)
-        self.failure_params['system_translation_y_um'] = np.zeros(num_bonding_interfaces)
-        self.failure_params['system_rotation_rad'] = np.zeros(num_bonding_interfaces)
-        self.failure_params['system_magnification_ppm'] = np.zeros(num_bonding_interfaces)
-        # Particle-induced void failure parameters for each bonding interface in each stack
-        self.failure_params['voids'] = np.empty(num_bonding_interfaces, dtype=object)  # each entry is an array of voids [x, y, r_um]
-        # Cu recess/stress failure parameters for each bonding interface in each stack
-        # TODO: add Cu recess/stress failure parameters when needed
+        self.cfg_dict = cfg_dict
+        self.pad_bitmap_collection_dict = pad_bitmap_collection_dict
+        self.failure_params_dict = {}
+        self.interface_dict = {}
 
-class DieStack:
-    def __init__(
-        self,
-        cfg,
-        num_layers: int,
-    ):
+        for interface_name in cfg_dict.keys():
+            self.failure_params_dict[interface_name] = {}
+            # Overlay failure parameters for each bonding interface in each stack
+            self.failure_params_dict[interface_name]['MAX_ALLOWED_MISALIGNMENT_um'] = None
+            self.failure_params_dict[interface_name]['system_translation_x_um'] = None
+            self.failure_params_dict[interface_name]['system_translation_y_um'] = None
+            self.failure_params_dict[interface_name]['system_rotation_rad'] = None
+            self.failure_params_dict[interface_name]['system_magnification_ppm'] = None
+            # Particle-induced void failure parameters for each bonding interface in each stack
+            self.failure_params_dict[interface_name]['voids'] = None  # each entry is an array of voids [x, y, r_um]
+
+    def add_interfaces(self):
         """
-        Die Stack object for hybrid bonding yield model.
+        Initialize bonding interfaces for a single die stack.
         """
-        self.cfg = cfg
-        self.num_layers = num_layers
-        self.num_bonding_interfaces = num_layers - 1
-        self.die_stack_survival = True
-        self.interfaces = BondingInterfaces(
-            cfg=cfg,
-            num_bonding_interfaces=self.num_bonding_interfaces,
-        )
-    
-    def add_layers(self):
-        """
-        Initialize a single die stack sample.
-        """
-        cfg = self.cfg
-        self.die_list, _ = die_initialize(
-                NUM_DIE_SAMPLES           = self.num_layers,
+        for interface_name, cfg in self.cfg_dict.items():
+            interface_list = die_interface_initialize(
+                NUM_DIE_SAMPLES           = 1,
                 DIE_W_um                  = cfg.DIE_W_um,
                 DIE_L_um                  = cfg.DIE_L_um,
                 PAD_ARR_W_um              = cfg.PAD_ARR_W_um,
@@ -305,20 +291,41 @@ class DieStack:
                 PITCH_c_um                = cfg.PITCH_c_um,
                 PAD_TOP_R_um              = cfg.PAD_TOP_R_um,
                 PAD_BOT_R_um              = cfg.PAD_BOT_R_um,
-                pad_bitmap_collection     = cfg.pad_bitmap_collection,
+                pad_bitmap_collection     = self.pad_bitmap_collection_dict[interface_name],
                 pad_yield_flag            = cfg.pad_yield_flag,
             )
+            self.interface_dict[interface_name] = interface_list[0]
+
+
+
+class DieStack:
+    def __init__(
+        self,
+        cfg_dict: dict,
+        pad_bitmap_collection_dict: dict,
+    ):
+        """
+        Die Stack object for hybrid bonding yield model.
+        """
+        self.cfg_dict = cfg_dict
+        self.num_bonding_interfaces = len(cfg_dict) - 1  # Number of bonding interfaces is number of layers - 1
+        self.die_stack_survival = True
+        self.interfaces = Bonding_Interfaces(
+            cfg_dict=cfg_dict,
+            pad_bitmap_collection_dict=pad_bitmap_collection_dict,
+        )
+        self.interfaces.add_interfaces()
+        
 
 
 def die_stack_list_initialize(
-    cfg,
-    NUM_DIE_LAYERS: int,
+    cfg_dict: dict,
+    pad_bitmap_collection_dict: dict,
     num_stack_samples: int,
 ):
     """
     Inputs:
-    - cfg: Configuration object containing parameters
-    - NUM_DIE_LAYERS: Number of die layers in the stack
+    - cfg_dict: Configuration object containing parameters
     - num_stack_samples: Number of die stack samples to generate
     
     Outputs:
@@ -327,9 +334,8 @@ def die_stack_list_initialize(
     die_stack_list = []
     for _ in range(num_stack_samples):
         die_stack = DieStack(
-            cfg=cfg,
-            num_layers=NUM_DIE_LAYERS,
+            cfg_dict=cfg_dict,
+            pad_bitmap_collection_dict=pad_bitmap_collection_dict,
         )
-        die_stack.add_layers()
         die_stack_list.append(die_stack)
     return die_stack_list

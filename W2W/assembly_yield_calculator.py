@@ -3,13 +3,13 @@
 
 # Wafers and Dies intialization for the yield model for hybrid bonding
 #### Author: Zhichao Chen
-#### Date: Jan 27, 2026
+#### Date: Feb 3, 2026
 
 import time
 import pickle
 import gzip
 import numpy as np
-from YAP.W2W.wafer_die_stack_initialization import wafer_initialize
+from wafer_die_stack_initialization import wafer_stack_list_initialize
 from overlay_yield_calculator import pad_overlay_yield_map_generator
 from defect_yield_calculator import pad_defect_yield_map_generator
 from Cu_expansion_yield_calculator import pad_Cu_expansion_yield_map_generator
