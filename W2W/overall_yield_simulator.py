@@ -33,6 +33,7 @@ def total_memory_mb(obj):
 def overall_yield_simulator(
     input_args: dict,
     cfg_dict: dict,
+    epoch: int,
     waf_stack_list: list,
     num_dies_per_wafer: int,
     pad_bitmap_collection_dict: dict,
@@ -56,11 +57,10 @@ def overall_yield_simulator(
     
     for stack_ind, waf_stack in enumerate(waf_stack_list):
         for interface_ind, (interface_name, waf_interface) in enumerate(waf_stack.interfaces.interface_dict.items()):
-            print("Simulating stack {}/{} interface {}/{}: {}...".format(stack_ind+1, NUM_STACKS, interface_ind+1, len(waf_stack.interfaces.interface_dict), interface_name))
             # Read the configuration and pad_bitmap_collection data for this interface
             pad_bitmap_collection = pad_bitmap_collection_dict[interface_name]
             cfg = cfg_dict[interface_name]
-
+            print("Simulating stack {}/{} interface {}/{}: {} ...".format(epoch*NUM_STACKS+stack_ind+1, cfg.NUM_WAFER_STACKS, interface_ind+1, len(waf_stack.interfaces.interface_dict), interface_name))
             # Read the parameters needed for this interface
             WAF_R_um                        =       cfg.WAF_R_um
             system_translation_x_um         =       waf_stack.interfaces.failure_params_dict[interface_name]['system_translation_x_um']
@@ -103,7 +103,7 @@ def overall_yield_simulator(
                 die_pad_coords = waf_interface.base_pad_coords + die.die_center
                 valid_die_pad_coords = die_pad_coords[valid_pad_mask.flatten() == 1]
                 die_count += 1
-                if die_count % 10 == 0:
+                if die_count % 10 == 0 or die_count == len(waf_interface.die_list):
                     print("Processing die {}/{}...Time taken for every 10 dies: {:.2f} seconds".format(die_count, len(waf_interface.die_list), (time.time() - start_time) / die_count * 10), end='\r')
                     # start_time = time.time()
                 redundant_pad_fail_map = np.zeros((PAD_ARR_ROW, PAD_ARR_COL))

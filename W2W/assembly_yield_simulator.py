@@ -78,6 +78,7 @@ def Assembly_Yield_Simulator(
         epoch_fail_vec_per_interface_dict = overall_yield_simulator(
             input_args                      =       input_args,
             cfg_dict                        =       cfg_dict,
+            epoch                           =       epoch,
             waf_stack_list                  =       waf_stack_list,
             num_dies_per_wafer              =       num_dies_per_wafer,
             pad_bitmap_collection_dict      =       pad_bitmap_collection_dict,
