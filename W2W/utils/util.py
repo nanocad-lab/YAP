@@ -557,4 +557,4 @@ def result_wrapper(
             plt.title(f'Assembly Failure Map - {cfg.INTERFACE} - {mechanism}')
             plt.savefig(save_path + f'/failure_map_{mechanism}.png')
             plt.close(figure)
-            print(f"Failure map for {mechanism} saved to {save_path + f'failure_map_{mechanism}.png'}")
+            print(f"Failure map for {mechanism} saved to {save_path + f'/failure_map_{mechanism}.png'}")
