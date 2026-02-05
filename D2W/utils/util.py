@@ -514,7 +514,7 @@ def result_wrapper(
     Wrap up the results, plot them and save the figures.
     """
     save_path = output_dir + interface
-    if mode == "d2w_simulation" or "w2w_simulation":
+    if mode in ["d2w_simulation", "w2w_simulation"]:
         for mechanism, fail_map in fail_map_dict.items():
             # Draw the failure map and save the figure to the output directory
             figure = plt.figure(figsize=(10, 10))
