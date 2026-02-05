@@ -48,13 +48,10 @@ def overall_yield_simulator(
     failure_mechanism_list = ['overlay', 'particle', 'mechanical', 'ESD', 'overall']
 
     if input_args['verbose']:
-        for interface_name, waf_interface in waf_stack_list[0].interfaces.interface_dict.items():
-            cfg = cfg_dict[interface_name]
-            epoch_fail_map_per_interface_dict[interface_name] = {}
+        for interface_name, cfg in cfg_dict.items():
+            epoch_fail_map_per_interface_dict[interface_name], epoch_fail_vec_per_interface_dict[interface_name] = {}, {}
             for failure_mechanism in failure_mechanism_list:
                 epoch_fail_map_per_interface_dict[interface_name][failure_mechanism] = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL))
-            epoch_fail_vec_per_interface_dict[interface_name] = {}
-            for failure_mechanism in failure_mechanism_list:
                 epoch_fail_vec_per_interface_dict[interface_name][failure_mechanism] = np.zeros((NUM_STACKS, num_dies_per_wafer))
     
     for stack_ind, waf_stack in enumerate(waf_stack_list):
@@ -66,32 +63,21 @@ def overall_yield_simulator(
 
             # Read the parameters needed for this interface
             WAF_R_um                        =       cfg.WAF_R_um
-            system_translation_x_um_list    =       waf_stack.interfaces.failure_params_dict[interface_name]['system_translation_x_um']
-            system_translation_y_um_list    =       waf_stack.interfaces.failure_params_dict[interface_name]['system_translation_y_um']   
-            system_rotation_rad_list        =       waf_stack.interfaces.failure_params_dict[interface_name]['system_rotation_rad']
-            system_magnification_ppm_list   =       waf_stack.interfaces.failure_params_dict[interface_name]['system_magnification_ppm']
+            system_translation_x_um         =       waf_stack.interfaces.failure_params_dict[interface_name]['system_translation_x_um']
+            system_translation_y_um         =       waf_stack.interfaces.failure_params_dict[interface_name]['system_translation_y_um']   
+            system_rotation_rad             =       waf_stack.interfaces.failure_params_dict[interface_name]['system_rotation_rad']
+            system_magnification_ppm        =       waf_stack.interfaces.failure_params_dict[interface_name]['system_magnification_ppm']
             MAX_ALLOWED_MISALIGNMENT_um     =       waf_stack.interfaces.failure_params_dict[interface_name]['MAX_ALLOWED_MISALIGNMENT_um']
-            PAD_ARR_W_um                    =       cfg.PAD_ARR_W_um
-            PAD_ARR_L_um                    =       cfg.PAD_ARR_L_um
-            PAD_ARR_ROW                     =       cfg.PAD_ARR_ROW
-            PAD_ARR_COL                     =       cfg.PAD_ARR_COL
-            TOP_DISH_MEAN_nm                =       cfg.TOP_DISH_MEAN_nm
-            TOP_DISH_STD_nm                 =       cfg.TOP_DISH_STD_nm
-            BOT_DISH_MEAN_nm                =       cfg.BOT_DISH_MEAN_nm
-            BOT_DISH_STD_nm                 =       cfg.BOT_DISH_STD_nm
-            TILT_X_MEAN_DEG                 =       cfg.TILT_X_MEAN_DEG
-            TILT_X_STD_DEG                  =       cfg.TILT_X_STD_DEG
-            TILT_Y_MEAN_DEG                 =       cfg.TILT_Y_MEAN_DEG
-            TILT_Y_STD_DEG                  =       cfg.TILT_Y_STD_DEG
-            k_et                            =       cfg.k_et
-            k_eb                            =       cfg.k_eb
-            T_R                             =       cfg.T_R
-            T_anl                           =       cfg.T_anl
-            PITCH_r_um                      =       cfg.PITCH_r_um
-            PITCH_c_um                      =       cfg.PITCH_c_um
-            PAD_TOP_R_um                    =       cfg.PAD_TOP_R_um
             RANDOM_MISALIGNMENT_MEAN_um     =       cfg.RANDOM_MISALIGNMENT_MEAN_um
             RANDOM_MISALIGNMENT_STD_um      =       cfg.RANDOM_MISALIGNMENT_STD_um
+            PAD_ARR_W_um, PAD_ARR_L_um      =       cfg.PAD_ARR_W_um, cfg.PAD_ARR_L_um
+            PAD_ARR_ROW, PAD_ARR_COL        =       cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL
+            TOP_DISH_MEAN_nm, TOP_DISH_STD_nm  =       cfg.TOP_DISH_MEAN_nm, cfg.TOP_DISH_STD_nm
+            BOT_DISH_MEAN_nm, BOT_DISH_STD_nm  =       cfg.BOT_DISH_MEAN_nm, cfg.BOT_DISH_STD_nm
+            TILT_X_MEAN_DEG, TILT_X_STD_DEG    =       cfg.TILT_X_MEAN_DEG, cfg.TILT_X_STD_DEG
+            TILT_Y_MEAN_DEG, TILT_Y_STD_DEG    =      cfg.TILT_Y_MEAN_DEG, cfg.TILT_Y_STD_DEG
+            PITCH_r_um, PITCH_c_um          =       cfg.PITCH_r_um, cfg.PITCH_c_um
+            PAD_TOP_R_um                    =       cfg.PAD_TOP_R_um
             approximate_set                 =       cfg.approximate_set
 
             # Record the time
@@ -128,10 +114,10 @@ def overall_yield_simulator(
                 # # Check the pad misalignment
                 die.pad_misalignment = die_pad_misalignment(die=die, 
                                                             base_pad_coords=waf_interface.base_pad_coords,
-                                                            system_translation_x_um=system_translation_x_um_list[stack_ind],
-                                                            system_translation_y_um=system_translation_y_um_list[stack_ind],
-                                                            system_rotation_rad=system_rotation_rad_list[stack_ind],
-                                                            system_magnification_ppm=system_magnification_ppm_list[stack_ind],
+                                                            system_translation_x_um=system_translation_x_um,
+                                                            system_translation_y_um=system_translation_y_um,
+                                                            system_rotation_rad=system_rotation_rad,
+                                                            system_magnification_ppm=system_magnification_ppm,
                                                             RANDOM_MISALIGNMENT_MEAN_um=RANDOM_MISALIGNMENT_MEAN_um,
                                                             RANDOM_MISALIGNMENT_STD_um=RANDOM_MISALIGNMENT_STD_um,
                                                             approximate_set=approximate_set,
@@ -394,6 +380,7 @@ def overall_yield_simulator(
                                     epoch_fail_vec_per_interface_dict[interface_name]['overall'][stack_ind, die_ind] = 1
                                 break                    
 
+            print("")
             # Record the time
             # print("The time for checking wafer {} is {} seconds.".format(waf_ind, time.time() - start_time))
             # # print("The number of survival dies in the wafer is {}.".format(wafer.survival_die))

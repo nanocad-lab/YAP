@@ -75,8 +75,6 @@ def main():
     stack_assembly_yield, _ = Assembly_Yield_Simulator(
         input_args=vars(args),
         cfg_skeleton=cfg_skeleton,
-        _3dbv_path=_3dbv_path,
-        _3dbx_path=_3dbx_path,
         cfg_dict=cfg_dict,
         pad_bitmap_collection_dict=pad_bitmap_collection_dict,                                             
     )

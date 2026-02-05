@@ -32,7 +32,7 @@ def get_config_dict(
                     _3dbv_path: str,
                     _3dbx_path: str,
                     mode: str,
-                    debug=False):
+                    debug=False) -> dict:
     """
     Load base configuration from a YAML file and update with .3dbv and .bmap design parameters.
     args:
@@ -50,12 +50,12 @@ def get_config_dict(
                                                 input_ds_dir=input_ds_dir,
                                                 _3dbv_path=_3dbv_path,
                                                 _3dbx_path=_3dbx_path,)
-    for interface, cfg in cfg_dict.items():
+    for interface_name, cfg in cfg_dict.items():
         cfg.DESIGN = ds_name
         if mode == "w2w_simulation" or mode == "w2w_modeling":
             cfg.SYSTEM_MAGNIFICATION_MEAN_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_MEAN_um + cfg.M_0) / 1e6
             cfg.SYSTEM_MAGNIFICATION_STD_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_STD_um) ** 2 / 1e6
-            cfg.S_INIT_A_M = 10e-6 * (cfg.WAF_R_um / 150000) ** 2
+            cfg.S_INIT_A_M = 100e-6 * (cfg.WAF_R_um / 150000) ** 2
             cfg.S_INIT_B_M = 0.0
         elif mode == "d2w_simulation" or mode == "d2w_modeling":
             cfg.SYSTEM_MAGNIFICATION_MEAN_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_MEAN_um + cfg.M_0) / 1e6
@@ -73,7 +73,7 @@ def get_config_dict(
             print(OmegaConf.to_yaml(cfg))
 
         # Save updated config file for reference
-        OmegaConf.save(cfg, cfg_folder + f"/{interface}.yaml")
+        OmegaConf.save(cfg, cfg_folder + f"/{interface_name}.yaml")
     return cfg_dict
 
 
@@ -532,3 +532,29 @@ def convert_3dblox_to_pad_bitmap(cfg,
     # draw_pad_bitmap(cfg, bitmap_collection)
 
     return bitmap_collection
+
+
+
+
+def result_wrapper(
+        mode: str,
+        cfg: object,
+        fail_map_per_interface_dict = None,
+):
+    """
+    Wrap up the results, plot them and save the figures.
+    """
+    save_path = cfg.OUTPUT_DIR + cfg.DESIGN + "/" + cfg.INTERFACE
+    # make directory if not exist
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
+    if mode == "d2w_simulation" or "w2w_simulation":
+        for mechanism, fail_map in fail_map_per_interface_dict[cfg.INTERFACE].items():
+            # Draw the failure map and save the figure to the output directory
+            figure = plt.figure(figsize=(10, 10))
+            plt.imshow(fail_map, cmap='hot', interpolation='nearest')
+            plt.colorbar(label='Failure Count')
+            plt.title(f'Assembly Failure Map - {cfg.INTERFACE} - {mechanism}')
+            plt.savefig(save_path + f'/failure_map_{mechanism}.png')
+            plt.close(figure)
+            print(f"Failure map for {mechanism} saved to {save_path + f'failure_map_{mechanism}.png'}")

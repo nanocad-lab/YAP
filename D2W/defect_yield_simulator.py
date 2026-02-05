@@ -67,82 +67,92 @@ class void_tail:
 
 
 
-def defect_yield_simulator(
-    cfg,
-    D0,
-    t_0,
-    z,
-    k_r,
-    k_r0,
-    k_n,
-    k_L,
-    k_S,
-    VOID_SHAPE,
-    DIE_W_um,
-    DIE_L_um,
-    NUM_DIE_SAMPLES,
-    die_list,
-):
-    def cdf_particle_thickness(t):
+def cdf_particle_thickness(t, t_0, z):
         return 1 - (t_0 / t) ** (z - 1)
 
-    def inverse_cdf_particle_thickness(u):
-        return t_0 / (1 - u) ** (1 / (z - 1))
+def inverse_cdf_particle_thickness(u, t_0, z):
+    return t_0 / (1 - u) ** (1 / (z - 1))
 
-    def generate_particles(particle_thickness, DIE_W_um, DIE_L_um, drop_particle_range):
-        particles = []
-        for i in range(len(particle_thickness)):
-            # x, y = np.random.uniform(-DIE_W_um / 2, DIE_W_um / 2), np.random.uniform(-DIE_L_um / 2, DIE_L_um / 2)
-            x, y = np.random.uniform(-DIE_W_um / 2 * drop_particle_range, DIE_W_um / 2 * drop_particle_range), np.random.uniform(-DIE_L_um / 2 * drop_particle_range, DIE_L_um / 2 * drop_particle_range)
-            particles.append(particle(x, y, particle_thickness[i]))
-        return particles
-    
-    # Generate the main void and void tail based on the particles
-    def generate_voids(cfg, particles, k_r, k_r0, k_n, k_S):
-        voids = []
-        main_voids = []
-        tail_voids = []
-        num_main_void = 0
-        num_void_in_tail = 0
-        for p in particles:
-            if cfg.first_contact == 'center':
-                distance_to_contact = np.sqrt(p.x**2 + p.y**2)
-            elif cfg.first_contact == 'vertical-edge':
-                distance_to_contact = np.abs(cfg.DIE_W_um / 2 + p.x)
-            elif cfg.first_contact == 'horizontal-edge':
-                distance_to_contact = np.abs(cfg.DIE_L_um / 2 + p.y)
-            elif cfg.first_contact == 'corner':
-                distance_to_contact = np.sqrt((cfg.DIE_W_um / 2 + p.x)**2 + (cfg.DIE_L_um / 2 + p.y)**2)
-            # generate main void
-            r_mv = (k_r * distance_to_contact + k_r0) * np.sqrt(p.thickness)
-            voids.append(single_void(p.x, p.y, r_mv))
-            main_voids.append(single_void(p.x, p.y, r_mv))
-            num_main_void += 1
-            # generate void tail
-            void_tail_obj = void_tail(cfg, p.x, p.y, p.thickness, k_n, k_S, k_L, VOID_SHAPE, DIE_W_um, DIE_L_um)
-            voids += void_tail_obj.voids
-            tail_voids += void_tail_obj.voids
-            num_void_in_tail += void_tail_obj.n
+def generate_particles(particle_thickness, DIE_W_um, DIE_L_um, drop_particle_range):
+    particles = []
+    for i in range(len(particle_thickness)):
+        # x, y = np.random.uniform(-DIE_W_um / 2, DIE_W_um / 2), np.random.uniform(-DIE_L_um / 2, DIE_L_um / 2)
+        x, y = np.random.uniform(-DIE_W_um / 2 * drop_particle_range, DIE_W_um / 2 * drop_particle_range), np.random.uniform(-DIE_L_um / 2 * drop_particle_range, DIE_L_um / 2 * drop_particle_range)
+        particles.append(particle(x, y, particle_thickness[i]))
+    return particles
 
-        return voids, main_voids, tail_voids
-    
-    drop_particle_range = 2 # the range of the particles to drop regarding the die size
-    total_particles = (drop_particle_range * DIE_W_um) * (drop_particle_range * DIE_L_um) * D0 * NUM_DIE_SAMPLES     # Put the particles on the 2*DIE_W_um * 2*DIE_L_um area
-    particles_per_die = np.random.multinomial(
-        total_particles, [1 / NUM_DIE_SAMPLES] * NUM_DIE_SAMPLES
-    )
-    for die_ind in range(NUM_DIE_SAMPLES):
-        num_particles = particles_per_die[die_ind]
-        particle_thickness = np.zeros(num_particles)
-        u = np.random.rand(num_particles)
-        particle_thickness = inverse_cdf_particle_thickness(u)
-        particles = generate_particles(particle_thickness, DIE_W_um, DIE_L_um, drop_particle_range)
+# Generate the main void and void tail based on the particles
+def generate_voids(cfg, particles, k_r, k_r0, k_n, k_S, k_L, VOID_SHAPE, DIE_W_um, DIE_L_um):
+    voids = []
+    main_voids = []
+    tail_voids = []
+    num_main_void = 0
+    num_void_in_tail = 0
+    for p in particles:
+        if cfg.first_contact == 'center':
+            distance_to_contact = np.sqrt(p.x**2 + p.y**2)
+        elif cfg.first_contact == 'vertical-edge':
+            distance_to_contact = np.abs(cfg.DIE_W_um / 2 + p.x)
+        elif cfg.first_contact == 'horizontal-edge':
+            distance_to_contact = np.abs(cfg.DIE_L_um / 2 + p.y)
+        elif cfg.first_contact == 'corner':
+            distance_to_contact = np.sqrt((cfg.DIE_W_um / 2 + p.x)**2 + (cfg.DIE_L_um / 2 + p.y)**2)
+        # generate main void
+        r_mv = (k_r * distance_to_contact + k_r0) * np.sqrt(p.thickness)
+        voids.append(single_void(p.x, p.y, r_mv))
+        main_voids.append(single_void(p.x, p.y, r_mv))
+        num_main_void += 1
+        # generate void tail
+        void_tail_obj = void_tail(cfg, p.x, p.y, p.thickness, k_n, k_S, k_L, VOID_SHAPE, DIE_W_um, DIE_L_um)
+        voids += void_tail_obj.voids
+        tail_voids += void_tail_obj.voids
+        num_void_in_tail += void_tail_obj.n
 
-        # Generate the main void and void tail based on the particles for each die
-        voids, main_voids, tail_voids = generate_voids(cfg, particles, k_r, k_r0, k_n, k_S)
-        # transform the voids struct to array
-        voids_arr = np.zeros([len(voids), 3])
-        for i, v in enumerate(voids):
-            voids_arr[i] = [v.x, v.y, v.r]
-        die_list[die_ind].voids = voids_arr
-        die_list[die_ind].safe_voids_mask = np.ones(len(voids))
+    return voids, main_voids, tail_voids
+
+
+def defect_yield_simulator(
+    cfg_dict,
+    die_stack_list: list,
+):
+    """
+    Function: "Allocate" particles defects to each die interface in each stack.
+                Then generate the voids based on the particles.
+    """
+    NUM_STACKS = len(die_stack_list)
+
+    # "Allocate" particles to each die interface in each satck
+    for interface_name, cfg in cfg_dict.items():
+        # Extract the input parameters from the current cfg
+        DIE_W_um, DIE_L_um = cfg.DIE_W_um, cfg.DIE_L_um
+        D0 = cfg.D0
+        t_0 = cfg.t_0
+        z = cfg.z
+        k_r = cfg.k_r
+        k_r0 = cfg.k_r0
+        k_n = cfg.k_n
+        k_L = cfg.k_L
+        k_S = cfg.k_S
+        VOID_SHAPE = cfg.VOID_SHAPE
+
+        # num_particles calculation
+        drop_particle_range = 2 # the range of the particles to drop regarding the die size
+        total_particles = (drop_particle_range * DIE_W_um) * (drop_particle_range * DIE_L_um) * D0 * NUM_STACKS     # Put the particles on the 2*DIE_W_um * 2*DIE_L_um area
+        particles_per_interface = np.random.multinomial(
+            total_particles, [1 / NUM_STACKS] * NUM_STACKS
+        )
+        
+        # For each stack, generate the particles and then the voids
+        for stack_ind in range(NUM_STACKS):
+            num_particles = particles_per_interface[stack_ind]
+            particle_thickness = np.zeros(num_particles)
+            u = np.random.rand(num_particles)
+            particle_thickness = inverse_cdf_particle_thickness(u, t_0, z)
+            particles = generate_particles(particle_thickness, DIE_W_um, DIE_L_um, drop_particle_range)
+
+            # Generate the main void and void tail based on the particles for each die
+            voids, main_voids, tail_voids = generate_voids(cfg, particles, k_r, k_r0, k_n, k_S, k_L, VOID_SHAPE, DIE_W_um, DIE_L_um)
+            # transform the voids struct to array
+            voids_arr = np.array([[v.x, v.y, v.r] for v in voids], dtype=float)
+            # die_stack_list[stack_ind].interfaces.interface_dict[interface_name].voids = voids_arr
+            die_stack_list[stack_ind].interfaces.failure_params_dict[interface_name]['voids'] = np.array(voids_arr)

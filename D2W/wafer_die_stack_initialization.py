@@ -30,7 +30,6 @@ class Die:
         self.pad_coords = BASE_PAD_COORDS + die_center if pad_yield_flag == True else None
 
         self.survival = True
-        self.safe_voids_mask = []
         self.voids = []
         self.voids_occur = False
 
@@ -93,7 +92,6 @@ class Wafer:
         self.die_list = []
         self.dice_proportion = dice_proportion
         self.voids = []
-        self.safe_voids_mask = []
         self.roughness_voids = []
         self.survival_die = 0
         self.base_pad_coords = base_pad_coords
@@ -262,6 +260,7 @@ class Bonding_Interfaces:
         self.pad_bitmap_collection_dict = pad_bitmap_collection_dict
         self.failure_params_dict = {}
         self.interface_dict = {}
+        self.base_pad_coords_dict = {}
 
         for interface_name in cfg_dict.keys():
             self.failure_params_dict[interface_name] = {}
@@ -274,12 +273,12 @@ class Bonding_Interfaces:
             # Particle-induced void failure parameters for each bonding interface in each stack
             self.failure_params_dict[interface_name]['voids'] = None  # each entry is an array of voids [x, y, r_um]
 
-    def add_interfaces(self):
+    def add_interfaces(self, base_pad_coords_flag: bool = False):
         """
         Initialize bonding interfaces for a single die stack.
         """
         for interface_name, cfg in self.cfg_dict.items():
-            interface_list = die_interface_initialize(
+            interface_list, base_pad_coords = die_interface_initialize(
                 NUM_DIE_SAMPLES           = 1,
                 DIE_W_um                  = cfg.DIE_W_um,
                 DIE_L_um                  = cfg.DIE_L_um,
@@ -295,6 +294,8 @@ class Bonding_Interfaces:
                 pad_yield_flag            = cfg.pad_yield_flag,
             )
             self.interface_dict[interface_name] = interface_list[0]
+            if base_pad_coords_flag:
+                self.base_pad_coords_dict[interface_name] = base_pad_coords
 
 
 
@@ -303,18 +304,19 @@ class DieStack:
         self,
         cfg_dict: dict,
         pad_bitmap_collection_dict: dict,
+        base_pad_coords_flag: bool = False,
     ):
         """
         Die Stack object for hybrid bonding yield model.
         """
         self.cfg_dict = cfg_dict
         self.num_bonding_interfaces = len(cfg_dict) - 1  # Number of bonding interfaces is number of layers - 1
-        self.die_stack_survival = True
+        self.survival = True
         self.interfaces = Bonding_Interfaces(
             cfg_dict=cfg_dict,
             pad_bitmap_collection_dict=pad_bitmap_collection_dict,
         )
-        self.interfaces.add_interfaces()
+        self.interfaces.add_interfaces(base_pad_coords_flag=base_pad_coords_flag)
         
 
 
@@ -322,6 +324,7 @@ def die_stack_list_initialize(
     cfg_dict: dict,
     pad_bitmap_collection_dict: dict,
     num_stack_samples: int,
+    base_pad_coords_flag: bool = False,
 ):
     """
     Inputs:
@@ -336,6 +339,11 @@ def die_stack_list_initialize(
         die_stack = DieStack(
             cfg_dict=cfg_dict,
             pad_bitmap_collection_dict=pad_bitmap_collection_dict,
+            base_pad_coords_flag=base_pad_coords_flag,
         )
         die_stack_list.append(die_stack)
-    return die_stack_list
+    if base_pad_coords_flag:
+        base_pad_coords_dict = die_stack_list[0].interfaces.base_pad_coords_dict
+        return die_stack_list, base_pad_coords_dict
+    else:
+        return die_stack_list

@@ -436,7 +436,7 @@ def peeling_stress_at_points_vec_MPa(peel_dict: dict, coords_mm_np: np.ndarray, 
     p_max = float(peel_dict["p_max_Pa"])
     beta  = float(peel_dict["beta"])
     p_pa  = p_max * np.exp(-beta*s) * (np.cos(beta*s) - np.sin(beta*s))
-    if USE_PLOT:
+    if USE_PLOT and np.any(r_m >= 0.97*R_m):
         plt.figure()
         plt.scatter(r_m*1e3, p_pa/1e6, s=5)
         plt.xlabel("Radius r (mm)")
@@ -481,7 +481,7 @@ def build_effcrit_and_dishing_arrays(peel_dict: dict, coords_mm_np: np.ndarray, 
         # _meta_c already applies min(root, H_single) or H_single; keep as-is
         D_cu_nm[i] = D_Cu
 
-    if USE_PLOT:
+    if USE_PLOT and np.any((coords_mm_np[:,0]**2 + coords_mm_np[:,1]**2)**0.5 >= 0.97*R_m*1000):
         # Optional visualization of peeling stress field
         plt.figure(figsize=(15, 10))
         plt.scatter(coords_mm_np[:, 0], coords_mm_np[:, 1], c=p_MPa, cmap='viridis', s=8)

@@ -83,9 +83,9 @@ w2w_simulation:
 
   # === Cu Dishing Parameters ===
   TOP_DISH_MEAN_nm: -1.0                  # Top pad dish mean (nm)
-  TOP_DISH_STD_nm: 0.3                     # Top pad dish std (nm)
+  TOP_DISH_STD_nm: 0.25                     # Top pad dish std (nm)
   BOT_DISH_MEAN_nm: -1.0                  # Bottom pad dish mean (nm)
-  BOT_DISH_STD_nm: 0.3                     # Bottom pad dish std (nm)
+  BOT_DISH_STD_nm: 0.25                     # Bottom pad dish std (nm)
   k_et: 0.053                           # Top Cu expansion coefficient (nm/K)
   k_eb: 0.053                           # Bottom Cu expansion coefficient (nm/K)
   T_R: 25                               # Room temperature (°C)

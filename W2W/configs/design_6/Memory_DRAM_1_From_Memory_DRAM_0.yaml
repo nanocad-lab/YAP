@@ -28,7 +28,7 @@ B_Sub_Cu_V: 0.1
 B_Sub_Sio2_V: 0.0
 B_Sub_Si_V: 0.9
 B_Sub_T: 0.000775
-S_INIT_A_M: 1.0e-05
+S_INIT_A_M: 0.0001
 T_Chip_Cu_V: 0.3
 T_Chip_Sio2_V: 0.7
 T_Chip_Si_V: 0.0
@@ -61,9 +61,9 @@ k_L: 0.062
 k_n: 9.0e-05
 k_S: 2.7
 TOP_DISH_MEAN_nm: -1.0
-TOP_DISH_STD_nm: 0.3
+TOP_DISH_STD_nm: 0.25
 BOT_DISH_MEAN_nm: -1.0
-BOT_DISH_STD_nm: 0.3
+BOT_DISH_STD_nm: 0.25
 k_et: 0.053
 k_eb: 0.053
 T_R: 25

@@ -70,13 +70,11 @@ def main():
                                                             pad_arrange_pattern=cfg.PAD_ARRANGE_PATTERN)
     
     # Step 2: run assembly yield simulator
-    print("Running assembly yield simulator over {} dies...".format(cfg_skeleton.NUM_DIE_STACKS))
+    print("Running assembly yield simulator over {} die stacks...".format(cfg_skeleton.NUM_DIE_STACKS))
     start_time = time.time()
     stack_assembly_yield, _ = Assembly_Yield_Simulator(
         input_args=vars(args),
         cfg_skeleton=cfg_skeleton,
-        _3dbv_path=_3dbv_path,
-        _3dbx_path=_3dbx_path,
         cfg_dict=cfg_dict,
         pad_bitmap_collection_dict=pad_bitmap_collection_dict,                                             
     )
