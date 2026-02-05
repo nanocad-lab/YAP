@@ -9,7 +9,7 @@ w2w_simulation:
   INTERFACE: None                      # Interface name
 
   # === Wafer and Die Settings ===
-  NUM_WAFER_STACKS: 10                      # Number of wafer stacks used in simulation
+  NUM_WAFER_STACKS: 1                      # Number of wafer stacks used in simulation
   SIM_BATCH_SIZE: 1                            # Number of wafer samples simulated in one batch (a way to decrease memory requirements)
   PITCH_r_um: None                            # Row pad pitch (µm)
   PITCH_c_um: None                            # Column pad pitch (µm)

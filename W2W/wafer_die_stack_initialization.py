@@ -9,7 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from matplotlib.patches import Polygon
-
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 class Die:
     def __init__(
@@ -116,7 +116,7 @@ class Wafer_Interface:
         self.num_dies = len(self.die_list)
 
     def draw_wafer_die(self, fig_size=(30, 30), draw_pad_yield_map_option=None):
-        fig, ax = plt.subplots(figsize=fig_size, dpi=900)
+        fig, ax = plt.subplots(figsize=fig_size, dpi=600)
         wafer_circle = plt.Circle((0, 0), self.wafer_radius, color="black", fill=False)
         ax.add_artist(wafer_circle)
         ax.set_xlim(-self.wafer_radius * 1.1, self.wafer_radius * 1.1)
@@ -181,7 +181,6 @@ class Wafer_Interface:
 
 
 def wafer_interface_initialize(
-    NUM_WAFER_SAMPLES,
     DIE_W_um,
     DIE_L_um,
     PAD_ARR_W_um,
@@ -240,26 +239,24 @@ def wafer_interface_initialize(
             print("Too many Cu pads... Will not generate the pad coordinates.")
             PAD_COORDS = None
     
-    # Initialize the wafer
-    for i in range(NUM_WAFER_SAMPLES):
-        wafer_interface = Wafer_Interface(
-            wafer_radius=WAF_R_um,
-            DIE_W_um=DIE_W_um,
-            DIE_L_um=DIE_L_um,
-            PAD_ARR_ROW=PAD_ARR_ROW,
-            PAD_ARR_COL=PAD_ARR_COL,
-            PAD_TOP_R_um=PAD_TOP_R_um,
-            PAD_BOT_R_um=PAD_BOT_R_um,
-            base_pad_coords=PAD_COORDS,
-            dice_width=dice_width,
-            pad_yield_flag=pad_yield_flag,
-        )
-        wafer_interface.generate_die(NUM_PADS_PER_DIE, DIE_VERTEX_COORDS, PAD_ARR_BOX)
-        wafer_interface.survival_die = len(wafer_interface.die_list)
-        waf_interface_list.append(wafer_interface)
+    # Initialize the wafer interface and generate the dies and pads
+    wafer_interface = Wafer_Interface(
+        wafer_radius=WAF_R_um,
+        DIE_W_um=DIE_W_um,
+        DIE_L_um=DIE_L_um,
+        PAD_ARR_ROW=PAD_ARR_ROW,
+        PAD_ARR_COL=PAD_ARR_COL,
+        PAD_TOP_R_um=PAD_TOP_R_um,
+        PAD_BOT_R_um=PAD_BOT_R_um,
+        base_pad_coords=PAD_COORDS,
+        dice_width=dice_width,
+        pad_yield_flag=pad_yield_flag,
+    )
+    wafer_interface.generate_die(NUM_PADS_PER_DIE, DIE_VERTEX_COORDS, PAD_ARR_BOX)
+    wafer_interface.survival_die = len(wafer_interface.die_list)
     # print("{} dies in the wafer.".format(len(wafer.die_list)))
     
-    return waf_interface_list
+    return wafer_interface
 
 
 class Bonding_Interfaces:
@@ -291,8 +288,7 @@ class Bonding_Interfaces:
         Initialize the wafer stack interfaces for one wafer stack sample.
         """
         for interface_name, cfg in self.cfg_dict.items():
-            interface_list = wafer_interface_initialize(
-                NUM_WAFER_SAMPLES           = 1,
+            self.interface_dict[interface_name] = wafer_interface_initialize(
                 DIE_W_um                    = cfg.DIE_W_um,
                 DIE_L_um                    = cfg.DIE_L_um,
                 PAD_ARR_W_um                = cfg.PAD_ARR_W_um,
@@ -308,7 +304,6 @@ class Bonding_Interfaces:
                 pad_bitmap_collection       = self.pad_bitmap_collection_dict[interface_name],
                 pad_yield_flag              = cfg.pad_yield_flag,
             )
-            self.interface_dict[interface_name] = interface_list[0]
 
 class WaferStack:
     def __init__(self, 
@@ -332,7 +327,69 @@ class WaferStack:
         self.die_stack_survival = np.ones((self.num_dies_per_wafer), dtype=bool)  # Initialize all die stacks as survived
         
 
+    def draw_w2w_stack_3d(self, cfg, itf_pitch=100.0, fig_size=(12, 10), dpi=200,
+                        draw_pad_yield_map_option=None, draw_voids=True):
+        """
+        waf_itf: the wafer interface object containing the die and pad information for each layer
+        itf_pitch: the distance between interfaces in the z direction (can be adjusted for better visualization)
+        """
+        fig = plt.figure(figsize=fig_size, dpi=dpi)
+        ax = fig.add_subplot(111, projection='3d')
 
+        waf_itf_r = cfg.WAF_R_um
+        ax.set_xlim(-waf_itf_r * 1.1, waf_itf_r * 1.1)
+        ax.set_ylim(-waf_itf_r * 1.1, waf_itf_r * 1.1)
+        ax.set_zlim(-itf_pitch, itf_pitch * (len(self.interfaces.interface_dict) + 1))
+        ax.set_xlabel("X")
+        ax.set_ylabel("Y")
+        ax.set_zlabel("Stack (Wafer Index)")
+
+        # Draw each interface
+        for itf_idx, waf_itf in enumerate(self.interfaces.interface_dict.values()):
+            z = itf_idx * itf_pitch
+
+            # Draw the wafer outline (circle) for each interface
+            theta = np.linspace(0, 2*np.pi, 200)
+            cx = waf_itf_r * np.cos(theta)
+            cy = waf_itf_r * np.sin(theta)
+            ax.plot(cx, cy, zs=z, zdir='z')
+
+            # Draw dies for each interface
+            for die in waf_itf.die_list:
+                polygon_coords = np.array([
+                    die.vertices_coords[0],  # top-left
+                    die.vertices_coords[1],  # top-right
+                    die.vertices_coords[3],  # bottom-right
+                    die.vertices_coords[2],  # bottom-left
+                ], dtype=float)
+
+                # Determine edge color based on die status
+                if die.survival is False:
+                    edge_color = "red"
+                elif getattr(die, "voids_occur", False) is True:
+                    edge_color = "green"
+                else:
+                    edge_color = "blue"
+
+                verts3d = [(x, y, z) for x, y in polygon_coords]
+                poly = Poly3DCollection([verts3d], facecolors='none', edgecolors=edge_color, linewidths=0.6)
+                ax.add_collection3d(poly)
+
+                # pad_yield_map: Directly mapping 2D images in 3D is complicated (requires converting 2D image to mesh/texture)
+                # Suggestion: For 3D, focus on die status/voids structure; use single-layer 2D output or plotly texture for pad map.
+                # If you strongly need it, I can also provide a version that samples imshow into point cloud/small cubes.
+
+            # Draw voids (simplified: use 3D scatter to represent centers, size ~ radius)
+            if draw_voids and hasattr(waf_itf, "voids"):
+                vx = np.array([v[0] for v in waf_itf.voids], dtype=float)
+                vy = np.array([v[1] for v in waf_itf.voids], dtype=float)
+                vr = np.array([v[2] for v in waf_itf.voids], dtype=float)
+
+                ax.scatter(vx, vy, zs=np.full_like(vx, z), s=np.clip(vr, 1, None)*2, alpha=0.4)
+
+        ax.view_init(elev=25, azim=-55)  # 视角可调
+        plt.tight_layout()
+        plt.show()
 
 
         

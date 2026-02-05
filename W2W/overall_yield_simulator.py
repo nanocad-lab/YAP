@@ -11,6 +11,8 @@ from scipy.integrate import quad
 from scipy.stats import norm
 import time
 import matplotlib.pyplot as plt
+from joblib import dump, load
+import yaml
 
 from overlay_yield_simulator import die_pad_misalignment
 from Cu_gap_simulator import Cu_gap_simulator
@@ -107,6 +109,7 @@ def overall_yield_simulator(
                     print("Processing die {}/{}...Time taken for every 10 dies: {:.2f} seconds".format(die_count, len(waf_interface.die_list), (time.time() - start_time) / die_count * 10), end='\r')
                     # start_time = time.time()
                 redundant_pad_fail_map = np.zeros((PAD_ARR_ROW, PAD_ARR_COL))
+                temp_overall_fail_map = np.zeros((PAD_ARR_ROW, PAD_ARR_COL), dtype=int)  # This map is used to store the fail pads for this die stack for all mechanisms, which will be used for visualization. It is reset for each die.
                 
                 '''
                 Check the overlay errors
@@ -127,6 +130,7 @@ def overall_yield_simulator(
                     die.pad_misalignment = die.pad_misalignment.reshape(cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL)
                     if cfg.verbose:
                         epoch_fail_map_per_interface_dict[interface_name]['overlay'] += (die.pad_misalignment >= MAX_ALLOWED_MISALIGNMENT_um).astype(int)
+                        temp_overall_fail_map |= (die.pad_misalignment >= MAX_ALLOWED_MISALIGNMENT_um).astype(int)
 
                     critical_pad_misalignment = die.pad_misalignment * die_critical_pad_bitmap      # Shape: (PAD_ARR_ROW, PAD_ARR_COL)
                     # Check if any critical pad misalignment is greater than the maximum allowed misalignment
@@ -229,8 +233,10 @@ def overall_yield_simulator(
                         check_redundant_pad_bitmap = die_redundant_pad_bitmap[PAD_ARR_ROW-j_max-1:PAD_ARR_ROW-j_min, i_min:i_max+1]
                         # Record the fail pads due to voids
                         if cfg.verbose:
-                            epoch_fail_map_per_interface_dict[interface_name]['particle'][PAD_ARR_ROW-j_max-1:PAD_ARR_ROW-j_min, i_min:i_max+1][overlap_void_pad_mask] += 1
-
+                            sub_fail_map_particle = epoch_fail_map_per_interface_dict[interface_name]['particle'][PAD_ARR_ROW-j_max-1:PAD_ARR_ROW-j_min, i_min:i_max+1]
+                            sub_fail_map_particle[overlap_void_pad_mask] += 1
+                            sub_fail_map_overall = temp_overall_fail_map[PAD_ARR_ROW-j_max-1:PAD_ARR_ROW-j_min, i_min:i_max+1]
+                            sub_fail_map_overall[overlap_void_pad_mask] = 1
                         # Check if any void overlaps with the critical pads
                         overlap_critical = overlap_void_pad_mask & check_critical_pad_bitmap.astype(bool)
                         if np.any(overlap_critical):
@@ -244,7 +250,7 @@ def overall_yield_simulator(
                             # Check if any void overlaps with the redundant critical pads
                             overlap_redundant = overlap_void_pad_mask & check_redundant_pad_bitmap.astype(bool) # shape (H, W)
                             # if overlap #pads is greater than a percentage of the total pads, then the die fails
-                            redundant_pad_fail_map[PAD_ARR_ROW-j_max-1:PAD_ARR_ROW-j_min, i_min:i_max+1][overlap_redundant] = 1
+                            redundant_pad_fail_map[PAD_ARR_ROW-j_max-1:PAD_ARR_ROW-j_min, i_min:i_max+1][overlap_redundant] = 1 
                             for redundant_net, physical_mask in redundant_net_to_1d_physical_mask.items():
                                 tolerated_mechanical_failures = criticality_info[redundant_net]['tolerated_mechanical_failures']
                                 num_fail_pad_in_net = np.sum(redundant_pad_fail_map.flatten()[physical_mask])
@@ -297,7 +303,7 @@ def overall_yield_simulator(
 
                 if cfg.verbose:
                     epoch_fail_map_per_interface_dict[interface_name]['mechanical'] += ((Cu_gap_map > zeta_1) | (Cu_gap_map < zeta_0)).astype(int)
-
+                    temp_overall_fail_map |= ((Cu_gap_map > zeta_1) | (Cu_gap_map < zeta_0)).astype(int)
                 # Check critical pad Cu gap
                 critical_pad_Cu_gap = Cu_gap_map * die_critical_pad_bitmap      # Shape: (PAD_ARR_ROW, PAD_ARR_COL)
                 if np.any(critical_pad_Cu_gap > zeta_1 * die_critical_pad_bitmap) or np.any(critical_pad_Cu_gap < zeta_0 * die_critical_pad_bitmap):
@@ -361,6 +367,7 @@ def overall_yield_simulator(
                         r_idx, c_idx = first_contact_pad_idx // PAD_ARR_COL, first_contact_pad_idx % PAD_ARR_COL
                         if cfg.verbose:
                             epoch_fail_map_per_interface_dict[interface_name]['ESD'][r_idx, c_idx] += 1
+                            temp_overall_fail_map[r_idx, c_idx] = 1
                         if die_esd_critical_pad_bitmap[r_idx, c_idx] == 1:
                             # print("Die fails due to ESD")
                             waf_stack.die_stack_survival[die_ind] = False
@@ -378,15 +385,25 @@ def overall_yield_simulator(
                                 if cfg.verbose:
                                     epoch_fail_vec_per_interface_dict[interface_name]['ESD'][stack_ind, die_ind] = 1
                                     epoch_fail_vec_per_interface_dict[interface_name]['overall'][stack_ind, die_ind] = 1
-                                break                    
-
+                                break     
+                if cfg.verbose:
+                    epoch_fail_map_per_interface_dict[interface_name]['overall'] += temp_overall_fail_map.astype(int)               
             print("")
             # Record the time
             # print("The time for checking wafer {} is {} seconds.".format(waf_ind, time.time() - start_time))
             # # print("The number of survival dies in the wafer is {}.".format(wafer.survival_die))
-            # Draw the swhole wafer
-            # wafer.draw_wafer_die(fig_size=(10, 10))
-            # raise ValueError("Stop here")
+        
+        # Draw the whole wafer
+        # Save waf_stack and cfg for visualization
+        dump(waf_stack, "waf_stack.joblib")
+        with open("cfg.yaml", 'w') as f:
+            for interface_name, cfg in cfg_dict.items():
+                yaml.dump({cfg.__dict__}, f)
+                break
+
+        waf_stack.draw_w2w_stack_3d(cfg)
+
+
 
         # One stack is done, calculate the die stack yield
         die_stack_yield = waf_stack.die_stack_survival.sum() / num_dies_per_wafer

@@ -542,7 +542,11 @@ def result_wrapper(
     # make directory if not exist
     if not os.path.exists(save_path):
         os.makedirs(save_path)
+<<<<<<< HEAD
     if mode == "d2w_simulation" or "w2w_simulation":
+=======
+    if mode in ["d2w_simulation", "w2w_simulation"]:
+>>>>>>> b317a1d (test)
         for mechanism, fail_map in fail_map_per_interface_dict[cfg.INTERFACE].items():
             # Draw the failure map and save the figure to the output directory
             figure = plt.figure(figsize=(10, 10))
