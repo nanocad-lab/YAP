@@ -105,11 +105,11 @@ def Assembly_Yield_Simulator(
                 fail_map_per_interface_dict[interface_name][failure_mechanism]   \
                         /= (num_sim_epoch * SIM_BATCH_SIZE)
             # Report the failure reasons statistics
-            print("{} die failures due to overlay misalignment.".format(int(np.sum(fail_vec_per_interface_dict[interface_name]['overlay']))))
-            print("{} die failures due to particle defects.".format(int(np.sum(fail_vec_per_interface_dict[interface_name]['particle']))))
-            print("{} die failures due to mechanical issues.".format(int(np.sum(fail_vec_per_interface_dict[interface_name]['mechanical']))))
-            print("{} die failures due to ESD issues.".format(int(np.sum(fail_vec_per_interface_dict[interface_name]['ESD']))))
-            print("{} die failures in total.".format(int(np.sum(fail_vec_per_interface_dict[interface_name]['overall']))))
+            print("{} die stack failures due to overlay misalignment.".format(int(np.sum(fail_vec_per_interface_dict[interface_name]['overlay']))))
+            print("{} die stack failures due to particle defects.".format(int(np.sum(fail_vec_per_interface_dict[interface_name]['particle']))))
+            print("{} die stack failures due to mechanical issues.".format(int(np.sum(fail_vec_per_interface_dict[interface_name]['mechanical']))))
+            print("{} die stack failures due to ESD issues.".format(int(np.sum(fail_vec_per_interface_dict[interface_name]['ESD']))))
+            print("{} die stack failures in total.".format(int(np.sum(fail_vec_per_interface_dict[interface_name]['overall']))))
             # Save fail map dict
             np.savez(cfg.OUTPUT_DIR + cfg.DESIGN + '/assembly_fail_map_per_interface_dict.npz', **fail_map_per_interface_dict)
             print("Failure heat maps saved to {}.".format(cfg.OUTPUT_DIR + cfg.DESIGN + '/assembly_fail_map_per_interface_dict.npz'))
