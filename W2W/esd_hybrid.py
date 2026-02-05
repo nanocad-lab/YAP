@@ -9,7 +9,9 @@ from matplotlib.patches import Rectangle
 # =========================
 # Weibull & simulate (globals)
 # =========================
-V_CHARGING_V     = 3.0
+V_MIN_V          = 0.0
+V_MAX_V          = 5.0
+
 WEIBULL_K        = 3.981285
 WEIBULL_LAMBDA   = 0.224454
 CUTOFF_MIN_A     = 0.0
@@ -48,7 +50,9 @@ TILT_Y_STD_DEG  = 0.01
 # 采样设置
 N_TILTS         = 5    # demo1: 倾角样本数
 N_DISHES        = 5    # demo1: dishing 样本数
-BASE_SEED       = 20251006
+# 每次运行都不一样：从系统熵生成 seed（不需要复现）
+BASE_SEED        = int(np.random.default_rng().integers(0, 2**32 - 1, dtype=np.uint32))
+print(f"[Seed] BASE_SEED = {BASE_SEED}")
 
 # =========================
 # Helpers
@@ -75,9 +79,9 @@ def _fail_prob_single(I: float, k: float, lam: float, cutoff: float) -> float:
         return 0.0
     return _weibull_cdf(I, k, lam)
 
-def _compute_p_fail_for_die(top_wafer_radius_um: float) -> float:
+def _compute_p_fail_for_die(top_wafer_radius_um: float, v_chg: float) -> float:
     area_mm2 = (float(top_wafer_radius_um) * 1e-3) ** 2 * math.pi
-    I_peak   = _ipeak_from_die_voltage(area_mm2, float(V_CHARGING_V))
+    I_peak   = _ipeak_from_die_voltage(area_mm2, float(v_chg))
     return _fail_prob_single(I_peak, float(WEIBULL_K), float(WEIBULL_LAMBDA), float(CUTOFF_MIN_A))
 
 def _four_corners(cx: np.ndarray, cy: np.ndarray, half: float):
@@ -196,6 +200,68 @@ def _rotate_and_min_choice(
         # 全是 die 角
         return None, True, min_val
 
+#=================================================================================
+# 在所有 pad 里找最小 gap（不经过 mask）
+#=================================================================================
+
+def _best_pad_among_all_pads(
+    *,
+    pad_coords_um: np.ndarray,      # (Npad,2)
+    pad_size_um: float,
+    top_dish_um_raw: np.ndarray,    # (Npad,) µm
+    bot_dish_um: np.ndarray,        # (Npad,) µm
+    tilt_x_deg: float,
+    tilt_y_deg: float,
+    z_top_um: float,
+    rng_pick: np.random.Generator,
+    atol_gap: float = 1e-12,
+) -> Tuple[int, float]:
+    """
+    在所有 pad（不经过 mask）里计算 gap：
+      - 对每个 pad 的四角求 gap
+      - 每个 pad 取其四角 gap 的最小值作为该 pad 的 gap
+      - 返回最小 gap 的 pad index（若并列，随机选一个）
+    返回：(best_pad_idx, best_pad_min_gap_um)
+    """
+    Npad = pad_coords_um.shape[0]
+    if Npad <= 0:
+        raise ValueError("pad_coords_um is empty; cannot choose best pad.")
+
+    cx = pad_coords_um[:, 0].astype(np.float64)
+    cy = pad_coords_um[:, 1].astype(np.float64)
+    half = 0.5 * float(pad_size_um)
+
+    # (Npad,4)
+    x4, y4 = _four_corners(cx, cy, half)
+
+    # 展平成 (Npad*4,)
+    x_all = x4.reshape(-1)
+    y_all = y4.reshape(-1)
+
+    # 对四角重复 dishing
+    top_eff_all = (-top_dish_um_raw).astype(np.float64)[:, None].repeat(4, axis=1).reshape(-1)
+    bot_loc_all = ( bot_dish_um).astype(np.float64)[:, None].repeat(4, axis=1).reshape(-1)
+
+    A, B, C = _z_linear_coeffs(tilt_x_deg, tilt_y_deg)
+    z_top = float(z_top_um) + A * x_all + B * y_all + C * top_eff_all
+    gaps  = z_top - bot_loc_all
+
+    # 每个 pad 的四角最小 gap → (Npad,)
+    gaps_pad_min = gaps.reshape(Npad, 4).min(axis=1)
+
+    best_val = float(gaps_pad_min.min())
+    is_best  = np.isclose(gaps_pad_min, best_val, rtol=0.0, atol=atol_gap)
+    best_ids = np.where(is_best)[0]
+
+    if best_ids.size == 1:
+        return int(best_ids[0]), best_val
+    else:
+        pick = int(rng_pick.integers(0, best_ids.size))
+        return int(best_ids[pick]), best_val
+
+#=========================================================================
+
+
 def _binary_halving_until_pad(
     *,
     pad_coords_um: np.ndarray,
@@ -211,17 +277,14 @@ def _binary_halving_until_pad(
     atol_gap: float = 1e-12,
     atol_tilt_deg: float = 1e-12,
     max_iter_guard: int = 10000,
-) -> Tuple[Optional[int], float, float, float]:
+) -> Tuple[int, float, float, float]:
     """
-    把 die 四角 + 入围 pad 四角放在一起，一次性旋转并找最小。
-    若最小集合包含 pad，则在其中等概率随机选一个 pad_id 返回；
-    否则（二者都是 die 角）对 (tilt_x, tilt_y) 进行二分（每次 /2），
-    反复计算，直到出现 pad 为止。
+    优先用“入围 pad + die 四角”的全局最小规则选 first-touch pad；
+    如果最终一直 die-only（或入围 pad 为空），则返回：
+      - 所有 pad（不经过 mask）中 gap 最小的 pad index。
 
-    返回：(pad_index or None, final_tilt_x, final_tilt_y, final_min_gap_um)
-    - 若倾角已到极小（或超过保护迭代次数）仍全是 die 角，返回 None。
+    返回：(pad_index, final_tilt_x, final_tilt_y, final_min_gap_um)
     """
-    # 先收集所有角
     x_all, y_all, top_eff_all, bot_loc_all, is_pad_all, pad_id_all = _collect_corners_and_baselines(
         pad_coords_um=pad_coords_um, pad_size_um=pad_size_um,
         top_die_w_um=top_die_w_um, top_die_h_um=top_die_h_um,
@@ -229,13 +292,22 @@ def _binary_halving_until_pad(
         z_top_um=z_top_um
     )
 
-    if not np.any(is_pad_all):
-        A, B, C = _z_linear_coeffs(tilt_x_init_deg, tilt_y_init_deg)
-        z_top = float(z_top_um) + A*x_all + B*y_all + C*top_eff_all
-        min_gap = float(np.min(z_top - bot_loc_all))
-        return None, float(tilt_x_init_deg), float(tilt_y_init_deg), min_gap
-
     tx, ty = float(tilt_x_init_deg), float(tilt_y_init_deg)
+
+    # 入围 pad 为空：直接 fallback 到所有 pad 的最小 gap
+    if not np.any(is_pad_all):
+        best_pad, best_gap = _best_pad_among_all_pads(
+            pad_coords_um=pad_coords_um,
+            pad_size_um=pad_size_um,
+            top_dish_um_raw=top_dish_um_raw,
+            bot_dish_um=bot_dish_um,
+            tilt_x_deg=tx,
+            tilt_y_deg=ty,
+            z_top_um=z_top_um,
+            rng_pick=rng_pick,
+            atol_gap=atol_gap,
+        )
+        return best_pad, tx, ty, float(best_gap)
 
     # 第一次判定
     pad_choice, die_only, min_gap = _rotate_and_min_choice(
@@ -245,9 +317,9 @@ def _binary_halving_until_pad(
         rng_pick=rng_pick, atol=atol_gap
     )
     if not die_only:
-        return pad_choice, tx, ty, min_gap
+        return int(pad_choice), tx, ty, float(min_gap)
 
-    # 二分化：每次 /2，直到出现 pad
+    # 二分直到出现 pad；若失败则 fallback
     it = 0
     while die_only:
         tx *= 0.5
@@ -259,11 +331,38 @@ def _binary_halving_until_pad(
             rng_pick=rng_pick, atol=atol_gap
         )
         it += 1
-        # 安全保护
-        if (abs(tx) <= atol_tilt_deg and abs(ty) <= atol_tilt_deg) or (it >= max_iter_guard):
-            return None, tx, ty, min_gap
 
-    return pad_choice, tx, ty, min_gap
+        if not die_only:
+            return int(pad_choice), tx, ty, float(min_gap)
+
+        if (abs(tx) <= atol_tilt_deg and abs(ty) <= atol_tilt_deg) or (it >= max_iter_guard):
+            best_pad, best_gap = _best_pad_among_all_pads(
+                pad_coords_um=pad_coords_um,
+                pad_size_um=pad_size_um,
+                top_dish_um_raw=top_dish_um_raw,
+                bot_dish_um=bot_dish_um,
+                tilt_x_deg=tx,
+                tilt_y_deg=ty,
+                z_top_um=z_top_um,
+                rng_pick=rng_pick,
+                atol_gap=atol_gap,
+            )
+            return best_pad, tx, ty, float(best_gap)
+
+    # 理论不可达
+    best_pad, best_gap = _best_pad_among_all_pads(
+        pad_coords_um=pad_coords_um,
+        pad_size_um=pad_size_um,
+        top_dish_um_raw=top_dish_um_raw,
+        bot_dish_um=bot_dish_um,
+        tilt_x_deg=tx,
+        tilt_y_deg=ty,
+        z_top_um=z_top_um,
+        rng_pick=rng_pick,
+        atol_gap=atol_gap,
+    )
+    return best_pad, tx, ty, float(best_gap)
+
 
 # =========================
 # demo1: risk pad map 生成器（统一列表 + 二分直到 pad）
@@ -289,7 +388,9 @@ def pad_esd_yield_map_generator(
     z_top_um: float = 100.0,
 ) -> Tuple[np.ndarray, Optional[plt.Figure], float]:
     Npad = pad_coords_um.shape[0]
-    counts_vec = np.zeros((Npad,), dtype=np.int64)
+    counts_vec = np.zeros((Npad,), dtype=np.int64)      # P(first-touch) 的计数（可选）
+    risk_accum = np.zeros((Npad,), dtype=np.float64)    # 逐轮累加 1{pad=i} * p_fail(V)
+    p_fail_sum = 0.0                                   # 仅用于汇报平均 p_fail
 
     rng_tilt = np.random.default_rng(base_seed ^ 0xC001FEED)
     total_runs = int(n_tilts) * int(n_dishes)
@@ -303,17 +404,18 @@ def pad_esd_yield_map_generator(
             progress_counter += 1
             if (progress_counter % 1000) == 0 or (progress_counter == total_runs):
                 print(f"[ESD Sim] Progress: {progress_counter} / {total_runs} runs completed.")
+
             seed = base_seed + (t * n_dishes + d)
             rng_top  = np.random.default_rng(seed ^ 0x9E3779B1)
             rng_bot  = np.random.default_rng(seed ^ 0x85EBCA77)
-            rng_pick = np.random.default_rng(seed ^ 0xDEADBEEF)
+            rng_pick = np.random.default_rng(seed ^ 0xDEADBEEF)  # tie-break + voltage sampling
 
             top_dish_um_raw = rng_top.normal(
                 loc=float(top_dish_mean_nm)*NM_TO_UM,
                 scale=max(float(top_dish_std_nm),0.0)*NM_TO_UM,
                 size=(Npad,)
             ).astype(np.float64)
-            bot_dish_um     = rng_bot.normal(
+            bot_dish_um = rng_bot.normal(
                 loc=float(bot_dish_mean_nm)*NM_TO_UM,
                 scale=max(float(bot_dish_std_nm),0.0)*NM_TO_UM,
                 size=(Npad,)
@@ -332,14 +434,23 @@ def pad_esd_yield_map_generator(
                 rng_pick=rng_pick
             )
 
-            if pad_choice is not None:
-                counts_vec[pad_choice] += 1
+            # 每一轮实验随机电压：V ~ U[0,5]
+            v_chg = float(rng_pick.uniform(V_MIN_V, V_MAX_V))
+            p_fail_run = _compute_p_fail_for_die(top_wafer_radius_um, v_chg)
+            p_fail_sum += p_fail_run
+
+            # 逐轮累加风险
+            counts_vec[int(pad_choice)] += 1
+            risk_accum[int(pad_choice)] += float(p_fail_run)
 
     prob_vec = counts_vec.astype(np.float64) / float(total_runs)
     print("Prob_vec min/max: {:.6f} / {:.6f}".format(float(prob_vec.min()), float(prob_vec.max())))
 
-    p_fail_single = _compute_p_fail_for_die(top_wafer_radius_um)
-    valid_pad_risk_map_vec = prob_vec * float(p_fail_single)
+    # 逐轮随机电压 → risk_map = E[1{pad=i} * p_fail(V)]
+    valid_pad_risk_map_vec = risk_accum / float(total_runs)
+    p_fail_avg = float(p_fail_sum) / float(total_runs)
+
+    print("Avg p_fail over runs (V~U[0,5]): {:.6f}".format(p_fail_avg))
     print("Risk map min/max: {:.6e} / {:.6e}".format(float(valid_pad_risk_map_vec.min()),
                                                      float(valid_pad_risk_map_vec.max())))
 
@@ -347,11 +458,12 @@ def pad_esd_yield_map_generator(
         pad_coords_um=pad_coords_um,
         prob_vec=valid_pad_risk_map_vec,
         pitch_um=pad_pitch_um,
-        title="Risk Pad Map = P(first-touch) × p_fail (square side = PITCH)"
+        title="Risk Pad Map = E[ 1(first-touch pad) × p_fail(V) ], V~U[0,5]"
     )
 
     valid_pad_yield_map_vec = 1.0 - valid_pad_risk_map_vec
-    return valid_pad_yield_map_vec, fig, float(p_fail_single)
+    return valid_pad_yield_map_vec, fig, float(p_fail_avg)
+
 
 # =========================
 # demo2: 单次外部数组模拟（统一列表 + 二分直到 pad）
@@ -401,13 +513,14 @@ def esd_failure_simulator(
         rng_pick=rng_pick
     )
 
-    p_fail_single = _compute_p_fail_for_die(top_wafer_radius_um)
-    random_float = np.random.uniform(0.0, 1.0)
-    if (pad_choice is not None) and (random_float < p_fail_single):
-        survive_bool = False
-    else:
-        survive_bool = True
+    # 单次实验也随机电压
+    v_chg = float(rng.uniform(V_MIN_V, V_MAX_V))
+    p_fail_single = _compute_p_fail_for_die(top_wafer_radius_um, v_chg)
+
+    random_float = float(rng.uniform(0.0, 1.0))
+    survive_bool = not ((pad_choice is not None) and (random_float < p_fail_single))
     return pad_choice, survive_bool
+
 
 # =========================
 # 可视化：按 pitch 为边长的小方块
