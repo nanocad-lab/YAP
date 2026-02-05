@@ -61,17 +61,12 @@ def overall_yield_simulator(
 
     epoch_fail_map_dict = {}    # This dict stores the fail bump maps for all die samples in this epoch for each mechanism
     epoch_fail_vec_dict = {}    # This dict stores failure reason (each mechanism) for all die samples in this epoch
-    if cfg.verbose:     
-        epoch_fail_map_dict['overlay']    = np.zeros((PAD_ARR_ROW, PAD_ARR_COL))
-        epoch_fail_map_dict['particle']   = np.zeros((PAD_ARR_ROW, PAD_ARR_COL))
-        epoch_fail_map_dict['mechanical'] = np.zeros((PAD_ARR_ROW, PAD_ARR_COL))
-        epoch_fail_map_dict['ESD']        = np.zeros((PAD_ARR_ROW, PAD_ARR_COL))
-        epoch_fail_map_dict['overall']    = np.zeros((PAD_ARR_ROW, PAD_ARR_COL))
-        epoch_fail_vec_dict['overlay']    = np.zeros(NUM_DIE_SAMPLES)
-        epoch_fail_vec_dict['particle']   = np.zeros(NUM_DIE_SAMPLES)
-        epoch_fail_vec_dict['mechanical'] = np.zeros(NUM_DIE_SAMPLES)
-        epoch_fail_vec_dict['ESD']        = np.zeros(NUM_DIE_SAMPLES)
-        epoch_fail_vec_dict['overall']    = np.zeros(NUM_DIE_SAMPLES)
+    
+    failure_mechanism_list = ['overlay', 'particle', 'mechanical', 'ESD', 'overall']
+    if cfg.verbose:    
+        for mechanism in failure_mechanism_list:
+            epoch_fail_map_dict[mechanism] = np.zeros((PAD_ARR_ROW, PAD_ARR_COL))
+            epoch_fail_vec_dict[mechanism] = np.zeros(NUM_DIE_SAMPLES) 
 
 
     for die_ind in range(NUM_DIE_SAMPLES):
@@ -98,7 +93,7 @@ def overall_yield_simulator(
         # Read the redundant net to 1D physical mask mapping
         redundant_net_to_1d_physical_mask = pad_bitmap_collection["redundant_net_to_1d_physical_mask"]
         redundant_pad_fail_map = np.zeros((PAD_ARR_ROW, PAD_ARR_COL))
-        temp_overall_fail_map = np.zeros((PAD_ARR_ROW, PAD_ARR_COL))   # This temporary map is used to record the overall fail map for this die, which will be added to epoch_fail_map_dict['overall'] at the end of this die's checking. This is to avoid double counting when one pad fails due to multiple reasons.
+        temp_overall_fail_map = np.zeros((PAD_ARR_ROW, PAD_ARR_COL), dtype=int)   # This temporary map is used to record the overall fail map for this die, which will be added to epoch_fail_map_dict['overall'] at the end of this die's checking. This is to avoid double counting when one pad fails due to multiple reasons.
         
         """
         Check the overlay errors
