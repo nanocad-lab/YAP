@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from matplotlib.patches import Polygon
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+from matplotlib.patches import Polygon, Circle
 
 class Die:
     def __init__(
@@ -327,8 +328,8 @@ class WaferStack:
         self.die_stack_survival = np.ones((self.num_dies_per_wafer), dtype=bool)  # Initialize all die stacks as survived
         
 
-    def draw_w2w_stack_3d(self, cfg, itf_pitch=100.0, fig_size=(12, 10), dpi=200,
-                        draw_pad_yield_map_option=None, draw_voids=True):
+    def draw_w2w_stack_3d(self, itf_pitch=1.0, fig_size=(10, 8), dpi=300,
+                        draw_pad_yield_map_option=None, draw_voids=True, figname=None):
         """
         waf_itf: the wafer interface object containing the die and pad information for each layer
         itf_pitch: the distance between interfaces in the z direction (can be adjusted for better visualization)
@@ -336,7 +337,7 @@ class WaferStack:
         fig = plt.figure(figsize=fig_size, dpi=dpi)
         ax = fig.add_subplot(111, projection='3d')
 
-        waf_itf_r = cfg.WAF_R_um
+        waf_itf_r = 150000
         ax.set_xlim(-waf_itf_r * 1.1, waf_itf_r * 1.1)
         ax.set_ylim(-waf_itf_r * 1.1, waf_itf_r * 1.1)
         ax.set_zlim(-itf_pitch, itf_pitch * (len(self.interfaces.interface_dict) + 1))
@@ -352,7 +353,7 @@ class WaferStack:
             theta = np.linspace(0, 2*np.pi, 200)
             cx = waf_itf_r * np.cos(theta)
             cy = waf_itf_r * np.sin(theta)
-            ax.plot(cx, cy, zs=z, zdir='z')
+            ax.plot(cx, cy, zs=z, zdir='z', linewidth=0.1, color='gray', alpha=0.5)
 
             # Draw dies for each interface
             for die in waf_itf.die_list:
@@ -365,31 +366,153 @@ class WaferStack:
 
                 # Determine edge color based on die status
                 if die.survival is False:
-                    edge_color = "red"
-                elif getattr(die, "voids_occur", False) is True:
-                    edge_color = "green"
+                    face_color = (1.0, 0.2, 0.2, 0.3)   # 红：强
+                elif getattr(die, "voids_occur", False):
+                    face_color = (0.2, 0.8, 0.2, 0.3)   # 绿：中
                 else:
-                    edge_color = "blue"
+                    face_color = (0.6, 0.6, 0.9, 0.05)  # 蓝灰：弱背景
 
                 verts3d = [(x, y, z) for x, y in polygon_coords]
-                poly = Poly3DCollection([verts3d], facecolors='none', edgecolors=edge_color, linewidths=0.6)
+                poly = Poly3DCollection(
+                    [verts3d],
+                    facecolors=[face_color],   # 透明面，但仍然是“有一个面颜色”
+                    edgecolors='none',     # 注意也用 list 包起来，长度=1
+                    linewidths=0.6,
+                    alpha=0.2
+                )
                 ax.add_collection3d(poly)
 
                 # pad_yield_map: Directly mapping 2D images in 3D is complicated (requires converting 2D image to mesh/texture)
                 # Suggestion: For 3D, focus on die status/voids structure; use single-layer 2D output or plotly texture for pad map.
                 # If you strongly need it, I can also provide a version that samples imshow into point cloud/small cubes.
 
-            # Draw voids (simplified: use 3D scatter to represent centers, size ~ radius)
-            if draw_voids and hasattr(waf_itf, "voids"):
-                vx = np.array([v[0] for v in waf_itf.voids], dtype=float)
-                vy = np.array([v[1] for v in waf_itf.voids], dtype=float)
-                vr = np.array([v[2] for v in waf_itf.voids], dtype=float)
+            # # Draw voids (simplified: use 3D scatter to represent centers, size ~ radius)
+            # if draw_voids and hasattr(waf_itf, "voids"):
+            #     vx = np.array([v[0] for v in waf_itf.voids], dtype=float)
+            #     vy = np.array([v[1] for v in waf_itf.voids], dtype=float)
+            #     vr = np.array([v[2] for v in waf_itf.voids], dtype=float)
 
-                ax.scatter(vx, vy, zs=np.full_like(vx, z), s=np.clip(vr, 1, None)*2, alpha=0.4)
+            #     ax.scatter(vx, vy, zs=np.full_like(vx, z), s=np.clip(vr, 1, None)*2, alpha=0.4)
 
         ax.view_init(elev=25, azim=-55)  # 视角可调
         plt.tight_layout()
         plt.show()
+
+        # Save the figure
+        if figname is not None:
+            fig.savefig(figname)
+        else:
+            fig.savefig("w2w_stack_3d.png")
+
+
+
+    def draw_w2w_stack_2d(
+        waf_stack,
+        fig_size=(10, 8),
+        dpi=300,
+        draw_voids=True,
+        waf_itf_r=150000,
+        overlay_all_layers=True,
+        draw_wafer_outline_once=True,
+        figname=None,
+    ):
+        """
+        Render a 2D top-view (XY projection) of a wafer-to-wafer (W2W) stack by
+        overlaying all wafer interfaces onto a single plane.
+
+        This function projects dies and voids from multiple wafer interfaces
+        (layers) onto the same XY plane, which is particularly useful for
+        visualizing spatial yield patterns and failure clustering across
+        the entire stack.
+        """
+
+        fig, ax = plt.subplots(figsize=fig_size, dpi=dpi)
+        ax.set_aspect("equal", adjustable="box")
+
+        # Set plot limits
+        ax.set_xlim(-waf_itf_r * 1.1, waf_itf_r * 1.1)
+        ax.set_ylim(-waf_itf_r * 1.1, waf_itf_r * 1.1)
+        ax.set_xlabel("X")
+        ax.set_ylabel("Y")
+        ax.set_title("W2W Stack Top View (2D Overlay)")
+
+        # Draw wafer outline (once by default)
+        if draw_wafer_outline_once:
+            ax.add_patch(
+                Circle(
+                    (0, 0),
+                    waf_itf_r,
+                    fill=False,
+                    linewidth=0.6,
+                    edgecolor="gray",
+                    alpha=0.7,
+                )
+            )
+
+        # Iterate over wafer interfaces (layers)
+        for itf_idx, waf_itf in enumerate(waf_stack.interfaces.interface_dict.values()):
+            if (not overlay_all_layers) and itf_idx != 0:
+                continue
+
+            # Optionally draw wafer outline for each layer
+            if not draw_wafer_outline_once:
+                ax.add_patch(
+                    Circle(
+                        (0, 0),
+                        waf_itf_r,
+                        fill=False,
+                        linewidth=0.1,
+                        edgecolor="gray",
+                        alpha=0.5,
+                    )
+                )
+
+            # Draw dies using filled polygons (no edges)
+            for die in waf_itf.die_list:
+                vc = np.asarray(die.vertices_coords, dtype=float)
+                if vc.ndim != 2 or vc.shape[0] < 4 or vc.shape[1] < 2:
+                    continue
+
+                polygon_coords = np.array([vc[0], vc[1], vc[3], vc[2]], dtype=float)
+
+                # Color encoding based on die status
+                if die.survival is False:
+                    face_color = (1.0, 0.2, 0.2, 0.3)   # failed die
+                elif getattr(die, "voids_occur", False):
+                    face_color = (0.2, 0.8, 0.2, 0.3)   # void-related die
+                else:
+                    face_color = (0.6, 0.6, 0.9, 0.05)  # survived die (background)
+
+                ax.add_patch(
+                    Polygon(
+                        polygon_coords[:, :2],
+                        closed=True,
+                        facecolor=face_color,
+                        edgecolor="none",
+                    )
+                )
+
+            # Draw voids as 2D scatter points
+            if draw_voids and hasattr(waf_itf, "voids") and waf_itf.voids:
+                vx = np.array([v[0] for v in waf_itf.voids], dtype=float)
+                vy = np.array([v[1] for v in waf_itf.voids], dtype=float)
+                vr = np.array([v[2] for v in waf_itf.voids], dtype=float)
+
+                marker_size = np.clip(vr, 1, None) * 2
+                ax.scatter(vx, vy, s=marker_size, alpha=0.4)
+
+        ax.grid(False)
+        plt.tight_layout()
+        plt.show()
+
+        # Save the figure
+        if figname is not None:
+            fig.savefig(figname)
+        else:
+            fig.savefig("w2w_stack_2d.png")
+
+
+    
 
 
         

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 #### Overall yield simulator for hybrid bonding
 #### Author: Zhichao Chen
-#### Date: Jan 20, 2026
+#### Date: Feb 5, 2026
 
 import os
 import sys
@@ -395,13 +395,9 @@ def overall_yield_simulator(
         
         # Draw the whole wafer
         # Save waf_stack and cfg for visualization
-        dump(waf_stack, "waf_stack.joblib")
-        with open("cfg.yaml", 'w') as f:
-            for interface_name, cfg in cfg_dict.items():
-                yaml.dump({cfg.__dict__}, f)
-                break
+        # dump(waf_stack, "waf_stack.joblib")
 
-        waf_stack.draw_w2w_stack_3d(cfg)
+        # waf_stack.draw_w2w_stack_2d(cfg, figname=cfg.OUTPUT_DIR + cfg.DESIGN + '/w2w_stack_{}_2d.png'.format(epoch*NUM_STACKS+stack_ind+1))
 
 
 
