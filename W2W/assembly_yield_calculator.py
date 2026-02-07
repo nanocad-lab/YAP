@@ -9,8 +9,8 @@ import time
 import pickle
 import gzip
 import numpy as np
-from wafer_die_stack_initialization import wafer_stack_list_initialize
-from overlay_yield_calculator import pad_overlay_yield_map_generator
+from wafer_die_stack_initialization import WaferStack
+from overlay_yield_calculator import stack_overlay_yield_calculator
 from defect_yield_calculator import pad_defect_yield_map_generator
 from Cu_expansion_yield_calculator import pad_Cu_expansion_yield_map_generator
 from utils.util import risk_map_generator
@@ -18,69 +18,30 @@ from esd_hybrid import pad_esd_yield_map_generator
 
 
 
-
-
-def Pad_Yield_Map_Generator(
-    cfg,
-    pad_bitmap_collection,
+def Assembly_Yield_Calculator(
+    input_args: dict,
+    cfg_skeleton: object,
+    cfg_dict: dict,
+    pad_bitmap_collection_dict: dict,
 ):
     start_time = time.time()
-    # Initialize the wafer
-    single_waf_list = wafer_initialize(
-        NUM_WAFER_SAMPLES           = 1,
-        DIE_W_um                    = cfg.DIE_W_um,
-        DIE_L_um                    = cfg.DIE_L_um,
-        PAD_ARR_W_um                = cfg.PAD_ARR_W_um,
-        PAD_ARR_L_um                = cfg.PAD_ARR_L_um,
-        PAD_ARR_ROW                 = cfg.PAD_ARR_ROW,
-        PAD_ARR_COL                 = cfg.PAD_ARR_COL,
-        PITCH_r_um                  = cfg.PITCH_r_um,
-        PITCH_c_um                  = cfg.PITCH_c_um,
-        WAF_R_um                    = cfg.WAF_R_um,
-        PAD_TOP_R_um                = cfg.PAD_TOP_R_um,
-        PAD_BOT_R_um                = cfg.PAD_BOT_R_um,
-        dice_width                  = cfg.dice_width,
-        pad_bitmap_collection       = pad_bitmap_collection,
-        pad_yield_flag              = cfg.pad_yield_flag,
+
+    # Initialize the wafer stack with dies and pads
+    waf_stack = WaferStack(
+        cfg_dict=cfg_dict,
+        pad_bitmap_collection_dict=pad_bitmap_collection_dict,
     )
     
-    wafer = single_waf_list[0]
-    valid_pad_mask = (pad_bitmap_collection['CRITICAL_PAD_BITMAP'] == 1) | (pad_bitmap_collection['REDUNDANT_PAD_BITMAP'] == 1) | (pad_bitmap_collection['DUMMY_PAD_BITMAP'] == 1)
+    valid_pad_mask_dict = {}
+    for interface, pad_bitmap_collection in pad_bitmap_collection_dict.items():
+        valid_pad_mask_dict[interface] = (pad_bitmap_collection['CRITICAL_PAD_BITMAP'] == 1) | (pad_bitmap_collection['REDUNDANT_PAD_BITMAP'] == 1) | (pad_bitmap_collection['DUMMY_PAD_BITMAP'] == 1)
 
-    # # Save wafer info
-    # with gzip.open('wafer_info.pkl.gz', 'wb') as f:
-    #     pickle.dump(wafer, f, protocol=pickle.HIGHEST_PROTOCOL)
-    # raise Exception("Wafer info saved. Stop execution here for debugging.")
-    print(len(wafer.die_list), "dies initialized on the wafer.")
-    wafer_init_time = time.time() - start_time
-    print("Wafer initialization time: {} seconds.".format(wafer_init_time))
 
     # Calculate the overlay yield
-    pad_overlay_yield_map_generator(
-        cfg                             = cfg,
-        PAD_ARR_ROW                     = cfg.PAD_ARR_ROW,
-        PAD_ARR_COL                     = cfg.PAD_ARR_COL,
-        PAD_TOP_R_um                    = cfg.PAD_TOP_R_um,
-        PAD_BOT_R_um                    = cfg.PAD_BOT_R_um,
-        PITCH_r_um                      = cfg.PITCH_r_um,
-        PITCH_c_um                      = cfg.PITCH_c_um,
-        num_samples                     = cfg.num_samples,
-        CONTACT_AREA_CONSTRAINT         = cfg.CONTACT_AREA_CONSTRAINT,
-        CRITICAL_DIST_CONSTRAINT        = cfg.CRITICAL_DIST_CONSTRAINT,
-        SYSTEM_MAGNIFICATION_MEAN_ppm   = cfg.SYSTEM_MAGNIFICATION_MEAN_ppm,
-        SYSTEM_MAGNIFICATION_STD_ppm    = cfg.SYSTEM_MAGNIFICATION_STD_ppm,
-        SYSTEM_ROTATION_MEAN_rad        = cfg.SYSTEM_ROTATION_MEAN_rad,
-        SYSTEM_ROTATION_STD_rad         = cfg.SYSTEM_ROTATION_STD_rad,
-        SYSTEM_TRANSLATION_X_MEAN_um    = cfg.SYSTEM_TRANSLATION_X_MEAN_um,
-        SYSTEM_TRANSLATION_X_STD_um     = cfg.SYSTEM_TRANSLATION_X_STD_um,
-        SYSTEM_TRANSLATION_Y_MEAN_um    = cfg.SYSTEM_TRANSLATION_Y_MEAN_um,
-        SYSTEM_TRANSLATION_Y_STD_um     = cfg.SYSTEM_TRANSLATION_Y_STD_um,
-        RANDOM_MISALIGNMENT_MEAN_um     = cfg.RANDOM_MISALIGNMENT_MEAN_um,
-        RANDOM_MISALIGNMENT_STD_um      = cfg.RANDOM_MISALIGNMENT_STD_um,
-        wafer                           = wafer,
-        pad_bitmap_collection           = pad_bitmap_collection,
-        pad_yield_flag                  = cfg.pad_yield_flag,
-        pad_yield_map_sub_factor        = cfg.pad_yield_map_sub_factor,
+    stack_overlay_yield_calculator(
+        cfg_dict                    =   cfg_dict,
+        pad_bitmap_collection_dict  =   pad_bitmap_collection_dict,
+        waf_stack                   =   waf_stack
     )
     overlay_yield_time = time.time() - start_time - wafer_init_time
     print("Overlay yield calculation time: {} seconds.".format(overlay_yield_time))
@@ -90,8 +51,8 @@ def Pad_Yield_Map_Generator(
 
     # Calculate the defect distribution
     pad_defect_yield_map_generator(
-        cfg                         = cfg,
-        wafer                       = wafer,
+        cfg_dict                    =   cfg_dict,
+        waf_stack                   =   waf_stack,
         D0                          = cfg.D0,
         t_0                         = cfg.t_0,
         z                           = cfg.z,

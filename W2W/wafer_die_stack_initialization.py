@@ -317,6 +317,8 @@ class WaferStack:
         num_dies_per_wafer: Number of dies per wafer (assumed same for all interfaces)
         die_stack_survival: Boolean array indicating whether each die stack survives
         """
+        failure_mechanism_list = ['overlay', 'particle', 'mechanical', 'ESD', 'overall']
+        
         self.cfg_dict = cfg_dict
         self.num_bonding_interfaces = len(cfg_dict)
         self.interfaces = Bonding_Interfaces(
@@ -325,8 +327,13 @@ class WaferStack:
         )
         self.interfaces.add_interfaces()
         self.num_dies_per_wafer = self.interfaces.interface_dict[list(cfg_dict.keys())[0]].num_dies
+
+        self.die_yield_list_per_interface_dict = {interface_name: {
+            failure_mechanism: np.full((self.num_dies_per_wafer), np.nan) for failure_mechanism in failure_mechanism_list
+        }   for interface_name in cfg_dict.keys()}
+
         self.die_stack_survival = np.ones((self.num_dies_per_wafer), dtype=bool)  # Initialize all die stacks as survived
-        
+
 
     def draw_w2w_stack_3d(self, itf_pitch=1.0, fig_size=(10, 8), dpi=300,
                         draw_pad_yield_map_option=None, draw_voids=True, figname=None):

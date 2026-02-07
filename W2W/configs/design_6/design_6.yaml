@@ -22,7 +22,7 @@ w2w_simulation:
   PAD_TOP_R_um: None                      # Top Cu pad radius (um)
   VOID_SHAPE: "circle"                  # Void shape: "circle" or "square"
   dice_width: 100                      # Width of one die (µm)
-  pad_yield_flag: True
+  pad_yield_flag: False
   pad_yield_map_sub_factor: 1          # Subsampling factor for pad yield map (1: no subsampling, 10: rows/10 and cols/10)
                                         # The pad yield map will be of size (ceil(PAD_ARR_ROW/sub_factor), ceil(PAD_ARR_COL/sub_factor))
   PAD_ARRANGE_PATTERN: "rectangular"        # Pad arrangement pattern: "checkerboard" (HBM)
@@ -62,12 +62,12 @@ w2w_simulation:
   SYSTEM_TRANSLATION_X_STD_um: 2e-2        # Std of systematic X translation (µm)
   SYSTEM_TRANSLATION_Y_MEAN_um: 0       # Mean of systematic Y translation (µm)
   SYSTEM_TRANSLATION_Y_STD_um: 2e-2        # Std of systematic Y translation (µm)
-  SYSTEM_ROTATION_MEAN_rad: 5e-8            # Mean of systematic rotation (rad)
-  SYSTEM_ROTATION_STD_rad: 1e-8             # Std of systematic rotation (rad)
+  SYSTEM_ROTATION_MEAN_rad: 5e-7            # Mean of systematic rotation (rad)
+  SYSTEM_ROTATION_STD_rad: 1e-7             # Std of systematic rotation (rad)
 
   # === Bowing and Magnification ===
-  BOW_DIFFERENCE_MEAN_um: 0.5               # Wafer bowing difference mean (µm)
-  BOW_DIFFERENCE_STD_um: 0.1                 # Wafer bowing difference std (µm)
+  BOW_DIFFERENCE_MEAN_um: 5               # Wafer bowing difference mean (µm)
+  BOW_DIFFERENCE_STD_um: 1                 # Wafer bowing difference std (µm)
   k_mag: 0.1                           # Magnification coefficient
   M_0: 0                                # Magnification offset (ppm)
 
@@ -180,6 +180,7 @@ w2w_modeling:
   OUTPUT_DIR: "output/"
   INPUT_DIR: "input/"          # Output directory for simulation results
   DEBUG: false                          # Enable debug mode
+  DESIGN: None
   INTERFACE: None                      # Design name
 
   # === Per Wafer Parameters ===
@@ -194,7 +195,7 @@ w2w_modeling:
   PAD_ARR_COL: None
   VOID_SHAPE: "circle"                  # Shape of void: "circle" or "square"
   dice_width: 100                      # Dice width to separate dies (µm)
-  pad_yield_flag: True
+  pad_yield_flag: False
   pad_yield_map_sub_factor: 1          # Subsampling factor for pad yield map (1: no subsampling, 10: rows/10 and cols/10)
   PAD_ARRANGE_PATTERN: "rectangular"        # Pad arrangement pattern: "checkerboard" (HBM)
 
@@ -239,6 +240,9 @@ w2w_modeling:
   k_mag: 0.1                           # Magnification slope coefficient
   M_0: 0                                # Magnification offset
 
+  # === Redundant Design Parameters ===
+  redundant_flag: True                      # Whether the design is redundant (e.g. checkerboard HBM)
+
   # === Defect Parameters ===
   D0: 1e-9                              # Particle density (1/µm²)
   z: 3                                  # Thickness distribution exponent factor
@@ -251,9 +255,9 @@ w2w_modeling:
 
   # === Cu Expansion / Dishing Parameters ===
   TOP_DISH_MEAN_nm: -1                  # Top pad height mean (nm)
-  TOP_DISH_STD_nm: 0.3                     # Top pad height std (nm)
+  TOP_DISH_STD_nm: 0.25                     # Top pad height std (nm)
   BOT_DISH_MEAN_nm: -1                  # Bottom pad height mean (nm)
-  BOT_DISH_STD_nm: 0.3                     # Bottom pad height std (nm)
+  BOT_DISH_STD_nm: 0.25                     # Bottom pad height std (nm)
   k_et: 0.053                           # Top Cu expansion coef (nm/K)
   k_eb: 0.053                           # Bottom Cu expansion coef (nm/K)
   T_R: 25                               # Room temperature (°C)

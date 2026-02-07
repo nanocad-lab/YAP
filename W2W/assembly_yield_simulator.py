@@ -17,10 +17,10 @@ from utils.util import result_wrapper
 
 
 def Assembly_Yield_Simulator(
-    input_args,
-    cfg_skeleton,
+    input_args: dict,
+    cfg_skeleton: object,
     cfg_dict: dict,
-    pad_bitmap_collection_dict,
+    pad_bitmap_collection_dict: dict,
 ): 
     NUM_WAFER_STACKS = cfg_skeleton.NUM_WAFER_STACKS
     SIM_BATCH_SIZE = cfg_skeleton.SIM_BATCH_SIZE
