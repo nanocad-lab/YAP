@@ -335,7 +335,7 @@ class WaferStack:
         self.die_stack_survival = np.ones((self.num_dies_per_wafer), dtype=bool)  # Initialize all die stacks as survived
 
 
-    def draw_w2w_stack_3d(self, itf_pitch=1.0, fig_size=(10, 8), dpi=300,
+    def draw_w2w_stack_3d(self, cfg_dict, itf_pitch=1.0, fig_size=(10, 8), dpi=300,
                         draw_pad_yield_map_option=None, draw_voids=True, figname=None):
         """
         waf_itf: the wafer interface object containing the die and pad information for each layer
@@ -343,8 +343,9 @@ class WaferStack:
         """
         fig = plt.figure(figsize=fig_size, dpi=dpi)
         ax = fig.add_subplot(111, projection='3d')
+        cfg = cfg_dict[list(cfg_dict.keys())[0]]  # Get config from the first interface for wafer dimensions
 
-        waf_itf_r = 150000
+        waf_itf_r = cfg.WAF_R_um
         ax.set_xlim(-waf_itf_r * 1.1, waf_itf_r * 1.1)
         ax.set_ylim(-waf_itf_r * 1.1, waf_itf_r * 1.1)
         ax.set_zlim(-itf_pitch, itf_pitch * (len(self.interfaces.interface_dict) + 1))
@@ -414,11 +415,11 @@ class WaferStack:
 
 
     def draw_w2w_stack_2d(
+        cfg_dict,
         waf_stack,
         fig_size=(10, 8),
         dpi=300,
         draw_voids=True,
-        waf_itf_r=150000,
         overlay_all_layers=True,
         draw_wafer_outline_once=True,
         figname=None,
@@ -435,10 +436,11 @@ class WaferStack:
 
         fig, ax = plt.subplots(figsize=fig_size, dpi=dpi)
         ax.set_aspect("equal", adjustable="box")
+        cfg = cfg_dict[list(cfg_dict.keys())[0]]  # Get config from the first interface for wafer dimensions
 
         # Set plot limits
-        ax.set_xlim(-waf_itf_r * 1.1, waf_itf_r * 1.1)
-        ax.set_ylim(-waf_itf_r * 1.1, waf_itf_r * 1.1)
+        ax.set_xlim(-cfg.WAF_R_um * 1.1, cfg.WAF_R_um * 1.1)
+        ax.set_ylim(-cfg.WAF_R_um * 1.1, cfg.WAF_R_um * 1.1)
         ax.set_xlabel("X")
         ax.set_ylabel("Y")
         ax.set_title("W2W Stack Top View (2D Overlay)")
@@ -448,7 +450,7 @@ class WaferStack:
             ax.add_patch(
                 Circle(
                     (0, 0),
-                    waf_itf_r,
+                    cfg.WAF_R_um,
                     fill=False,
                     linewidth=0.6,
                     edgecolor="gray",
@@ -457,7 +459,7 @@ class WaferStack:
             )
 
         # Iterate over wafer interfaces (layers)
-        for itf_idx, waf_itf in enumerate(waf_stack.interfaces.interface_dict.values()):
+        for itf_idx, interface in enumerate(waf_stack.interfaces.interface_dict.values()):
             if (not overlay_all_layers) and itf_idx != 0:
                 continue
 
@@ -466,7 +468,7 @@ class WaferStack:
                 ax.add_patch(
                     Circle(
                         (0, 0),
-                        waf_itf_r,
+                        cfg.WAF_R_um,
                         fill=False,
                         linewidth=0.1,
                         edgecolor="gray",
@@ -475,7 +477,7 @@ class WaferStack:
                 )
 
             # Draw dies using filled polygons (no edges)
-            for die in waf_itf.die_list:
+            for die in interface.die_list:
                 vc = np.asarray(die.vertices_coords, dtype=float)
                 if vc.ndim != 2 or vc.shape[0] < 4 or vc.shape[1] < 2:
                     continue
@@ -500,10 +502,10 @@ class WaferStack:
                 )
 
             # Draw voids as 2D scatter points
-            if draw_voids and hasattr(waf_itf, "voids") and waf_itf.voids:
-                vx = np.array([v[0] for v in waf_itf.voids], dtype=float)
-                vy = np.array([v[1] for v in waf_itf.voids], dtype=float)
-                vr = np.array([v[2] for v in waf_itf.voids], dtype=float)
+            if draw_voids and hasattr(interface, "voids") and interface.voids:
+                vx = np.array([v[0] for v in interface.voids], dtype=float)
+                vy = np.array([v[1] for v in interface.voids], dtype=float)
+                vr = np.array([v[2] for v in interface.voids], dtype=float)
 
                 marker_size = np.clip(vr, 1, None) * 2
                 ax.scatter(vx, vy, s=marker_size, alpha=0.4)
@@ -514,9 +516,9 @@ class WaferStack:
 
         # Save the figure
         if figname is not None:
-            fig.savefig(figname)
-        else:
-            fig.savefig("w2w_stack_2d.png")
+            fig.savefig(cfg_dict[list(cfg_dict.keys())[0]].OUTPUT_DIR
+                         + cfg_dict[list(cfg_dict.keys())[0]].DESIGN
+                         + '/' + figname)
 
 
     

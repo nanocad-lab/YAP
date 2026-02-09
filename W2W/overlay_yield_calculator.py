@@ -263,7 +263,6 @@ def pad_overlay_yield_map_generator(
 
 def stack_overlay_yield_calculator(
     cfg_dict: dict,
-    pad_bitmap_collection_dict: dict,
     waf_stack,
 ):    
 

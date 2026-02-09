@@ -397,7 +397,7 @@ def overall_yield_simulator(
         # Save waf_stack and cfg for visualization
         # dump(waf_stack, "waf_stack.joblib")
 
-        # waf_stack.draw_w2w_stack_2d(cfg, figname=cfg.OUTPUT_DIR + cfg.DESIGN + '/w2w_stack_{}_2d.png'.format(epoch*NUM_STACKS+stack_ind+1))
+        # waf_stack.draw_w2w_stack_2d(cfg_dict, figname=cfg.OUTPUT_DIR + cfg.DESIGN + '/w2w_stack_{}_2d.png'.format(epoch*NUM_STACKS+stack_ind+1))
 
 
 

@@ -353,6 +353,10 @@ def pad_esd_yield_map_generator(
     valid_pad_yield_map_vec = 1.0 - valid_pad_risk_map_vec
     return valid_pad_yield_map_vec, fig, float(p_fail_single)
 
+# To calculate the die yield regarding ESD failure mechanism
+def die_esd_yield_calculation():
+    pass
+
 # =========================
 # demo2: 单次外部数组模拟（统一列表 + 二分直到 pad）
 # =========================

@@ -95,3 +95,49 @@ def pad_defect_yield_map_generator(
         wafer.glb_pad_yield_min_max_dict['Y_df'] = (glb_defect_pad_yield_min, glb_defect_pad_yield_max)
         print("Global min of the pad-level defect yield: {}".format(glb_defect_pad_yield_min))
         print("Global max of the pad-level defect yield: {}".format(glb_defect_pad_yield_max))
+
+
+
+
+
+def stack_defect_yield_calculator(
+    cfg_dict: dict,
+    waf_stack,
+):
+    def avg_defects_per_die(cfg, die_list):
+        """
+        This function calculate the average number of fatal defects to each die on the wafer interface
+        return:
+            avg_defects_per_die_array: shape (num_dies_per_wafer, )
+        """
+        DIE_W_um, DIE_L_um = cfg.DIE_W_um, cfg.DIE_L_um
+        D0 = cfg.D0
+        z = cfg.z
+        k_l = cfg.k_L
+        t_0 = cfg.t_0
+        die_center_array = np.array([die.die_center for die in die_list])
+        die2waf_center_dist_um = np.sqrt(die_center_array[:, 0]**2 + die_center_array[:, 1]**2)
+
+        term1 = DIE_W_um * DIE_L_um
+        term2 = 4 * (DIE_W_um + DIE_L_um) * (z - 1) /(np.pi * (2 * z - 3)) * k_l * die2waf_center_dist_um * t_0 ** 0.5
+        avg_defects_per_die_array = D0 * (term1 + term2)
+
+        return avg_defects_per_die_array
+
+    def die_yield_given_defect_params(avg_defects_per_die_array):
+        """
+        This function calculate the die yield given the average number of defects per die
+        return:
+            die_yield_array: shape (num_dies_per_wafer, )
+        """
+        defect_yield_array = np.exp(-avg_defects_per_die_array)
+        return defect_yield_array
+
+    """
+    Calculate the pad-level defect yield
+    """
+    for interface_name, cfg in cfg_dict.items():
+        avg_defects_per_die_array = avg_defects_per_die(cfg, waf_stack.interfaces.interface_dict[interface_name].die_list)
+        defect_yield_array = die_yield_given_defect_params(avg_defects_per_die_array)
+        # Update the die yield in the die objects
+        waf_stack.die_yield_list_per_interface_dict[interface_name] = defect_yield_array
