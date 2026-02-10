@@ -3,7 +3,7 @@
 
 # Wafers and Dies intialization for the yield model for hybrid bonding
 #### Author: Zhichao Chen
-#### Date: Oct 2, 2025
+#### Date: Feb 10, 2026
 
 '''
 This module contains functions to calculate die-level and pad-level defect-induced yield based on void size distribution and pad layout.
@@ -13,6 +13,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 import math
+from scipy.integrate import quad
 
 def get_bitmap_bounds(*,
                       bitmap: np.ndarray,
@@ -117,4 +118,84 @@ def stack_defect_yield_calculator(
     cfg_dict: dict,
     die_stack,
 ):
-    def avg_defects_per_die
+    def f_r_mv(r_mv, D0, k_r, k_r0, eff_DIE_R, t_0, z):
+        # Define critical radius value
+        r_critical = (k_r * eff_DIE_R + k_r0) * np.sqrt(t_0)
+        if r_mv < k_r0 * np.sqrt(t_0):
+            return 0
+        if r_mv < r_critical:
+            # Calculate f_r_mv for r < r_critical
+            term1 = (D0 * (z - 1) * t_0**(z - 1)) / (k_r**2 * eff_DIE_R**2)
+            inner_term1 = (2 * r_mv) / (z * t_0 ** z) + (2 * k_r0**(2 * z)) / (z * (2 * z - 1) * r_mv**(2 * z - 1))
+            inner_term2 = (2 * k_r0) / ((z - 1 / 2) * t_0**(z - 1 / 2))
+            f_r_mv_value = term1 * (inner_term1 - inner_term2)
+        
+        else:
+            # Calculate f_r_mv for r >= r_critical
+            term1 = (2 * D0 * (z - 1) * t_0**(z - 1) * (k_r * eff_DIE_R + k_r0)**(2*z-2)) / (r_mv**(2 * z - 1))
+            out_term2 = 2 * D0 * (z - 1)**2 * t_0**(z-1) / (k_r**2 * eff_DIE_R**2 * r_mv**(2 * z - 1))
+            bracket_term2 = ((k_r * eff_DIE_R + k_r0)**(2*z) - k_r0**(2*z)) / z - (2*k_r0*(k_r * eff_DIE_R + k_r0)**(2*z-1)-2*k_r0**(2*z)) / (z - 1/2) + (k_r0**2 * (k_r*eff_DIE_R+k_r0)**(2*z-2)-k_r0**(2*z)) / (z-1)
+            f_r_mv_value = term1 - out_term2 * bracket_term2
+
+        return f_r_mv_value
+
+
+
+    
+
+    def void_critical_area_per_die(PAD_TOP_R, r_v, PITCH_r, PITCH_c, PAD_ARR_ROW, PAD_ARR_COL, VOID_SHAPE):
+        N = PAD_ARR_ROW * PAD_ARR_COL
+        r_p = PAD_TOP_R
+        a = PAD_ARR_ROW
+        b = PAD_ARR_COL
+        if VOID_SHAPE == 'circle':
+            if 2 * (r_v + r_p) <= min(PITCH_r, PITCH_c):
+                return N * np.pi * (r_v + r_p)**2
+            elif 2 * (r_v + r_p) > min(PITCH_r, PITCH_c) and 2 * (r_v + r_p) <= np.sqrt(PITCH_r**2 + PITCH_c**2):
+                if 2 * (r_v + r_p) > PITCH_r:
+                    theta_r = np.arccos(PITCH_r / (2 * (r_v + r_p)))
+                    return N * np.pi * (r_v + r_p)**2 - (a-1)*b*2*(theta_r - 0.5*np.sin(2*theta_r)) * (r_v + r_p)**2
+                if 2 * (r_v + r_p) > PITCH_c:
+                    theta_c = np.arccos(PITCH_c / (2 * (r_v + r_p)))
+                    return N * np.pi * (r_v + r_p)**2 - (b-1)*a*2*(theta_c - 0.5*np.sin(2*theta_c)) * (r_v + r_p)**2
+            elif 2 * (r_v + r_p) > np.sqrt(PITCH_r**2 + PITCH_c**2):
+                theta_r = np.arccos(PITCH_r / (2 * (r_v + r_p)))
+                theta_c = np.arccos(PITCH_c / (2 * (r_v + r_p)))
+                return (a-1)*(b-1) * PITCH_r * PITCH_c + ((a-1)*np.sin(2*theta_c) + (b-1)*np.sin(2*theta_r)) * (r_v + r_p)**2 \
+                + ((3*np.pi-2*theta_r-2*theta_c)+(a-2)*(np.pi-2*theta_r)+((b-2)*(np.pi-2*theta_c))) * (r_v + r_p)**2
+        elif VOID_SHAPE == 'square':
+            if 2 * (r_v + r_p) <= min(PITCH_c, PITCH_r):
+                return 4 * N * (r_v + r_p)**2
+            elif 2 * (r_v + r_p) > min(PITCH_c, PITCH_r) and 2 * (r_v + r_p) <= max(PITCH_c, PITCH_r):
+                if PITCH_c < PITCH_r:
+                    return 4 * N * (r_v + r_p)**2 - a * (b - 1) * 2 * (r_v + r_p) * (r_v + r_p - PITCH_c)
+                else:
+                    return 4 * N * (r_v + r_p)**2 - (a - 1) * b * 2 * (r_v + r_p) * (r_v + r_p - PITCH_r)
+            elif 2 * (r_v + r_p) > max(PITCH_c, PITCH_r):
+                return ((a-1) * PITCH_r + 2 * (r_v + r_p)) * ((b-1) * PITCH_c + 2 * (r_v + r_p))
+        else:
+            raise ValueError("Invalid VOID_SHAPE value. Please specify 'circle' or 'square'.")
+            
+    def integral_main_voids(r_mv, D0, k_r, k_r0, eff_DIE_R, t_0, z, PAD_TOP_R, PITCH_r, PITCH_c, PAD_ARR_ROW, PAD_ARR_COL, VOID_SHAPE):
+        Distr_r_mv = f_r_mv(r_mv, D0, k_r, k_r0, eff_DIE_R, t_0, z)
+        A_r_mv = void_critical_area_per_die(PAD_TOP_R, r_mv, PITCH_r, PITCH_c, PAD_ARR_ROW, PAD_ARR_COL, VOID_SHAPE)
+        return Distr_r_mv * A_r_mv
+    
+    for interface_name, cfg in cfg_dict.items():
+        D0 = cfg.D0
+        t_0 = cfg.t_0
+        z = cfg.z
+        k_r = cfg.k_r
+        k_r0 = cfg.k_r0
+        PAD_TOP_R_um = cfg.PAD_TOP_R_um
+        PAD_ARR_ROW, PAD_ARR_COL = cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL
+        PITCH_r_um, PITCH_c_um = cfg.PITCH_r_um, cfg.PITCH_c_um
+        VOID_SHAPE = cfg.VOID_SHAPE
+        eff_DIE_R_um = cfg.eff_DIE_R_um
+        avg_main_voids = quad(integral_main_voids, k_r0*t_0**0.5, np.inf, args=(D0, k_r, k_r0, eff_DIE_R_um, 
+                                                                                t_0, z, PAD_TOP_R_um, PITCH_r_um, PITCH_c_um,
+                                                                                PAD_ARR_ROW, PAD_ARR_COL, VOID_SHAPE))[0]
+        particle_defect_yield = np.exp(-avg_main_voids)
+        die_stack.die_yield_list_per_interface_dict[interface_name]['defect'] = particle_defect_yield
+
+    return particle_defect_yield

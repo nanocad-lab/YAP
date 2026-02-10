@@ -397,4 +397,4 @@ def stack_overlay_yield_calculator(
         overlay_die_yield = min(overlay_die_yield_0, overlay_die_yield_1, overlay_die_yield_2, overlay_die_yield_3)
     
         # Save the overlay yield for the interface in the die stack
-        die_stack.die_dict[interface_name].overlay_yield = overlay_die_yield
+        die_stack.die_yield_list_per_interface_dict[interface_name]['overlay'] = overlay_die_yield

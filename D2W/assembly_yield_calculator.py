@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from YAP.D2W.wafer_die_stack_initialization import die_initialize
 from overlay_yield_calculator import stack_overlay_yield_calculator
 from defect_yield_calculator import stack_defect_yield_calculator
-from Cu_expansion_yield_calculator import pad_Cu_expansion_yield_map_generator
+from Cu_expansion_yield_calculator import stack_stress_yield_calculator
 from utils.util import DieStack
 from esd_hybrid import pad_esd_yield_map_generator
 
@@ -49,34 +49,17 @@ def Assembly_Yield_Calculator(
 
     # Calculate the defect yield
     stack_defect_yield_calculator(
-        cfg_dict           =       cfg_dict,
-        D0                =       cfg.D0,
-        t_0               =       cfg.t_0,
-        z                 =       cfg.z,
-        k_r               =       cfg.k_r,
-        k_r0              =       cfg.k_r0,
-        PAD_TOP_R_um      =       cfg.PAD_TOP_R_um,
-        PAD_ARR_ROW       =       cfg.PAD_ARR_ROW,
-        PAD_ARR_COL       =       cfg.PAD_ARR_COL,
-        die               =       die,
-        pad_yield_flag    =       cfg.pad_yield_flag,
-        pad_yield_map_sub_factor = cfg.pad_yield_map_sub_factor,
+        cfg_dict            =       cfg_dict,
+        die_stack           =       die_stack,
     )
-    die.pad_yield_map['Y_df'] = defect_pad_yield_map
 
     # Calculate the Cu expansion yield
-    Cu_expansion_start_time = time.time()
-    Cu_expansion_pad_yield_map = pad_Cu_expansion_yield_map_generator(
-        cfg                 =       cfg,
-        die                 =       die,
-        TOP_DISH_MEAN_nm    =       cfg.TOP_DISH_MEAN_nm,
-        TOP_DISH_STD_nm     =       cfg.TOP_DISH_STD_nm,
-        BOT_DISH_MEAN_nm    =       cfg.BOT_DISH_MEAN_nm,
-        BOT_DISH_STD_nm     =       cfg.BOT_DISH_STD_nm,
-        pad_bitmap_collection =   pad_bitmap_collection,
+    stack_stress_yield_calculator(
+        cfg_dict                    =   cfg_dict,
+        die_stack                   =   die_stack,
+        pad_bitmap_collection_dict  =   pad_bitmap_collection_dict,
+        valid_pad_mask_dict         =   valid_pad_mask_dict,
     )
-    die.pad_yield_map['Y_ce'] = Cu_expansion_pad_yield_map
-    print(f"Cu expansion yield calculation took {time.time() - Cu_expansion_start_time:.2f} seconds")
 
     esd_start_time = time.time()
     # Calculate the ESD yield
