@@ -35,7 +35,7 @@ def stack_esd_yield_calculator(
             # Assume dies in the center will be the first contact point and have higher ESD hazard
             die_pad_coords = interface.base_pad_coords + die.die_center
             valid_die_pad_coords = die_pad_coords[CRITICAL_PAD_MASK == 1]
-            esd_valid_pad_yield_vec, _, _ = die_esd_yield_calculation(
+            esd_valid_pad_yield_vec, _, _ = die_esd_yield_calculation(  # TODO: To be implemented by Cain
                 cfg                   = cfg,
                 pad_coords_um         = valid_die_pad_coords,
             )
