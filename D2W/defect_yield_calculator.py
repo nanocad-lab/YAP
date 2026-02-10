@@ -109,44 +109,12 @@ def pad_defect_yield_map_generator(
         plt.ylabel('Pad Row Index')
         plt.show()
 
-        
-
-        # x_min, x_max = -2500, 2500
-        # y_min, y_max = -2500, 2500
-
-        # plt.figure(figsize=(8, 6), dpi=600)
-        # im = plt.imshow(
-        #     1 - particle_defect_pad_yield_map_sub,
-        #     cmap='viridis',
-        #     vmin=1 - die.glb_pad_yield_min_max_dict['Y_df'][1],
-        #     vmax=1 - die.glb_pad_yield_min_max_dict['Y_df'][0],
-        #     interpolation='nearest',
-        #     origin='lower',
-        #     aspect='equal',
-        #     extent=[x_min, x_max, y_min, y_max]  # ← 用物理坐标范围定义 μm 标尺
-        # )
-
-        # plt.colorbar(im, label='Pad-level Defect Yield')
-        # plt.title('Pad Defect Risk')
-        # plt.xlabel('X (μm)')
-        # plt.ylabel('Y (μm)')
-
-        # ax = plt.gca()
-        # ax.tick_params(which='both', direction='in', top=True, right=True)
-        # ax.tick_params(which='major', length=6, labelsize=12)
-        # ax.tick_params(which='minor', length=3)
-
-        # # 主次刻度：μm 单位
-        # from matplotlib.ticker import MultipleLocator
-        # ax.xaxis.set_major_locator(MultipleLocator(1000))  # 主刻度 1000 μm
-        # ax.yaxis.set_major_locator(MultipleLocator(1000))
-        # ax.xaxis.set_minor_locator(MultipleLocator(500))   # 次刻度 500 μm
-        # ax.yaxis.set_minor_locator(MultipleLocator(500))
-
-        # # 网格线
-        # ax.grid(which='major', linestyle='-', linewidth=0.8, alpha=0.6)
-        # ax.grid(which='minor', linestyle='--', linewidth=0.4, alpha=0.4)
-
-        # plt.show()
-
     return particle_defect_pad_yield_map_sub
+
+
+
+def stack_defect_yield_calculator(
+    cfg_dict: dict,
+    die_stack,
+):
+    def avg_defects_per_die

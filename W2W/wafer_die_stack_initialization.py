@@ -310,6 +310,7 @@ class WaferStack:
     def __init__(self, 
                  cfg_dict: dict,
                  pad_bitmap_collection_dict: dict,
+                 mode = None,
                  ):
         """
         num_bonding_interfaces: Number of bonding interfaces in each stack
@@ -328,12 +329,34 @@ class WaferStack:
         self.interfaces.add_interfaces()
         self.num_dies_per_wafer = self.interfaces.interface_dict[list(cfg_dict.keys())[0]].num_dies
 
-        self.die_yield_list_per_interface_dict = {interface_name: {
-            failure_mechanism: np.full((self.num_dies_per_wafer), np.nan) for failure_mechanism in failure_mechanism_list
-        }   for interface_name in cfg_dict.keys()}
+        if 'simulation' in mode:        # For yield simulation
+            self.die_stack_survival = np.ones((self.num_dies_per_wafer), dtype=bool)  # Initialize all die stacks as survived
+        elif 'modeling' in mode:        # For yield modeling
+            self.die_yield_list_per_interface_dict = {interface_name: {
+                failure_mechanism: np.full((self.num_dies_per_wafer), np.nan) for failure_mechanism in failure_mechanism_list
+            }   for interface_name in cfg_dict.keys()}
 
-        self.die_stack_survival = np.ones((self.num_dies_per_wafer), dtype=bool)  # Initialize all die stacks as survived
+            self.die_stack_yield_list = np.ones((self.num_dies_per_wafer), dtype=float)  # Initialize all die stacks as survived (yield=1)
+            self.die_stack_yield = np.nan
+        else:
+            raise ValueError("Invalid mode. Please specify 'simulation' or 'modeling' in the mode argument.")
+        
+    def get_die_stack_yield(self):
+        """
+        Calculate the yield for each die stack based on the failure parameters of each interface.
+        """
+        for interface_name, interface in self.interfaces.interface_dict.items():
+            self.die_yield_list_per_interface_dict[interface_name]['overall'] = self.die_yield_list_per_interface_dict[interface_name]['overlay'] * \
+                self.die_yield_list_per_interface_dict[interface_name]['particle'] * \
+                self.die_yield_list_per_interface_dict[interface_name]['mechanical'] * \
+                self.die_yield_list_per_interface_dict[interface_name]['ESD']
+            
+            # Update the die stack yield list by multiplying the overall yields from each interface
+            self.die_stack_yield_list *= self.die_yield_list_per_interface_dict[interface_name]['overall']
 
+        self.die_stack_yield = np.mean(self.die_stack_yield_list)
+
+        return self.die_stack_yield, self.die_stack_yield_list
 
     def draw_w2w_stack_3d(self, cfg_dict, itf_pitch=1.0, fig_size=(10, 8), dpi=300,
                         draw_pad_yield_map_option=None, draw_voids=True, figname=None):

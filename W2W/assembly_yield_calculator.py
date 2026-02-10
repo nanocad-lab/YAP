@@ -6,21 +6,17 @@
 #### Date: Feb 3, 2026
 
 import time
-import pickle
-import gzip
 import numpy as np
 from wafer_die_stack_initialization import WaferStack
 from overlay_yield_calculator import stack_overlay_yield_calculator
 from defect_yield_calculator import stack_defect_yield_calculator
 from Cu_expansion_yield_calculator import stack_stress_yield_calculator
-from utils.util import risk_map_generator
 from esd_yield_calculator import stack_esd_yield_calculator
 
 
 
 def Assembly_Yield_Calculator(
     input_args: dict,
-    cfg_skeleton: object,
     cfg_dict: dict,
     pad_bitmap_collection_dict: dict,
 ):
@@ -30,6 +26,7 @@ def Assembly_Yield_Calculator(
     waf_stack = WaferStack(
         cfg_dict=cfg_dict,
         pad_bitmap_collection_dict=pad_bitmap_collection_dict,
+        mode=input_args['mode'],
     )
     waf_stack_init_time = time.time() - start_time
     print("Wafer stack initialization time: {} seconds.".format(waf_stack_init_time))
@@ -72,27 +69,9 @@ def Assembly_Yield_Calculator(
         waf_stack                   =   waf_stack,
         pad_bitmap_collection_dict  =   pad_bitmap_collection_dict,
     )
-            esd_valid_pad_yield_vec, _, _ = pad_esd_yield_map_generator(
-                cfg                   = cfg,
-                pad_coords_um         = valid_die_pad_coords,
-                pad_size_um           = cfg.PAD_TOP_R_um * 2,
-                pad_pitch_um          = cfg.PITCH_r_um,
-                top_wafer_radius_um   = cfg.WAF_R_um,
-                n_tilts               = cfg.n_tilts_samples,
-                n_dishes              = cfg.n_dishes_samples,
-                tilt_x_mean_deg       = cfg.TILT_X_MEAN_DEG,
-                tilt_x_std_deg        = cfg.TILT_X_STD_DEG,
-                tilt_y_mean_deg       = cfg.TILT_Y_MEAN_DEG,
-                tilt_y_std_deg        = cfg.TILT_Y_STD_DEG,
-                top_dish_mean_nm      = cfg.TOP_DISH_MEAN_nm,
-                top_dish_std_nm       = cfg.TOP_DISH_STD_nm,
-                bot_dish_mean_nm      = cfg.BOT_DISH_MEAN_nm,
-                bot_dish_std_nm       = cfg.BOT_DISH_STD_nm,
-            )
-            esd_pad_yield_map[valid_pad_mask == 1] = esd_valid_pad_yield_vec
-        else:
-            # For dies not in the center, assign full yield (1.0)
-            esd_pad_yield_map[valid_pad_mask == 1] = 1.0
-        die.pad_yield_map['Y_esd'] = esd_pad_yield_map
+
+    die_stack_yield, die_stack_yield_list = waf_stack.get_die_stack_yield()
+    print(f"Calculated die stack yield: {die_stack_yield:.6f}")
+       
 
     del waf_stack

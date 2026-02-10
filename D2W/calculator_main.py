@@ -10,9 +10,9 @@ from assembly_yield_calculator import Assembly_Yield_Calculator
 
 
 def parse_args():
-    p = argparse.ArgumentParser(description="Simulate assembly yield for W2W hybrid bonding")
+    p = argparse.ArgumentParser(description="Simulate assembly yield for D2W hybrid bonding")
     p.add_argument("--config", "-c", required=True, help="Path to skeleton config YAML file")
-    p.add_argument("--mode", "-m", required=True, help="Mode to load from config (default: w2w_modeling)")
+    p.add_argument("--mode", "-m", required=True, help="Mode to load from config (default: d2w_modeling)")
     p.add_argument("--ds_name", "-d", required=True, help="Name of design (used for output directory naming)")
     p.add_argument("--ds_dir", required=True, help="Path to design directory")
     p.add_argument("--plot", "-plot", default=False, action="store_true", help="Enable plotting of the pad risk map")
@@ -74,7 +74,8 @@ def main():
         cfg_dict=cfg_dict,
         pad_bitmap_collection_dict=pad_bitmap_collection_dict,                                             
     )
-    print(f"Pad yield map generation finished in {time.time() - start_time:.2f} s")
+    print(f"Modeled yield: {stack_assembly_yield:.6f}")
+    print(f"Yield modeling finished in {time.time() - start_time:.2f} s")
 
 if __name__ == "__main__":
     main()

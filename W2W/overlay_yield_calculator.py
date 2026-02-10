@@ -306,7 +306,7 @@ def stack_overlay_yield_calculator(
         
         # # Record the time
         # start_time = time.time()
-        for die_id, die in enumerate(waf_stack.interfaces[interface_name].die_list):
+        for die_id, die in enumerate(waf_stack.interfaces.interface_dict[interface_name].die_list):
             if redundant_flag == True:
                 far_dx_samples_0 = (system_translation_x_samples_um - system_rotation_samples_rad * die.ovl_critical_pad_boundary_coords[0, 1] + system_magnification_samples_ppm * die.ovl_critical_pad_boundary_coords[0, 0])
                 far_dy_samples_0 = (system_translation_y_samples_um + system_rotation_samples_rad * die.ovl_critical_pad_boundary_coords[0, 0] + system_magnification_samples_ppm * die.ovl_critical_pad_boundary_coords[0, 1])

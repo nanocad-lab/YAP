@@ -534,7 +534,6 @@ def convert_3dblox_to_pad_bitmap(cfg,
 
 
 
-
 def result_wrapper(
         mode: str,
         cfg: object,
