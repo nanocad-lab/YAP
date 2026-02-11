@@ -88,6 +88,8 @@ def stack_stress_yield_calculator(
                 stress_yield_redundant_nets *= 1 - (1 - np.prod(pos_valid_pads[physical_pad_indices])) ** num_replicas
             stress_yield = stress_yield_critical_pads * stress_yield_redundant_nets
             stress_yield_list.append(stress_yield)
+
+            break
             
         # Update the die yield list for this interface in the wafer stack
-        waf_stack.die_yield_list_per_interface_dict[interface_name] = np.array(stress_yield_list)
+        waf_stack.die_yield_list_per_interface_dict[interface_name]['mechanical'] = np.array(stress_yield_list)

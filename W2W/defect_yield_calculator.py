@@ -140,4 +140,4 @@ def stack_defect_yield_calculator(
         avg_defects_per_die_array = avg_defects_per_die(cfg, waf_stack.interfaces.interface_dict[interface_name].die_list)
         defect_yield_array = die_yield_given_defect_params(avg_defects_per_die_array)
         # Update the die yield in the die objects
-        waf_stack.die_yield_list_per_interface_dict[interface_name] = defect_yield_array
+        waf_stack.die_yield_list_per_interface_dict[interface_name]['particle'] = defect_yield_array

@@ -4,7 +4,7 @@
 #### Date: Feb 7, 2026
 
 """
-ESD yield calculator for the W2W hybrid bonding process.
+ESD yield calculator for the D2W hybrid bonding process.
 """
 
 import numpy as np
@@ -18,13 +18,13 @@ from esd_hybrid import die_esd_yield_calculation
 
 def stack_esd_yield_calculator(
     cfg_dict: dict,
-    waf_stack,
+    die_stack,
     pad_bitmap_collection_dict: dict,
 ):
     for interface_name, cfg in cfg_dict.items():
-        interface = waf_stack.interfaces.interface_dict[interface_name]
+        interface = die_stack.interfaces.interface_dict[interface_name]
         pad_bitmap_collection = pad_bitmap_collection_dict[interface_name]
-        interface = waf_stack.interfaces.interface_dict[interface_name]
+        interface = die_stack.interfaces.interface_dict[interface_name]
 
         # Extract the parameters for the ESD yield calculation
         CRITICAL_PAD_MASK = pad_bitmap_collection['CRITICAL_PAD_BITMAP'].flatten()
@@ -40,7 +40,7 @@ def stack_esd_yield_calculator(
             #     cfg                   = cfg,
             #     pad_coords_um         = valid_die_pad_coords,
             # )
-            die_esd_yield = 1 - 1 / waf_stack.num_dies_per_wafer * (len(valid_die_pad_coords) / len(die_pad_coords)) # * p_lambda
+            die_esd_yield = 1 - len(valid_die_pad_coords) / len(die_pad_coords) * p_lambda
             die_esd_yield_list.append(die_esd_yield)
         # Update the die yield list for this interface in the wafer stack
-        waf_stack.die_yield_list_per_interface_dict[interface_name]['ESD'] = die_esd_yield_list
+        die_stack.die_yield_list_per_interface_dict[interface_name]['ESD'] = die_esd_yield_list
