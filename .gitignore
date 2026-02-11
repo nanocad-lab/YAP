@@ -10,4 +10,4 @@ cfg.yaml
 temp/
 *.out
 show_profile.py
-W2W/profile_*.txt
+W2W/*profile*.txt
