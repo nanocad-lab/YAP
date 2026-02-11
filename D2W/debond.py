@@ -155,11 +155,14 @@ def __init_params(cfg):
 # ============================== PAD-SCALE CORE ===============================
 # =============================================================================
 
-def _units():
-    return dict(um=1e-6, nm=1e-9, GPa=1e9, MPa=1e6)
+# Unit conversion constants (module-level to avoid repeated dict creation)
+_UM  = 1e-6
+_NM  = 1e-9
+_GPA = 1e9
+_MPA = 1e6
 
 def _geom_areas(p_um, d_um):
-    U=_units(); p=p_um*U['um']; d=d_um*U['um']
+    p=p_um*_UM; d=d_um*_UM
     A_cell=p**2; A_cu=math.pi*(d**2)/4.0; A_ox=A_cell-A_cu
     if A_ox<=0: raise ValueError("A_ox<=0, check PITCH_UM and DIAM_UM values.")
     return A_cell, A_cu, A_ox
@@ -170,20 +173,20 @@ def _fill_fraction(p_um,d_um):
     return max(1e-12,min(0.999999999,f))
 
 def _thermal_mismatch_sigma(CU_E_GPA, CU_NU, CU_ALPHA_PPM, OX_ALPHA_PPM, T_C, T_ref):
-    U=_units(); dT=T_C-T_ref
-    M_cu=CU_E_GPA*U['GPa']/(1.0-CU_NU)
+    dT=T_C-T_ref
+    M_cu=CU_E_GPA*_GPA/(1.0-CU_NU)
     delta_alpha=(CU_ALPHA_PPM-OX_ALPHA_PPM)*1e-6
     return M_cu*delta_alpha*dT
 
 def _split_sigma(sigma_m_Pa, SIGMA_Y_MPA, CREEP_FACTOR):
-    U=_units(); sigma_y=SIGMA_Y_MPA*U['MPa']
+    sigma_y=SIGMA_Y_MPA*_MPA
     sigma_e=max(-sigma_y,min(sigma_m_Pa,sigma_y))
     sigma_p=sigma_m_Pa-sigma_e
     sigma_c=CREEP_FACTOR*sigma_m_Pa
     return sigma_e,sigma_p,sigma_c
 
 def _k_n_bar(CU_E_GPA, CU_NU, T_INT_NM):
-    U=_units(); M_cu=(CU_E_GPA*U['GPa'])/(1.0-CU_NU); t_int=T_INT_NM*U['nm']
+    M_cu=(CU_E_GPA*_GPA)/(1.0-CU_NU); t_int=T_INT_NM*_NM
     return M_cu/t_int
 
 def _tcu_of_T_exp(T_C, T_ref_C, TCU_BASE_UM, TCU_K_PER_C):
@@ -194,46 +197,44 @@ def _apply_dish_gain_to_tcu_linear(tcu_um, D_nm):
     return tcu_um*(1.0+KDISH_TCU_GAIN_PER_NM*max(0.0,float(D_nm)))
 
 def _delta_eq_two_pads(sigma_e,sigma_p,sigma_c,CU_E_GPA,CU_NU,T_CU_UM_eff,R_P,R_C):
-    U=_units(); t_cu=T_CU_UM_eff*U['um']
-    k_e_eff=(2.0*CU_NU/(CU_E_GPA*U['GPa']))*t_cu
+    t_cu=T_CU_UM_eff*_UM
+    k_e_eff=(2.0*CU_NU/(CU_E_GPA*_GPA))*t_cu
     S=sigma_e+R_P*sigma_p+R_C*sigma_c
     return 2.0*(k_e_eff*S)
 
 def _phi_cu(delta_eq_m, dishing_nm, ETA_GROWTH, PHI_CU0):
     # Heat-dwell Cu contact ratio; depends on D for SIO2 path and Cu gating in cool model.
-    U=_units(); delta_sat=2*dishing_nm*U['nm']
+    delta_sat=2*dishing_nm*_NM
     if delta_eq_m<=delta_sat: return 0.0
     x=(delta_eq_m-delta_sat)/max(delta_sat,1e-12)
     return PHI_CU0+(1.0-PHI_CU0)*(x**ETA_GROWTH)
 
 # ---------- New: purely D-independent heat-dwell delta_eq (for H_single) ----------
 def compute_delta_eq_nm_only():
-    U=_units()
     sigma_m=_thermal_mismatch_sigma(CU_E_GPA,CU_NU,CU_ALPHA_PPM,OX_ALPHA_PPM,T_ANNEAL_C,T_REF_C)
     sigma_e,sigma_p,sigma_c=_split_sigma(sigma_m,SIGMA_Y_MPA,CREEP_FACTOR)
     T_CU_UM_eff=_tcu_of_T_exp(T_ANNEAL_C,T_REF_C,TCU_BASE_UM,TCU_K_PER_C)
     delta_eq=_delta_eq_two_pads(sigma_e,sigma_p,sigma_c,CU_E_GPA,CU_NU,T_CU_UM_eff,R_P,R_C)
     return dict(
-        delta_eq_nm = delta_eq/U['nm'],
-        sigma_e_MPa = sigma_e/U['MPa'],
-        sigma_p_MPa = sigma_p/U['MPa'],
-        sigma_c_MPa = sigma_c/U['MPa'],
+        delta_eq_nm = delta_eq/_NM,
+        sigma_e_MPa = sigma_e/_MPA,
+        sigma_p_MPa = sigma_p/_MPA,
+        sigma_c_MPa = sigma_c/_MPA,
         tcu_eff_um  = T_CU_UM_eff
     )
 
 # ---------- Heat-dwell SiO2 peeling stress at given D ----------
 def compute_sigma_peel_MPa_at(D_nm: float):
-    U=_units()
     _,A_cu,A_ox=_geom_areas(PITCH_UM,DIAM_UM)
     # reuse the same sigma_e/p/c and TCU from D-independent path:
     base = compute_delta_eq_nm_only()
-    delta_eq = base['delta_eq_nm']*U['nm']
+    delta_eq = base['delta_eq_nm']*_NM
     phi_cu = _phi_cu(delta_eq, D_nm, ETA_GROWTH, PHI_CU0)
     k_n=_k_n_bar(CU_E_GPA,CU_NU,T_INT_NM)
     N_cu=k_n*delta_eq*(A_cu*phi_cu)
     sigma_peel=N_cu/A_ox
     return dict(
-        sigma_peel_MPa=sigma_peel/U['MPa'],
+        sigma_peel_MPa=sigma_peel/_MPA,
         phi_cu=phi_cu,
         delta_eq_nm=base['delta_eq_nm'],
         tcu_eff_um=base['tcu_eff_um'],
@@ -249,7 +250,6 @@ def _sigma_y_cool_MPa(sigma_p_heat_MPa, sigma_y_heat_MPa):
 
 # ---------- Cool-down Cu peeling stress at given D ----------
 def compute_cu_peel_cool_MPa_at(D_nm: float):
-    U=_units()
     hot = compute_sigma_peel_MPa_at(D_nm)  # note: phi_cu now from D
     if hot['phi_cu']<=0.0:
         return dict(sigma_cu_peel_MPa=0.0, reason="no_contact_in_heat_dwell",

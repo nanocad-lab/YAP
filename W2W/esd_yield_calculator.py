@@ -40,7 +40,7 @@ def stack_esd_yield_calculator(
             #     cfg                   = cfg,
             #     pad_coords_um         = valid_die_pad_coords,
             # )
-            die_esd_yield = 1 - 1 / waf_stack.num_dies_per_wafer * (len(valid_die_pad_coords) / len(die_pad_coords)) # * p_lambda
+            die_esd_yield = 1 - (1 / waf_stack.num_dies_per_wafer) * (len(valid_die_pad_coords) / len(die_pad_coords)) # * p_lambda
             die_esd_yield_list.append(die_esd_yield)
         # Update the die yield list for this interface in the wafer stack
         waf_stack.die_yield_list_per_interface_dict[interface_name]['ESD'] = die_esd_yield_list

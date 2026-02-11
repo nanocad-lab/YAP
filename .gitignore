@@ -10,5 +10,4 @@ cfg.yaml
 temp/
 *.out
 show_profile.py
-profile_report.txt
-profile_analysis.txt
+W2W/profile_*.txt
