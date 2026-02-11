@@ -69,9 +69,14 @@ def Assembly_Yield_Calculator(
         waf_stack                   =   waf_stack,
         pad_bitmap_collection_dict  =   pad_bitmap_collection_dict,
     )
+    esd_yield_time = time.time() - start_time - waf_stack_init_time - overlay_yield_time - defect_yield_time - Cu_expansion_yield_time
+    print("ESD yield calculation time: {} seconds.".format(esd_yield_time))
 
     die_stack_yield, die_stack_yield_list = waf_stack.get_die_stack_yield()
     print(f"Calculated die stack yield: {die_stack_yield:.6f}")
+
        
 
     del waf_stack
+
+    return die_stack_yield, die_stack_yield_list

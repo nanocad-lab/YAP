@@ -33,6 +33,7 @@ def main():
     # Read the config skeleton and update with design parameters
     cfg_skeleton = OmegaConf.load(args.config)[args.mode]
 
+    start_time = time.time()
     # Load config and update with design and ADK parameters (from .3dbv and .bmap)
     cfg_dict = get_config_dict(cfg_folder=args.config.rsplit('/', 1)[0],
                                 cfg_skeleton=cfg_skeleton, 
@@ -42,7 +43,9 @@ def main():
                                 _3dbx_path=_3dbx_path,
                                 mode=args.mode, 
                                 debug=args.debug)
-    
+    cfg_loading_time = time.time()
+    print(f"Config loading and processing finished in {cfg_loading_time - start_time:.2f} seconds.")
+
     # Plotting flag
     for cfg in cfg_dict.values():
         cfg.plot_flag = args.plot
@@ -64,11 +67,13 @@ def main():
                                                             _bmap_path=bmap_path_dict[interface],
                                                             criticality_path=criticality_path_dict[interface],
                                                             pad_arrange_pattern=cfg.PAD_ARRANGE_PATTERN)
+    convert_time = time.time()
+    print("Pad bitmap collection generation finished in {} seconds.".format(convert_time - cfg_loading_time))
 
     # Step 2: generate pad-level yield map
     print("Calculating pad-level yield map...")
     start_time = time.time()
-    stack_assembly_yield, _ = Assembly_Yield_Calculator(
+    stack_assembly_yield, stack_assembly_yield_list = Assembly_Yield_Calculator(
         input_args=vars(args),
         cfg_dict=cfg_dict,
         pad_bitmap_collection_dict=pad_bitmap_collection_dict,                                             

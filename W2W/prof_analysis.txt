@@ -1,0 +1,105 @@
+Total time: 357.95s, Total calls: 742382172
+
+=== TOP 40 BY CUMULATIVE TIME ===
+Wed Feb 11 14:24:37 2026    prof.out
+
+         742382172 function calls (742305217 primitive calls) in 357.947 seconds
+
+   Ordered by: cumulative time
+   List reduced from 7909 to 40 due to restriction <40>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+   1754/1    0.039    0.000  357.951  357.951 {built-in method builtins.exec}
+        1    0.333    0.333  357.951  357.951 calculator_main.py:1(<module>)
+        1    0.034    0.034  354.244  354.244 calculator_main.py:24(main)
+        4   19.182    4.796  202.298   50.575 util.py:384(convert_3dblox_to_pad_bitmap)
+  7998269    3.467    0.000  163.682    0.000 dictconfig.py:341(__getattr__)
+  7998290    7.066    0.000  160.215    0.000 dictconfig.py:438(_get_impl)
+        1    0.007    0.007  146.667  146.667 assembly_yield_calculator.py:18(Assembly_Yield_Calculator)
+  7998298    6.637    0.000  101.409    0.000 basecontainer.py:86(_resolve_with_default)
+        1    0.065    0.065   78.341   78.341 Cu_expansion_yield_calculator.py:53(stack_stress_yield_calculator)
+        4    0.002    0.001   78.177   19.544 debond.py:504(debond_dishing_bounds_calculator)
+        4    2.581    0.645   78.081   19.520 debond.py:453(build_effcrit_and_dishing_arrays)
+  3998792    2.165    0.000   65.448    0.000 debond.py:304(_bisect_mono)
+        1   64.440   64.440   64.445   64.445 esd_yield_calculator.py:19(stack_esd_yield_calculator)
+  1999396    1.858    0.000   51.404    0.000 debond.py:342(invert_dishing_cu_given_sigma_eff)
+  7998774    4.293    0.000   47.290    0.000 basecontainer.py:64(_get_child)
+  7998298    2.583    0.000   45.912    0.000 base.py:706(_maybe_resolve_interpolation)
+  8002802    3.660    0.000   43.353    0.000 _utils.py:541(get_value_kind)
+ 16003710   16.576    0.000   42.988    0.000 _utils.py:508(_is_missing_value)
+  3998792    1.844    0.000   41.687    0.000 debond.py:324(_cu_stress_at)
+  3998792    9.036    0.000   39.843    0.000 debond.py:247(compute_cu_peel_cool_MPa_at)
+  7997584   11.857    0.000   39.773    0.000 debond.py:222(compute_sigma_peel_MPa_at)
+  8000888    7.316    0.000   37.875    0.000 dictconfig.py:455(_get_node)
+120399168/120399144   18.824    0.000   35.100    0.000 {built-in method builtins.isinstance}
+  7998298   13.262    0.000   26.933    0.000 _utils.py:746(_get_value)
+  9996984   12.815    0.000   26.500    0.000 debond.py:208(compute_delta_eq_nm_only)
+  1999396    1.345    0.000   23.999    0.000 debond.py:332(invert_dishing_sio2_given_sigma_eff)
+  8000888    5.968    0.000   22.208    0.000 dictconfig.py:149(_validate_get)
+  3998792    1.698    0.000   21.597    0.000 debond.py:321(_sio2_stress_at)
+  8003899    7.378    0.000   18.643    0.000 _utils.py:567(_is_interpolation)
+24017612/24016925    9.988    0.000   17.067    0.000 <frozen importlib._bootstrap>:1390(_handle_fromlist)
+ 48041497    8.050    0.000   16.275    0.000 <frozen abc>:117(__instancecheck__)
+  8000888    3.536    0.000   11.739    0.000 dictconfig.py:144(_is_typed)
+        4    4.642    1.160    8.812    2.203 util.py:261(sort_pads_bmap)
+ 48041497    8.223    0.000    8.225    0.000 {built-in method _abc._abc_instancecheck}
+  8000888    2.222    0.000    8.203    0.000 _utils.py:676(is_dict)
+ 16009402    4.673    0.000    7.868    0.000 <frozen importlib._bootstrap>:645(parent)
+      163    0.005    0.000    7.561    0.046 __init__.py:1(<module>)
+  9996984    3.863    0.000    7.282    0.000 debond.py:176(_split_sigma)
+  8001945    3.507    0.000    7.160    0.000 dictconfig.py:274(_validate_and_normalize_key)
+  1999400    1.109    0.000    6.752    0.000 debond.py:328(_single_side_growth_height_nm)
+
+
+
+=== TOP 40 BY SELF TIME ===
+Wed Feb 11 14:24:37 2026    prof.out
+
+         742382172 function calls (742305217 primitive calls) in 357.947 seconds
+
+   Ordered by: internal time
+   List reduced from 7909 to 40 due to restriction <40>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1   64.440   64.440   64.445   64.445 esd_yield_calculator.py:19(stack_esd_yield_calculator)
+        4   19.182    4.796  202.298   50.575 util.py:384(convert_3dblox_to_pad_bitmap)
+120399168/120399144   18.824    0.000   35.100    0.000 {built-in method builtins.isinstance}
+ 16003710   16.576    0.000   42.988    0.000 _utils.py:508(_is_missing_value)
+  7998298   13.262    0.000   26.933    0.000 _utils.py:746(_get_value)
+  9996984   12.815    0.000   26.500    0.000 debond.py:208(compute_delta_eq_nm_only)
+  7997584   11.857    0.000   39.773    0.000 debond.py:222(compute_sigma_peel_MPa_at)
+24017612/24016925    9.988    0.000   17.067    0.000 <frozen importlib._bootstrap>:1390(_handle_fromlist)
+  3998792    9.036    0.000   39.843    0.000 debond.py:247(compute_cu_peel_cool_MPa_at)
+ 48041497    8.223    0.000    8.225    0.000 {built-in method _abc._abc_instancecheck}
+ 48041497    8.050    0.000   16.275    0.000 <frozen abc>:117(__instancecheck__)
+  8003899    7.378    0.000   18.643    0.000 _utils.py:567(_is_interpolation)
+  8000888    7.316    0.000   37.875    0.000 dictconfig.py:455(_get_node)
+  7998290    7.066    0.000  160.215    0.000 dictconfig.py:438(_get_impl)
+  7998298    6.637    0.000  101.409    0.000 basecontainer.py:86(_resolve_with_default)
+  8000888    5.968    0.000   22.208    0.000 dictconfig.py:149(_validate_get)
+ 29995378    5.008    0.000    5.011    0.000 {built-in method builtins.max}
+ 16009402    4.673    0.000    7.868    0.000 <frozen importlib._bootstrap>:645(parent)
+        4    4.642    1.160    8.812    2.203 util.py:261(sort_pads_bmap)
+  7998774    4.293    0.000   47.290    0.000 basecontainer.py:64(_get_child)
+  9996984    3.863    0.000    7.282    0.000 debond.py:176(_split_sigma)
+ 20093671    3.718    0.000    3.719    0.000 {built-in method builtins.min}
+  8002802    3.660    0.000   43.353    0.000 _utils.py:541(get_value_kind)
+ 31993428    3.655    0.000    3.655    0.000 nodes.py:31(_value)
+  8000888    3.536    0.000   11.739    0.000 dictconfig.py:144(_is_typed)
+  8001945    3.507    0.000    7.160    0.000 dictconfig.py:274(_validate_and_normalize_key)
+  7998269    3.467    0.000  163.682    0.000 dictconfig.py:341(__getattr__)
+24090868/24090141    3.320    0.000    3.592    0.000 {built-in method builtins.hasattr}
+ 16016504    3.197    0.000    3.197    0.000 {method 'rpartition' of 'str' objects}
+ 16003772    3.195    0.000    4.963    0.000 _utils.py:516(_is_missing_literal)
+  9996980    3.167    0.000    3.167    0.000 debond.py:159(_geom_areas)
+8011519/8007798    3.095    0.000    4.520    0.000 base.py:189(_get_flag)
+  8001945    2.879    0.000    3.653    0.000 dictconfig.py:277(_s_validate_and_normalize_key)
+        4    2.845    0.711    2.845    0.711 {built-in method _pickle.dump}
+  3998792    2.842    0.000    4.757    0.000 debond.py:241(_sigma_y_cool_MPa)
+        4    2.717    0.679    4.653    1.163 util.py:80(update_config_from_bmap)
+ 16080120    2.618    0.000    2.618    0.000 {method 'get' of 'dict' objects}
+  7998298    2.583    0.000   45.912    0.000 base.py:706(_maybe_resolve_interpolation)
+        4    2.581    0.645   78.081   19.520 debond.py:453(build_effcrit_and_dishing_arrays)
+  8008409    2.545    0.000    2.545    0.000 {method 'split' of 'str' objects}
+
+

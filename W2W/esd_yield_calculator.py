@@ -28,19 +28,16 @@ def stack_esd_yield_calculator(
 
         # Extract the parameters for the ESD yield calculation
         CRITICAL_PAD_MASK = pad_bitmap_collection['CRITICAL_PAD_BITMAP'].flatten()
-        die_esd_yield_list = []
 
-        # TODO: ESD yield part needs to be updated after discussing with Cain   
-        for die_ind, die in enumerate(interface.die_list):
-            die_center_x, die_center_y = die.die_center[0], die.die_center[1]
-            # Assume dies in the center will be the first contact point and have higher ESD hazard
-            die_pad_coords = interface.base_pad_coords + die.die_center
-            valid_die_pad_coords = die_pad_coords[CRITICAL_PAD_MASK == 1]
-            # die_esd_yield = die_esd_yield_calculation(  # TODO: To be implemented by Cain
-            #     cfg                   = cfg,
-            #     pad_coords_um         = valid_die_pad_coords,
-            # )
-            die_esd_yield = 1 - (1 / waf_stack.num_dies_per_wafer) * (len(valid_die_pad_coords) / len(die_pad_coords)) # * p_lambda
-            die_esd_yield_list.append(die_esd_yield)
+        # The critical-pad ratio is the same for every die (independent of die_center),
+        # so compute it once rather than allocating large arrays per die.
+        num_total_pads = len(CRITICAL_PAD_MASK)
+        num_critical_pads = int(np.count_nonzero(CRITICAL_PAD_MASK))
+
+        p_lambda = 0.1 # FIXME: placeholder value for the lambda parameter in the ESD yield model, to be updated after discussion with Cain
+        die_esd_yield = 1 - (1 / waf_stack.num_dies_per_wafer) * (num_critical_pads / num_total_pads) * p_lambda
+
+        # TODO: ESD yield part needs to be updated after discussing with Cain
+        die_esd_yield_list = [die_esd_yield] * len(interface.die_list)
         # Update the die yield list for this interface in the wafer stack
         waf_stack.die_yield_list_per_interface_dict[interface_name]['ESD'] = die_esd_yield_list

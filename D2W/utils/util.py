@@ -455,25 +455,32 @@ def convert_3dblox_to_pad_bitmap(cfg,
             }
 
 
+    # Cache frequently-accessed config values as plain Python locals
+    # (avoids ~8M expensive OmegaConf __getattr__ resolutions in the bump loop)
+    _PAD_ARR_ROW = int(cfg.PAD_ARR_ROW)
+    _PAD_ARR_COL = int(cfg.PAD_ARR_COL)
+    _PITCH_r_um  = float(cfg.PITCH_r_um)
+    _PITCH_c_um  = float(cfg.PITCH_c_um)
+
     # Initialize the pad bitmap
     # TODO: You need to modify the simulator to support different pad arrangement patterns
-    CRITICAL_PAD_BITMAP = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL), dtype=bool)
-    REDUNDANT_PAD_BITMAP = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL), dtype=bool)
-    DUMMY_PAD_BITMAP = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL), dtype=bool)
-    ESD_CRITICAL_PAD_BITMAP = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL), dtype=bool)
-    pad_coords = np.full((cfg.PAD_ARR_ROW * cfg.PAD_ARR_COL, 2), np.nan, dtype=np.float32)  # x, y coordinates of each bump
+    CRITICAL_PAD_BITMAP = np.zeros((_PAD_ARR_ROW, _PAD_ARR_COL), dtype=bool)
+    REDUNDANT_PAD_BITMAP = np.zeros((_PAD_ARR_ROW, _PAD_ARR_COL), dtype=bool)
+    DUMMY_PAD_BITMAP = np.zeros((_PAD_ARR_ROW, _PAD_ARR_COL), dtype=bool)
+    ESD_CRITICAL_PAD_BITMAP = np.zeros((_PAD_ARR_ROW, _PAD_ARR_COL), dtype=bool)
+    pad_coords = np.full((_PAD_ARR_ROW * _PAD_ARR_COL, 2), np.nan, dtype=np.float32)  # x, y coordinates of each bump
     # Build a mapping array from physical bump location (r, c) to bump id
-    mapping_physical_to_bumpid = np.full((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL), np.nan, dtype=np.float32) # Shape: (PAD_ARR_ROW, PAD_ARR_COL)
+    mapping_physical_to_bumpid = np.full((_PAD_ARR_ROW, _PAD_ARR_COL), np.nan, dtype=np.float32) # Shape: (PAD_ARR_ROW, PAD_ARR_COL)
 
     if pad_arrange_pattern in ('checkerboard', 'rectangular'): # This case is for UCIe standard
         for bump in bump_data:
             x = bump['x']
             y = bump['y']
-            row = int(round((pad_array_top - y ) / (cfg.PITCH_r_um)))   # Because in checkerboard pattern, the pitch per row is halved
-            col = int(round((x - pad_array_left) / (cfg.PITCH_c_um)))   # Because in checkerboard pattern, the pitch per column is halved
+            row = int(round((pad_array_top - y ) / _PITCH_r_um))   # Because in checkerboard pattern, the pitch per row is halved
+            col = int(round((x - pad_array_left) / _PITCH_c_um))   # Because in checkerboard pattern, the pitch per column is halved
             mapping_physical_to_bumpid[row, col] = bump['bumpid']
-            pad_coords[row * cfg.PAD_ARR_COL + col, 0] = bump['x'] - (pad_array_left + pad_array_right) / 2
-            pad_coords[row * cfg.PAD_ARR_COL + col, 1] = bump['y'] - (pad_array_top + pad_array_bottom) / 2
+            pad_coords[row * _PAD_ARR_COL + col, 0] = bump['x'] - (pad_array_left + pad_array_right) / 2
+            pad_coords[row * _PAD_ARR_COL + col, 1] = bump['y'] - (pad_array_top + pad_array_bottom) / 2
             current_bump_net = bump['net']
             num_copies = len(redundant_net_to_bumpids[current_bump_net])
             if 'dummy' in current_bump_net.lower():
@@ -488,7 +495,7 @@ def convert_3dblox_to_pad_bitmap(cfg,
             elif num_copies > 1: 
                 REDUNDANT_PAD_BITMAP[row, col] = 1
                 ESD_CRITICAL_PAD_BITMAP[row, col] = 1 if criticality_info[current_bump_net]['tolerated_esd_failures'] == 0 else 0
-                redundant_net_to_1d_physical_mask[bump['net']] = np.append(redundant_net_to_1d_physical_mask[bump['net']], row * cfg.PAD_ARR_COL + col)
+                redundant_net_to_1d_physical_mask[bump['net']] = np.append(redundant_net_to_1d_physical_mask[bump['net']], row * _PAD_ARR_COL + col)
                 continue
     else:
         raise NotImplementedError("Currently only support checkerboard pad arrangement pattern.")
