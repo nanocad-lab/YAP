@@ -22,7 +22,7 @@ d2w_simulation:
   PAD_TOP_R_um: None                      # Top Cu pad radius (um)
   VOID_SHAPE: "circle"                  # Void shape: "circle" or "square"
   dice_width: 100                      # Width of one die (µm)
-  pad_yield_flag: True
+  pad_yield_flag: False
   pad_yield_map_sub_factor: 1          # Subsampling factor for pad yield map (1: no subsampling, 10: rows/10 and cols/10)
   PAD_ARRANGE_PATTERN: "rectangular"
   
@@ -189,7 +189,7 @@ d2w_modeling:
   PAD_TOP_R_um: None                      # Top Cu pad radius (um)
   VOID_SHAPE: "circle"                  # Shape of void: "circle" or "square"
   dice_width: 100                      # Dice width to separate dies (µm)
-  pad_yield_flag: True                  # Enable pad yield map generation
+  pad_yield_flag: False                  # Enable pad yield map generation
   pad_yield_map_sub_factor: 1          # Subsampling factor for pad yield map (1: no subsampling, 10: rows/10 and cols/10)
   PAD_ARRANGE_PATTERN: "rectangular"
   # === Die Warpage Peeling Stress Mdodel ===

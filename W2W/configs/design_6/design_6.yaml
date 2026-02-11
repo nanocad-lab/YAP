@@ -240,8 +240,6 @@ w2w_modeling:
   k_mag: 0.1                           # Magnification slope coefficient
   M_0: 0                                # Magnification offset
 
-  # === Redundant Design Parameters ===
-  redundant_flag: True                      # Whether the design is redundant (e.g. checkerboard HBM)
 
   # === Defect Parameters ===
   D0: 1e-9                              # Particle density (1/µm²)
