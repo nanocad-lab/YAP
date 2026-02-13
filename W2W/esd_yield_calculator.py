@@ -8,7 +8,7 @@ ESD yield calculator for the W2W hybrid bonding process.
 """
 
 import numpy as np
-from esd_hybrid import die_esd_yield_calculation
+# from esd_hybrid import die_esd_yield_calculation
 
 
 
