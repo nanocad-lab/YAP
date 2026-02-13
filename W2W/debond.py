@@ -17,6 +17,13 @@ INVERSION (FIXED WINDOW, consistent with Eq.(30) singularity):
           if no root -> return D_contact_max
   - To avoid phi->0 divergence at the boundary D = D_contact_max, evaluate f(hi)
     at hi_eval = nextafter(D_contact_max, 0).
+
+FAST VERSION (LUT lookup, same window rules):
+  - Build LUT once per __init_params(cfg): D_grid -> sigma(D)
+      * SiO2 uses Eq.(32) over D in [0, 10] nm
+      * Cu   uses Eq.(36) over D in [0, hi_eval] where hi_eval = nextafter(D_contact_max, 0)
+  - Enforce monotonicity on LUT curves (numerical robustness)
+  - Invert sigma_eff -> D by interpolation (vectorized for all points)
 """
 
 from __future__ import annotations
@@ -65,6 +72,14 @@ class WaferConfig:
     T0_C: float
 
 
+# =============================================================================
+# ============================== LUT CACHES ===================================
+# =============================================================================
+_LUT_READY: bool = False
+_LUT_SIO2: dict | None = None
+_LUT_CU: dict | None = None
+
+
 def __init_params(cfg):
     """
     IMPORTANT:
@@ -84,7 +99,13 @@ def __init_params(cfg):
            MAT_CU, MAT_SiO2, MAT_Si, \
            WAFER_A, WAFER_B, \
            S_INIT_A_M, S_INIT_B_M, \
-           USE_PLOT
+           USE_PLOT, \
+           _LUT_READY, _LUT_SIO2, _LUT_CU
+
+    # Reset LUT cache on every init (cfg may change)
+    _LUT_READY = False
+    _LUT_SIO2 = None
+    _LUT_CU = None
 
     # ---------- (A) Pad-scale: Geometry & Temps ----------
     if cfg.PAD_ARRANGE_PATTERN == 'checkerboard':
@@ -134,11 +155,11 @@ def __init_params(cfg):
     GC_SIO2_JPM2  = cfg.GC_SIO2_JPM2
     GC_CU_JPM2    = cfg.GC_CU_JPM2
     Effective_Contact_Area = get_eff_contact_area_ratio(
-        Asperity_R_m             = cfg.Asperity_R_m,
-        Roughness_sigma_m        = cfg.Roughness_sigma_m,
-        eta_s                    = cfg.eta_s,
-        Roughness_constant       = cfg.Roughness_constant,
-        Adhesion_energy          = cfg.Adhesion_energy,
+        Asperity_R_m                = cfg.Asperity_R_m,
+        Roughness_sigma_m           = cfg.Roughness_sigma_m,
+        eta_s                       = cfg.eta_s,
+        Roughness_constant          = cfg.Roughness_constant,
+        Adhesion_energy             = cfg.Adhesion_energy,
         Dielectric_Young_modulus_Pa = cfg.Dielectric_Young_modulus_Pa,
     )
     assert 0.0 < Effective_Contact_Area <= 1.0, \
@@ -338,6 +359,254 @@ def compute_cu_peel_cool_MPa_at(D_nm: float) -> dict:
 
 
 # =============================================================================
+# ============================ LUT (PAD-SCALE) ================================
+# =============================================================================
+
+def _padscale_precompute_constants() -> dict:
+    """
+    Precompute D-independent constants for Eq.(32)/(36).
+    """
+    A_cell, A_cu, A_ox = _geom_areas(PITCH_UM, DIAM_UM)
+
+    sigma_t = _sigma_t_thermal_Pa()
+    sigma_e_h, sigma_p_h = _split_sigma_ep_heat_paper(sigma_t)
+    d_heat = _delta_heat_m(sigma_e_h, sigma_p_h)
+
+    sigma_e_c, sigma_p_c = _split_sigma_ep_cool_paper(sigma_t)
+    d_cool = _delta_cool_m(sigma_e_c, sigma_p_c)
+
+    kn = _k_n_Pa_per_m()
+    area_factor = (A_cell / A_cu) ** float(EXP_AREA)
+
+    return dict(
+        A_cell=float(A_cell),
+        A_cu=float(A_cu),
+        A_ox=float(A_ox),
+        sigma_t=float(sigma_t),
+        d_heat=float(d_heat),
+        d_cool=float(d_cool),
+        kn=float(kn),
+        area_factor=float(area_factor),
+    )
+
+def _phi_contact_vec(delta_heat_m_val: float, D_nm_vec: np.ndarray) -> np.ndarray:
+    """
+    Vectorized Eq.(30):
+      phi = clip(((delta_heat-2D)/(2D))^EXP_PHI, 0, 1)
+    with special-case D=0 -> 1.
+    """
+    D_nm_vec = np.asarray(D_nm_vec, dtype=np.float64)
+    D_m = D_nm_vec * 1e-9
+
+    phi = np.ones_like(D_m)  # D=0 -> 1
+    mask = D_m > 0.0
+    if not np.any(mask):
+        return phi
+
+    numer = float(delta_heat_m_val) - 2.0 * D_m[mask]
+    pos = numer > 0.0
+
+    phi_masked = np.zeros_like(D_m[mask])
+    if np.any(pos):
+        x = numer[pos] / (2.0 * D_m[mask][pos])
+        val = x ** float(EXP_PHI)
+        phi_masked[pos] = np.clip(val, 0.0, 1.0)
+
+    phi[mask] = phi_masked
+    return phi
+
+def _sigma_sio2_vec_MPa(D_nm_vec: np.ndarray, const: dict) -> np.ndarray:
+    """
+    Vectorized Eq.(32) -> MPa:
+      sigma = kn*(d_heat-2D)*(phi*A_cu)/A_ox, invalid -> 0
+    """
+    D_nm_vec = np.asarray(D_nm_vec, dtype=np.float64)
+    D_m = D_nm_vec * 1e-9
+
+    d_heat = float(const["d_heat"])
+    kn = float(const["kn"])
+    A_cu = float(const["A_cu"])
+    A_ox = float(const["A_ox"])
+
+    opening = d_heat - 2.0 * D_m
+    phi = _phi_contact_vec(d_heat, D_nm_vec)
+
+    sigma_Pa = kn * opening * (phi * A_cu) / A_ox
+    sigma_Pa = np.where((opening > 0.0) & (phi > 0.0), sigma_Pa, 0.0)
+    return sigma_Pa / 1e6
+
+def _sigma_cu_vec_MPa(D_nm_vec: np.ndarray, const: dict) -> np.ndarray:
+    """
+    Vectorized Eq.(36) -> MPa:
+      sigma = kn*(d_cool-d_heat+2D) * (1/phi)^EXP_INVPHI * (A_cell/A_cu)^EXP_AREA
+      invalid -> 0
+    """
+    D_nm_vec = np.asarray(D_nm_vec, dtype=np.float64)
+    D_m = D_nm_vec * 1e-9
+
+    d_heat = float(const["d_heat"])
+    d_cool = float(const["d_cool"])
+    kn = float(const["kn"])
+    area_factor = float(const["area_factor"])
+
+    phi = _phi_contact_vec(d_heat, D_nm_vec)
+    opening = d_cool - d_heat + 2.0 * D_m
+
+    phi_safe = np.maximum(phi, 1e-12)
+    factor_phi = (1.0 / phi_safe) ** float(EXP_INVPHI)
+
+    sigma_Pa = kn * opening * factor_phi * area_factor
+    sigma_Pa = np.where((opening > 0.0) & (phi > 0.0), sigma_Pa, 0.0)
+    return sigma_Pa / 1e6
+
+def _ensure_luts_ready(sio2_n: int = 2001, cu_n: int = 4001):
+    """
+    Build LUTs once per __init_params(cfg).
+
+    SiO2 window: D in [0,10] nm
+    Cu window:   D in [0,hi_eval], hi_eval = nextafter(D_contact_max, 0)
+    """
+    global _LUT_READY, _LUT_SIO2, _LUT_CU
+    if _LUT_READY:
+        return
+
+    const = _padscale_precompute_constants()
+
+    # ---------- SiO2 LUT ----------
+    D_sio2 = np.linspace(0.0, 10.0, int(sio2_n), dtype=np.float64)
+    sig_sio2 = _sigma_sio2_vec_MPa(D_sio2, const)
+
+    # enforce monotone non-increasing (numerical robustness)
+    sig_sio2_mono = np.maximum.accumulate(sig_sio2[::-1])[::-1]
+
+    _LUT_SIO2 = dict(
+        D_nm=D_sio2,
+        sigma_MPa=sig_sio2_mono,
+        lo=0.0,
+        hi=10.0,
+        f_lo=float(sig_sio2_mono[0]),
+        f_hi=float(sig_sio2_mono[-1]),
+        n=int(sio2_n),
+    )
+
+    # ---------- Cu LUT ----------
+    delta_heat_nm = float(const["d_heat"] / 1e-9)
+    D_contact_max = max(0.0, 0.5 * delta_heat_nm)
+
+    if D_contact_max <= 0.0:
+        # no contact domain
+        sig0 = float(_sigma_cu_vec_MPa(np.array([0.0], dtype=np.float64), const)[0])
+        _LUT_CU = dict(
+            D_nm=np.array([0.0], dtype=np.float64),
+            sigma_MPa=np.array([sig0], dtype=np.float64),
+            D_contact_max=0.0,
+            hi_eval=0.0,
+            lo=0.0,
+            hi=0.0,
+            f_lo=sig0,
+            f_hi=sig0,
+            n=1,
+            mode="no_contact_domain",
+        )
+        _LUT_READY = True
+        return
+
+    hi_eval = float(np.nextafter(D_contact_max, 0.0))
+    if hi_eval <= 0.0:
+        sig0 = float(_sigma_cu_vec_MPa(np.array([0.0], dtype=np.float64), const)[0])
+        _LUT_CU = dict(
+            D_nm=np.array([0.0], dtype=np.float64),
+            sigma_MPa=np.array([sig0], dtype=np.float64),
+            D_contact_max=float(D_contact_max),
+            hi_eval=float(hi_eval),
+            lo=0.0,
+            hi=float(D_contact_max),
+            f_lo=sig0,
+            f_hi=sig0,
+            n=1,
+            mode="tiny_contact_domain",
+        )
+        _LUT_READY = True
+        return
+
+    D_cu = np.linspace(0.0, hi_eval, int(cu_n), dtype=np.float64)
+    sig_cu = _sigma_cu_vec_MPa(D_cu, const)
+
+    # enforce monotone non-decreasing (numerical robustness)
+    sig_cu_mono = np.maximum.accumulate(sig_cu)
+
+    _LUT_CU = dict(
+        D_nm=D_cu,
+        sigma_MPa=sig_cu_mono,
+        D_contact_max=float(D_contact_max),
+        hi_eval=float(hi_eval),
+        lo=0.0,
+        hi=float(D_contact_max),
+        f_lo=float(sig_cu_mono[0]),
+        f_hi=float(sig_cu_mono[-1]),
+        n=int(cu_n),
+        mode="ok",
+    )
+
+    _LUT_READY = True
+
+def _invert_sio2_from_lut(sigma_eff_MPa: np.ndarray) -> np.ndarray:
+    """
+    Vectorized inversion for SiO2 using LUT.
+    Rule: window [0,10] nm; if no root -> return 0.
+    """
+    _ensure_luts_ready()
+    lut = _LUT_SIO2
+    D = lut["D_nm"]
+    f = lut["sigma_MPa"]  # decreasing (monotone-enforced)
+
+    f_lo = float(lut["f_lo"])
+    f_hi = float(lut["f_hi"])
+
+    t = np.asarray(sigma_eff_MPa, dtype=np.float64)
+    out = np.zeros_like(t, dtype=np.float64)
+
+    # Valid range for decreasing curve: t in [f_hi, f_lo]
+    mask = (t >= f_hi) & (t <= f_lo)
+    if np.any(mask):
+        # np.interp needs increasing x; reverse (f, D)
+        f_inc = f[::-1]
+        D_inc = D[::-1]
+        out[mask] = np.interp(t[mask], f_inc, D_inc)
+
+    return out
+
+def _invert_cu_from_lut(sigma_eff_MPa: np.ndarray) -> np.ndarray:
+    """
+    Vectorized inversion for Cu using LUT.
+    Rule: window [0,D_contact_max]; if no root -> return D_contact_max.
+    """
+    _ensure_luts_ready()
+    lut = _LUT_CU
+    D = lut["D_nm"]
+    f = lut["sigma_MPa"]  # increasing (monotone-enforced)
+
+    D_contact_max = float(lut["D_contact_max"])
+
+    t = np.asarray(sigma_eff_MPa, dtype=np.float64)
+    out = np.full_like(t, fill_value=D_contact_max, dtype=np.float64)
+
+    # if no usable domain, just return D_contact_max (already filled)
+    if float(lut.get("hi_eval", 0.0)) <= 0.0 or D_contact_max <= 0.0:
+        return out
+
+    f_lo = float(lut["f_lo"])
+    f_hi = float(lut["f_hi"])
+
+    # Valid range: t in [f_lo, f_hi] (increasing curve)
+    mask = (t >= f_lo) & (t <= f_hi)
+    if np.any(mask):
+        out[mask] = np.interp(t[mask], f, D)
+
+    return out
+
+
+# =============================================================================
 # ============================ CRITICAL / INVERT ==============================
 # =============================================================================
 
@@ -357,107 +626,66 @@ def compute_critical_peeling_all():
         }
     }
 
-def _bisect_mono(f, target, lo, hi, is_increasing, tol=1e-6, maxit=80):
-    """
-    Monotone bisection:
-      - returns None if target not bracketed by f(lo)..f(hi) under monotonic assumption
-    """
-    lo = float(lo); hi = float(hi)
-    target = float(target)
-
-    f_lo = float(f(lo))
-    f_hi = float(f(hi))
-
-    if is_increasing:
-        if not (f_lo <= target <= f_hi):
-            return None
-    else:
-        if not (f_hi <= target <= f_lo):
-            return None
-
-    for _ in range(maxit):
-        mid = 0.5 * (lo + hi)
-        f_mid = float(f(mid))
-        if abs(f_mid - target) <= tol:
-            return mid
-
-        if is_increasing:
-            if f_mid < target:
-                lo = mid
-            else:
-                hi = mid
-        else:
-            if f_mid > target:
-                lo = mid
-            else:
-                hi = mid
-
-    return 0.5 * (lo + hi)
-
-def _sio2_stress_at(D_nm: float) -> float:
-    return float(compute_sigma_peel_MPa_at(D_nm)["sigma_peel_MPa"])
-
-def _cu_stress_at(D_nm: float) -> float:
-    return float(compute_cu_peel_cool_MPa_at(D_nm)["sigma_cu_peel_MPa"])
-
 def invert_dishing_sio2_given_sigma_eff(sigma_eff_MPa: float) -> Tuple[float, dict]:
     """
-    Fixed window inversion for SiO2:
-      - search D in [0, 10] nm only
+    Fixed window inversion for SiO2 (LUT):
+      - window D in [0,10] nm
       - if no root -> return 0
-    Assumption: sigma_sio2(D) monotone DECREASING in D over [0,10].
     """
-    target = float(sigma_eff_MPa)
-    lo, hi = 0.0, 10.0
+    _ensure_luts_ready()
+    t = float(sigma_eff_MPa)
+    D_val = float(_invert_sio2_from_lut(np.array([t], dtype=np.float64))[0])
 
-    D_raw = _bisect_mono(_sio2_stress_at, target, lo, hi, is_increasing=False)
-    if D_raw is None:
+    lut = _LUT_SIO2
+    f_lo = float(lut["f_lo"])
+    f_hi = float(lut["f_hi"])
+    if not (f_hi <= t <= f_lo):
         return 0.0, dict(
             mode="no_root_in_window",
-            lo=lo, hi=hi, target=target,
-            f_lo=_sio2_stress_at(lo),
-            f_hi=_sio2_stress_at(hi),
+            lo=lut["lo"], hi=lut["hi"],
+            target=t,
+            f_lo=f_lo, f_hi=f_hi,
+            n=lut["n"],
         )
-    return float(D_raw), dict(mode="ok", lo=lo, hi=hi, target=target)
+    return D_val, dict(mode="ok", lo=lut["lo"], hi=lut["hi"], target=t, n=lut["n"])
 
 def invert_dishing_cu_given_sigma_eff(sigma_eff_MPa: float) -> Tuple[float, dict]:
     """
-    Fixed window inversion for Cu:
-      - search D in [0, D_contact_max] only, where D_contact_max = delta_heat/2
+    Fixed window inversion for Cu (LUT):
+      - window D in [0, D_contact_max], D_contact_max = delta_heat/2
       - if no root -> return D_contact_max
-    Assumption: sigma_cu(D) monotone INCREASING in D over [0, D_contact_max).
     """
-    target = float(sigma_eff_MPa)
+    _ensure_luts_ready()
+    t = float(sigma_eff_MPa)
+    D_val = float(_invert_cu_from_lut(np.array([t], dtype=np.float64))[0])
 
-    # delta_heat from heat stage (independent of D), computed via D=0 call
-    hot0 = compute_sigma_peel_MPa_at(0.0)
-    delta_heat_nm = float(hot0.get("delta_heat_nm", hot0.get("delta_eq_nm", 0.0)))
-    D_contact_max = max(0.0, 0.5 * delta_heat_nm)
+    lut = _LUT_CU
+    mode = str(lut.get("mode", "ok"))
+    D_contact_max = float(lut.get("D_contact_max", 0.0))
+    if mode != "ok":
+        return D_val, dict(mode=mode, target=t, D_contact_max=D_contact_max)
 
-    if D_contact_max <= 0.0:
-        return 0.0, dict(mode="no_contact_domain", D_contact_max=D_contact_max, target=target)
-
-    # Avoid evaluating exactly at D_contact_max where phi->0 and Eq.(36) may diverge
-    hi_eval = float(np.nextafter(D_contact_max, 0.0))
-    if hi_eval <= 0.0:
-        return float(D_contact_max), dict(mode="tiny_contact_domain", D_contact_max=D_contact_max, target=target)
-
-    lo, hi = 0.0, hi_eval
-
-    def f_clip(D_nm: float) -> float:
-        return _cu_stress_at(min(float(D_nm), hi_eval))
-
-    D_raw = _bisect_mono(f_clip, target, lo, hi, is_increasing=True)
-    if D_raw is None:
-        return float(D_contact_max), dict(
+    f_lo = float(lut["f_lo"])
+    f_hi = float(lut["f_hi"])
+    if not (f_lo <= t <= f_hi):
+        return D_contact_max, dict(
             mode="no_root_in_window",
-            lo=lo, hi=D_contact_max, hi_eval=hi_eval,
-            target=target, D_contact_max=D_contact_max,
-            f_lo=f_clip(lo),
-            f_hi=f_clip(hi),
+            lo=lut["lo"], hi=lut["hi"],
+            target=t,
+            D_contact_max=D_contact_max,
+            hi_eval=float(lut["hi_eval"]),
+            f_lo=f_lo, f_hi=f_hi,
+            n=lut["n"],
         )
 
-    return float(D_raw), dict(mode="ok", lo=lo, hi=D_contact_max, hi_eval=hi_eval, target=target, D_contact_max=D_contact_max)
+    return D_val, dict(
+        mode="ok",
+        lo=lut["lo"], hi=lut["hi"],
+        target=t,
+        D_contact_max=D_contact_max,
+        hi_eval=float(lut["hi_eval"]),
+        n=lut["n"],
+    )
 
 
 # =============================================================================
@@ -594,13 +822,10 @@ def build_effcrit_and_dishing_arrays(peel_dict: dict, coords_mm_np: np.ndarray, 
     sigma_eff_SiO2 = sigma_crit_SiO2 - p_MPa
     sigma_eff_Cu   = sigma_crit_Cu   - p_MPa
 
-    N = int(p_MPa.shape[0])
-    D_sio2_nm = np.empty(N, dtype=np.float64)
-    D_cu_nm   = np.empty(N, dtype=np.float64)
-
-    for i in range(N):
-        D_sio2_nm[i], _ = invert_dishing_sio2_given_sigma_eff(float(sigma_eff_SiO2[i]))
-        D_cu_nm[i],   _ = invert_dishing_cu_given_sigma_eff(float(sigma_eff_Cu[i]))
+    # Build LUT once and invert vectorized
+    _ensure_luts_ready()
+    D_sio2_nm = _invert_sio2_from_lut(sigma_eff_SiO2)
+    D_cu_nm   = _invert_cu_from_lut(sigma_eff_Cu)
 
     effcrit = np.column_stack([sigma_eff_Cu, sigma_eff_SiO2])
     dishing = np.column_stack([D_cu_nm, D_sio2_nm])
@@ -646,7 +871,7 @@ def debond_dishing_bounds_calculator(cfg, coords_um):
         raise ValueError("Pad coords used for debond dishing bounds calculation is empty!")
     coords_mm = coords_um * 1e-3
 
-    # 3) Build arrays and invert to dishing
+    # 3) Build arrays and invert to dishing (LUT-fast)
     _, dishing_array = build_effcrit_and_dishing_arrays(
         peel_dict=peel,
         coords_mm_np=coords_mm.astype(np.float64, copy=False),
