@@ -101,41 +101,16 @@ d2w_simulation:
 
   # === Cu & Sio2 peeling stress model Parameters ===
   # === heat up and dwell stage ===
-  # σ_m = σ_e + R_P * σ_p + R_C * σ_c
-  # σ_e = {σ_t, SIGMA_Y_MPA}_min 
-  # σ_p = {0, σ_t-SIGMA_Y_MPA}_max
-  # σ_d = CREEP_FACTOR * σ_m
   SIGMA_Y_MPA: 321.0                    # Elastic yield point (MPa)
-  R_P: 60.0                             # Weight of plastic part in the normal-approach driver
-  R_C: 20.0                             # Weight of creep-equivalent part in the normal-approach driver
-  CREEP_FACTOR: 0.01                    # Weight of creep-equivalent part for dwell stage
-  
-  # t_cu(T) = TCU_BASE_UM * exp(TCU_K_PER_C * (T - T_R))
-  TCU_BASE_UM: 0.036                    # Base thickness for heat-stage Cu participation thickness (µm)
-  TCU_K_PER_C: 0.0031                   # Exponential temperature rate (1/°C)
- 
-  # ϕ = PHI_CU0 + (1 - PHI_CU0)*((δ-2*Dishing)/2*Dishing)^ETA_GROWTH
-  PHI_CU0: 0.000001                     # Baseline Cu–Cu contact fraction once the threshold is exceeded
-  ETA_GROWTH: 0.122019                  # Power exponent in the (uncapped) contact growth law
-  
-  # k_n = M_cu/T_INT_NM
-  T_INT_NM: 13000.0                     # Interface normal compliance thickness (nm)
-
-  # === heat up and dwell stage ===
-  # σy_cool = {SIGMA_Y_MPA, (1-COOL_BAUSINGER_REDUCTION) * SIGMA_Y_MPA + COOL_A_HARD_MPA * (1 - exp(-COOL_K_HARD_PER_MPA * {0,σ_p_heat}_max)) }_min
-  COOL_BAUSINGER_REDUCTION: 0.70        # Cool-down effective yield reduction factor
-  COOL_A_HARD_MPA: 80.0                 # Isotropic hardening Amplitude (MPa)
-  COOL_K_HARD_PER_MPA: 0.032380         # Isotropic hardening rate (1/MPa)
-
-  # kn_cool = k_n * KN_COOL_GAIN * (1- VISC_LAMBDA*(Acu/Acell)^VISC_EXP)
-  KN_COOL_GAIN: 3.0                     # Gain of interface normal stiffness at cool-down
-  VISC_LAMBDA: 0.836626                 # Coefficient of viscous attenuation applied to the Cu–Cu peel stress during cool-down
-  VISC_EXP: 0.5                         # Sensitivity of stress reduction to fill fraction
-  
-  # ke_cool = TCU_CONST_UM_COOL* (1 + KDISH_TCU_GAIN_PER_NM * Dishing)
-  TCU_CONST_UM_COOL: 0.122074           # Constant Cu participation thickness during the cool-down stage (µm)
-  KDISH_TCU_GAIN_PER_NM: 0.010466       # Coefficient for the linear dishing gain applied to Cu participation thickness (1/nm)
-
+  C_HEAT_E: 1.005319e-12                       # Eq.(29) coefficient for sigma_e
+  C_HEAT_P: 6.088622e-6                       # Eq.(29) coefficient for sigma_p
+  C_COOL_E: 3.375203e-6                       # Eq.(35) coefficient for sigma_e,cool
+  C_COOL_P: 3.721387e-6                       # Eq.(35) coefficient for sigma_p,cool
+  EXP_PHI: 0.206576                          # Eq.(30)
+  BAUSCHINGER: 0.208455                      # Eq.(33)
+  EXP_INVPHI: 0.1                       # Eq.(36)
+  EXP_AREA: 0.0465                         # Eq.(36)
+  KN_DEN_M: 17.310513e-6                         # Eq.(31) denominator length in meters
   # === Roughness Parameters ===
   Asperity_R_m: 2e-6                      # Asperity curvature radius (m)
   Roughness_sigma_m: 0.5e-9                 # Surface roughness std (m)
@@ -264,43 +239,19 @@ d2w_modeling:
   SI_NU: 0.28                           # Si Poisson’s ratio
   SI_ALPHA_PPM: 2.6                     # Si coefficient of thermal expansion (CTE) (ppm/°C)
 
-  # === Cu & Sio2 peeling stress model Parameters ===
+ # === Cu & Sio2 peeling stress model Parameters ===
   # === heat up and dwell stage ===
-  # σ_m = σ_e + R_P * σ_p + R_C * σ_c
-  # σ_e = {σ_t, SIGMA_Y_MPA}_min 
-  # σ_p = {0, σ_t-SIGMA_Y_MPA}_max
-  # σ_d = CREEP_FACTOR * σ_m
   SIGMA_Y_MPA: 321.0                    # Elastic yield point (MPa)
-  R_P: 60.0                             # Weight of plastic part in the normal-approach driver
-  R_C: 20.0                             # Weight of creep-equivalent part in the normal-approach driver
-  CREEP_FACTOR: 0.01                    # Weight of creep-equivalent part for dwell stage
+  C_HEAT_E: 1.005319e-12                       # Eq.(29) coefficient for sigma_e
+  C_HEAT_P: 6.088622e-6                       # Eq.(29) coefficient for sigma_p
+  C_COOL_E: 3.375203e-6                       # Eq.(35) coefficient for sigma_e,cool
+  C_COOL_P: 3.721387e-6                       # Eq.(35) coefficient for sigma_p,cool
+  EXP_PHI: 0.206576                          # Eq.(30)
+  BAUSCHINGER: 0.208455                      # Eq.(33)
+  EXP_INVPHI: 0.1                       # Eq.(36)
+  EXP_AREA: 0.0465                         # Eq.(36)
+  KN_DEN_M: 17.310513e-6                         # Eq.(31) denominator length in meters
   
-  # t_cu(T) = TCU_BASE_UM * exp(TCU_K_PER_C * (T - T_R))
-  TCU_BASE_UM: 0.036                    # Base thickness for heat-stage Cu participation thickness (µm)
-  TCU_K_PER_C: 0.0031                   # Exponential temperature rate (1/°C)
- 
-  # ϕ = PHI_CU0 + (1 - PHI_CU0)*((δ-2*Dishing)/2*Dishing)^ETA_GROWTH
-  PHI_CU0: 0.000001                     # Baseline Cu–Cu contact fraction once the threshold is exceeded
-  ETA_GROWTH: 0.122019                  # Power exponent in the (uncapped) contact growth law
-  
-  # k_n = M_cu/T_INT_NM
-  T_INT_NM: 13000.0                     # Interface normal compliance thickness (nm)
-
-  # === heat up and dwell stage ===
-  # σy_cool = {SIGMA_Y_MPA, (1-COOL_BAUSINGER_REDUCTION) * SIGMA_Y_MPA + COOL_A_HARD_MPA * (1 - exp(-COOL_K_HARD_PER_MPA * {0,σ_p_heat}_max)) }_min
-  COOL_BAUSINGER_REDUCTION: 0.70        # Cool-down effective yield reduction factor
-  COOL_A_HARD_MPA: 80.0                 # Isotropic hardening Amplitude (MPa)
-  COOL_K_HARD_PER_MPA: 0.032380         # Isotropic hardening rate (1/MPa)
-
-  # kn_cool = k_n * KN_COOL_GAIN * (1- VISC_LAMBDA*(Acu/Acell)^VISC_EXP)
-  KN_COOL_GAIN: 3.0                     # Gain of interface normal stiffness at cool-down
-  VISC_LAMBDA: 0.836626                 # Coefficient of viscous attenuation applied to the Cu–Cu peel stress during cool-down
-  VISC_EXP: 0.5                         # Sensitivity of stress reduction to fill fraction
-  
-  # ke_cool = TCU_CONST_UM_COOL* (1 + KDISH_TCU_GAIN_PER_NM * Dishing)
-  TCU_CONST_UM_COOL: 0.122074           # Constant Cu participation thickness during the cool-down stage (µm)
-  KDISH_TCU_GAIN_PER_NM: 0.010466       # Coefficient for the linear dishing gain applied to Cu participation thickness (1/nm)
-
   # === Roughness Parameters ===
   Asperity_R_m: 2e-6                      # Asperity curvature radius (m)
   Roughness_sigma_m: 0.5e-9               # Roughness standard deviation (m)
