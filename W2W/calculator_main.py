@@ -68,7 +68,7 @@ def main():
                                                             criticality_path=criticality_path_dict[interface],
                                                             pad_arrange_pattern=cfg.PAD_ARRANGE_PATTERN)
     convert_time = time.time()
-    print("Pad bitmap collection generation finished in {} seconds.".format(convert_time - cfg_loading_time))
+    print("Pad bitmap collection generation finished in {:.2f} seconds.".format(convert_time - cfg_loading_time))
 
     # Step 2: generate pad-level yield map
     print("Calculating pad-level yield map...")

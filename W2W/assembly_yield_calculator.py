@@ -10,7 +10,7 @@ import numpy as np
 from wafer_die_stack_initialization import WaferStack
 from overlay_yield_calculator import stack_overlay_yield_calculator
 from defect_yield_calculator import stack_defect_yield_calculator
-from Cu_expansion_yield_calculator import stack_stress_yield_calculator
+from Cu_expansion_yield_calculator import stack_stress_yield_calculator_0, stack_stress_yield_calculator
 from esd_yield_calculator import stack_esd_yield_calculator
 
 
@@ -29,7 +29,7 @@ def Assembly_Yield_Calculator(
         mode=input_args['mode'],
     )
     waf_stack_init_time = time.time() - start_time
-    print("Wafer stack initialization time: {} seconds.".format(waf_stack_init_time))
+    print("Wafer stack initialization time: {:.2f} seconds.".format(waf_stack_init_time))
     
     valid_pad_mask_dict = {}
     for interface, pad_bitmap_collection in pad_bitmap_collection_dict.items():
@@ -42,7 +42,7 @@ def Assembly_Yield_Calculator(
         waf_stack                   =   waf_stack
     )
     overlay_yield_time = time.time() - start_time - waf_stack_init_time
-    print("Overlay yield calculation time: {} seconds.".format(overlay_yield_time))
+    print("Overlay yield calculation time: {:.2f} seconds.".format(overlay_yield_time))
 
     # Calculate the defect distribution
     stack_defect_yield_calculator(
@@ -50,18 +50,23 @@ def Assembly_Yield_Calculator(
         waf_stack                   =   waf_stack,
     )
     defect_yield_time = time.time() - start_time - waf_stack_init_time - overlay_yield_time
-    print("Defect yield calculation time: {} seconds.".format(defect_yield_time))
+    print("Defect yield calculation time: {:.2f} seconds.".format(defect_yield_time))
 
     # Calculate the Cu expansion yield
+    # stack_stress_yield_calculator_0(
+    #     cfg_dict                    =   cfg_dict,
+    #     waf_stack                   =   waf_stack,
+    #     pad_bitmap_collection_dict  =   pad_bitmap_collection_dict,
+    #     valid_pad_mask_dict         =   valid_pad_mask_dict,
+    # )
     stack_stress_yield_calculator(
         cfg_dict                    =   cfg_dict,
         waf_stack                   =   waf_stack,
-        pad_bitmap_collection_dict  =   pad_bitmap_collection_dict,
-        valid_pad_mask_dict         =   valid_pad_mask_dict,
     )
 
+
     Cu_expansion_yield_time = time.time() - start_time - waf_stack_init_time - overlay_yield_time - defect_yield_time
-    print("Cu expansion yield calculation time: {} seconds.".format(Cu_expansion_yield_time))
+    print("Cu expansion yield calculation time: {:.2f} seconds.".format(Cu_expansion_yield_time))
 
     # Calculate the ESD yield
     stack_esd_yield_calculator(
@@ -70,7 +75,7 @@ def Assembly_Yield_Calculator(
         pad_bitmap_collection_dict  =   pad_bitmap_collection_dict,
     )
     esd_yield_time = time.time() - start_time - waf_stack_init_time - overlay_yield_time - defect_yield_time - Cu_expansion_yield_time
-    print("ESD yield calculation time: {} seconds.".format(esd_yield_time))
+    print("ESD yield calculation time: {:.2f} seconds.".format(esd_yield_time))
 
     die_stack_yield, die_stack_yield_list = waf_stack.get_die_stack_yield()
     print(f"Calculated die stack yield: {die_stack_yield:.6f}")
