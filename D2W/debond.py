@@ -762,6 +762,167 @@ def peeling_stress_at_points_vec_MPa(peel_dict: dict, coords_mm_np: np.ndarray, 
 # ====================== RADIAL DISHING LUT (NEW FAST PATH) ===================
 # =============================================================================
 
+# =============================================================================
+# ===================== PUBLIC API: RADIAL LUT EXPORT / PLOT ==================
+# =============================================================================
+
+def _solve_peel_and_radius_from_cfg(cfg):
+    """
+    Internal helper:
+      Given cfg, run the same wafer-level pipeline as debond_dishing_bounds_calculator()
+      and return (peel_dict, R_stack_m).
+
+    This also initializes globals/caches via __init_params(cfg).
+    """
+    __init_params(cfg)
+
+    # 1) Wafer-level stack to get peeling kernel
+    resA = process_wafer(WAFER_A)  # bottom
+    resB = process_wafer(WAFER_B)  # top
+
+    # Keep same sign convention as main API
+    s_total_A_m = S_INIT_A_M - resA.D_m
+    s_total_B_m = S_INIT_B_M - resB.D_m
+    R_stack = min(WAFER_A.L_m, WAFER_B.L_m)
+
+    peel = suhir_peeling_two_wafers_bottomA_topB(
+        waferA_eq=resA.final_eq,
+        waferB_eq=resB.final_eq,
+        R_m=R_stack,
+        sag_total_A_m=s_total_A_m,
+        sag_total_B_m=s_total_B_m,
+        sample_points=500,
+    )
+    return peel, float(R_stack)
+
+
+def get_radial_dishing_lut_array(cfg=None, *, peel_dict=None, R_m=None,
+                                 n_r: int = 4096, r_unit: str = "um") -> np.ndarray:
+    """
+    Public API: return radial LUT array with columns:
+        [r, D_sio2_nm, D_cu_nm]
+
+    Two usage modes:
+      1) cfg mode:
+           get_radial_dishing_lut_array(cfg=cfg, ...)
+         -> internally solves wafer stack and peel_dict
+
+      2) direct mode:
+           get_radial_dishing_lut_array(peel_dict=..., R_m=..., ...)
+         -> reuses existing fixed wafer/die state
+
+    Parameters
+    ----------
+    cfg : object, optional
+        External config object used by __init_params(cfg). If given, cfg mode is used.
+    peel_dict : dict, optional
+        Must contain at least "p_max_Pa" and "beta" in direct mode.
+    R_m : float, optional
+        Radius [m] in direct mode.
+    n_r : int
+        Number of radial samples for LUT.
+    r_unit : str
+        "m", "mm", or "um"
+
+    Returns
+    -------
+    arr : np.ndarray, shape (n_r, 3)
+        columns = [r_(unit), D_sio2_nm, D_cu_nm]
+    """
+    # Resolve state
+    if cfg is not None:
+        peel_dict, R_m_local = _solve_peel_and_radius_from_cfg(cfg)
+    else:
+        if peel_dict is None or R_m is None:
+            raise ValueError("Provide either cfg=... OR both peel_dict=... and R_m=...")
+        R_m_local = float(R_m)
+        # In direct mode, caller must have initialized globals previously if cfg-dependent constants changed.
+        # We still can proceed if current globals are already valid.
+        if R_m_local <= 0.0:
+            raise ValueError(f"R_m must be > 0, got {R_m_local}")
+
+    # Build / fetch radial LUT
+    lut = _ensure_radial_dishing_lut(peel_dict=peel_dict, R_m=R_m_local, n_r=n_r)
+
+    r_m = np.asarray(lut["r_grid_m"], dtype=np.float64)
+    D_sio2 = np.asarray(lut["D_sio2_nm"], dtype=np.float64)
+    D_cu   = np.asarray(lut["D_cu_nm"], dtype=np.float64)
+
+    r_unit = str(r_unit).lower()
+    if r_unit == "m":
+        r_out = r_m
+    elif r_unit == "mm":
+        r_out = r_m * 1e3
+    elif r_unit == "um":
+        r_out = r_m * 1e6
+    else:
+        raise ValueError(f"Unsupported r_unit={r_unit}. Use 'm', 'mm', or 'um'.")
+
+    return np.column_stack([r_out, D_sio2, D_cu])
+
+
+def plot_radial_dishing_lut(cfg=None, *, peel_dict=None, R_m=None,
+                            n_r: int = 4096, r_unit: str = "um",
+                            show: bool = True, ax=None):
+    """
+    Public API: plot two radial LUT curves:
+      x-axis: r
+      y-axis: dishing value [nm]
+      curves : SiO2 and Cu
+
+    Two usage modes:
+      1) cfg mode:   plot_radial_dishing_lut(cfg=cfg, ...)
+      2) direct mode plot_radial_dishing_lut(peel_dict=..., R_m=..., ...)
+
+    Returns
+    -------
+    fig, ax
+    """
+    arr = get_radial_dishing_lut_array(
+        cfg=cfg, peel_dict=peel_dict, R_m=R_m, n_r=n_r, r_unit=r_unit
+    )
+
+    r = arr[:, 0]
+    D_sio2 = arr[:, 1]
+    D_cu   = arr[:, 2]
+
+    created_fig = False
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(7.2, 4.8))
+        created_fig = True
+    else:
+        fig = ax.figure
+
+    ax.plot(r, D_sio2, label="SiO2 dishing LUT")
+    ax.plot(r, D_cu,   label="Cu dishing LUT")
+
+    ax.set_xlabel(f"Radius r ({r_unit})")
+    ax.set_ylabel("Dishing (nm)")
+    ax.set_title("Radial Dishing LUT")
+    ax.grid(True, alpha=0.3)
+    ax.legend()
+
+    # Optional nicer x ticks for common units
+    try:
+        rmax = float(np.max(r)) if r.size else 0.0
+        if r_unit.lower() == "mm" and rmax > 0:
+            ax.xaxis.set_major_locator(MultipleLocator(max(1.0, round(rmax / 10.0))))
+        elif r_unit.lower() == "um" and rmax > 0:
+            step = max(1.0, rmax / 10.0)
+            ax.xaxis.set_major_locator(MultipleLocator(step))
+    except Exception:
+        pass
+
+    if created_fig:
+        fig.tight_layout()
+    if show:
+        plt.show()
+
+    return fig, ax
+
+
+
+
 def _build_radial_dishing_lut(peel_dict: dict, R_m: float, n_r: int = 4096) -> dict:
     """
     Build radial LUT:
@@ -946,3 +1107,35 @@ def debond_dishing_bounds_calculator(cfg, coords_um):
     # 4) Sort each row ascending (small first, large second) and return
     dishing_sorted = np.sort(dishing_array, axis=1)
     return dishing_sorted
+
+
+
+# import numpy as np
+# from debond import (
+#     debond_dishing_bounds_calculator,
+#     get_radial_dishing_lut_array,
+#     plot_radial_dishing_lut,
+# )
+
+# # 你的 cfg 对象（需包含 __init_params(cfg) 用到的全部字段）
+# # cfg = ...
+
+# # 1) 正常主功能：算每个 pad 的 dishing bounds
+# coords_um = np.array([
+#     [0.0, 0.0],
+#     [1000.0, 0.0],
+#     [5000.0, 5000.0],
+# ], dtype=float)
+
+# dishing_sorted = debond_dishing_bounds_calculator(cfg, coords_um)
+# print("dishing_sorted shape =", dishing_sorted.shape)
+# print(dishing_sorted)
+
+# # 2) 导出 radial LUT 数组 (r, D_sio2, D_cu)
+# arr = get_radial_dishing_lut_array(cfg=cfg, n_r=4096, r_unit="um")
+# print("radial LUT array shape =", arr.shape)
+# print("columns = (r_um, D_sio2_nm, D_cu_nm)")
+# print(arr[:10])
+
+# # 3) 画图
+# plot_radial_dishing_lut(cfg=cfg, n_r=4096, r_unit="mm")
