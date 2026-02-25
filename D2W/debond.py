@@ -1066,6 +1066,8 @@ def build_effcrit_and_dishing_arrays(peel_dict: dict, coords_mm_np: np.ndarray, 
 # ================================= MAIN ======================================
 # =============================================================================
 
+# New main API: radial LUT export + plot, and fast per-pad dishing intervals from coords.
+
 def debond_dishing_bounds_calculator(cfg,
                                      n_r: int = 4096,
                                      radial_lut_r_unit: str = "um",
@@ -1133,3 +1135,139 @@ def debond_dishing_bounds_calculator(cfg,
 
     # 6) Return LUT array
     return arr
+
+
+# New main API: per-pad dishing intervals from coords using radial LUT for fast query.
+
+def debond_dishing_intervals_from_coords(cfg,
+                                         coords_um: np.ndarray,
+                                         *,
+                                         n_r: int = 4096,
+                                         return_effcrit: bool = False,
+                                         return_debug: bool = False):
+    """
+    New main API:
+      coords (um) -> per-pad dishing intervals (D_Cu_nm, D_SiO2_nm)
+
+    Fast path:
+      - Build (or reuse) radial dishing LUT for this cfg
+      - coords -> r -> interp D_cu, D_sio2
+      - Return per-pad [sorted(D_cu, D_sio2)]  (N,2)
+
+    Parameters
+    ----------
+    cfg : object
+        External config object used by __init_params(cfg).
+    coords_um : np.ndarray, shape (N,2)
+        Pad global coordinates in micrometers (um). Columns: [x_um, y_um].
+    n_r : int
+        Radial LUT resolution (default 4096).
+    return_effcrit : bool
+        If True, also return effcrit array (N,2) = [sigma_eff_Cu, sigma_eff_SiO2] (MPa).
+    return_debug : bool
+        If True, also return a debug dict with peel_dict, R_stack, and LUT cache metadata.
+
+    Returns
+    -------
+    dishing_intervals : np.ndarray, shape (N,2)
+        Each row = sorted(D_Cu_nm, D_SiO2_nm).
+        (This keeps your legacy signature style.)
+
+    If return_effcrit=True:
+        returns (dishing_intervals, effcrit)
+
+    If return_debug=True:
+        returns (dishing_intervals, effcrit?, debug_dict)
+    """
+    # ---------------------------
+    # 0) Validate coords
+    # ---------------------------
+    coords_um = np.asarray(coords_um, dtype=np.float64)
+    if coords_um.ndim != 2 or coords_um.shape[1] != 2:
+        raise ValueError("coords_um must be shape (N,2) with columns [x_um, y_um].")
+
+    # ---------------------------
+    # 1) Initialize globals + solve peel_dict and R_stack (same pipeline as LUT main)
+    # ---------------------------
+    __init_params(cfg)
+
+    resA = process_wafer(WAFER_A)  # bottom
+    resB = process_wafer(WAFER_B)  # top
+
+    # Keep your original sign convention
+    s_total_A_m = S_INIT_A_M - resA.D_m
+    s_total_B_m = S_INIT_B_M - resB.D_m
+    R_stack = float(min(WAFER_A.L_m, WAFER_B.L_m))
+
+    peel = suhir_peeling_two_wafers_bottomA_topB(
+        waferA_eq=resA.final_eq,
+        waferB_eq=resB.final_eq,
+        R_m=R_stack,
+        sag_total_A_m=s_total_A_m,
+        sag_total_B_m=s_total_B_m,
+        sample_points=500
+    )
+
+    # ---------------------------
+    # 2) Ensure radial LUT cache ready for this peel_dict / R_stack
+    # ---------------------------
+    _ensure_radial_dishing_lut(peel_dict=peel, R_m=R_stack, n_r=int(n_r))
+
+    # ---------------------------
+    # 3) coords_um -> r_m
+    # ---------------------------
+    xy_m = coords_um * 1e-6
+    r_m = np.sqrt(xy_m[:, 0] ** 2 + xy_m[:, 1] ** 2)
+
+    if np.any(r_m > R_stack + 1e-15):
+        idx = np.where(r_m > R_stack + 1e-15)[0][:5]
+        raise ValueError(
+            f"{idx.size} points lie outside radius R={R_stack} m, e.g. indices {idx.tolist()} "
+            f"(r_max={float(np.max(r_m))} m)"
+        )
+
+    # ---------------------------
+    # 4) Query radial LUT -> D_cu, D_sio2, p(r)
+    # ---------------------------
+    D_cu_nm, D_sio2_nm, p_MPa = _query_radial_dishing_lut_from_r(
+        r_m=r_m, peel_dict=peel, R_m=R_stack, n_r=int(n_r)
+    )
+
+    # ---------------------------
+    # 5) Build outputs
+    # ---------------------------
+    # Legacy style: return (N,2) where each row = sorted(D_Cu_nm, D_SiO2_nm)
+    dishing_intervals = np.sort(np.column_stack([D_cu_nm, D_sio2_nm]), axis=1)
+
+    out = (dishing_intervals,)
+
+    effcrit = None
+    if return_effcrit or return_debug:
+        crits = compute_critical_peeling_all()
+        sigma_crit_SiO2 = float(crits["sigma_crit_MPa"]["SiO2"])
+        sigma_crit_Cu   = float(crits["sigma_crit_MPa"]["Cu"])
+        sigma_eff_SiO2 = sigma_crit_SiO2 - p_MPa
+        sigma_eff_Cu   = sigma_crit_Cu   - p_MPa
+        effcrit = np.column_stack([sigma_eff_Cu, sigma_eff_SiO2])  # (N,2)
+
+    if return_effcrit:
+        out = (dishing_intervals, effcrit)
+
+    if return_debug:
+        debug = {
+            "R_stack_m": R_stack,
+            "peel_dict": dict(peel),
+            "n_r": int(n_r),
+            "RDISH_cache_keys": None if _RDISH_LUT is None else {
+                "R_m": float(_RDISH_LUT.get("R_m", np.nan)),
+                "p_max_Pa": float(_RDISH_LUT.get("p_max_Pa", np.nan)),
+                "beta": float(_RDISH_LUT.get("beta", np.nan)),
+                "n_r": int(_RDISH_LUT.get("n_r", -1)),
+            },
+        }
+        if return_effcrit:
+            out = (dishing_intervals, effcrit, debug)
+        else:
+            out = (dishing_intervals, debug)
+
+    return out[0] if len(out) == 1 else out
