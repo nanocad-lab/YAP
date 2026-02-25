@@ -1066,14 +1066,30 @@ def build_effcrit_and_dishing_arrays(peel_dict: dict, coords_mm_np: np.ndarray, 
 # ================================= MAIN ======================================
 # =============================================================================
 
-def debond_dishing_bounds_calculator(cfg, coords_um):
+def debond_dishing_bounds_calculator(cfg,
+                                     n_r: int = 4096,
+                                     radial_lut_r_unit: str = "um",
+                                     print_radial_lut: bool = True,
+                                     radial_lut_preview_rows: int = 10,
+                                     plot_radial_lut_flag: bool = True):
+    """
+    LUT-only main API:
+      - Build radial dishing LUT from current wafer/die state
+      - Return the LUT table array directly
+      - Optionally print preview and plot
+
+    Returns
+    -------
+    arr : np.ndarray
+        columns = [r_(unit), D_sio2_nm, D_cu_nm]
+    """
     __init_params(cfg)
 
     # 1) Wafer-level stack to get peeling kernel
     resA = process_wafer(WAFER_A)  # bottom
     resB = process_wafer(WAFER_B)  # top
 
-    # NOTE: sign convention kept as previous code (s_total = s_init - D)
+    # Keep your original sign convention
     s_total_A_m = S_INIT_A_M - resA.D_m
     s_total_B_m = S_INIT_B_M - resB.D_m
     R_stack = min(WAFER_A.L_m, WAFER_B.L_m)
@@ -1087,55 +1103,33 @@ def debond_dishing_bounds_calculator(cfg, coords_um):
         sample_points=500
     )
 
-    # (Optional) Build radial dishing LUT once explicitly here.
-    # Not required, because build_effcrit_and_dishing_arrays() will lazy-build it.
-    _ensure_radial_dishing_lut(peel_dict=peel, R_m=R_stack, n_r=4096)
+    # 2) Build / ensure radial LUT cache (this is the target LUT)
+    _ensure_radial_dishing_lut(peel_dict=peel, R_m=R_stack, n_r=int(n_r))
 
-    # 2) Use manual coords (µm) and convert to mm
-    coords_um = np.asarray(coords_um, dtype=np.float64).reshape(-1, 2)
-    if coords_um.size == 0:
-        raise ValueError("Pad coords used for debond dishing bounds calculation is empty!")
-    coords_mm = coords_um * 1e-3
-
-    # 3) Build arrays and get dishing (radial LUT fast path)
-    _, dishing_array = build_effcrit_and_dishing_arrays(
+    # 3) Export LUT array directly from the built cache
+    arr = get_radial_dishing_lut_array(
         peel_dict=peel,
-        coords_mm_np=coords_mm.astype(np.float64, copy=False),
         R_m=R_stack,
+        n_r=int(n_r),
+        r_unit=radial_lut_r_unit
     )
 
-    # 4) Sort each row ascending (small first, large second) and return
-    dishing_sorted = np.sort(dishing_array, axis=1)
-    return dishing_sorted
+    # 4) Optional table preview
+    if print_radial_lut:
+        n_show = int(max(1, min(radial_lut_preview_rows, arr.shape[0])))
+        print(f"[Radial dishing LUT] total rows = {arr.shape[0]}")
+        print(f"Columns = [r ({radial_lut_r_unit}), D_sio2_nm, D_cu_nm]")
+        print(arr[:n_show])
 
+    # 5) Optional plot
+    if plot_radial_lut_flag:
+        plot_radial_dishing_lut(
+            peel_dict=peel,
+            R_m=R_stack,
+            n_r=int(n_r),
+            r_unit=radial_lut_r_unit,
+            show=True
+        )
 
-
-# import numpy as np
-# from debond import (
-#     debond_dishing_bounds_calculator,
-#     get_radial_dishing_lut_array,
-#     plot_radial_dishing_lut,
-# )
-
-# # 你的 cfg 对象（需包含 __init_params(cfg) 用到的全部字段）
-# # cfg = ...
-
-# # 1) 正常主功能：算每个 pad 的 dishing bounds
-# coords_um = np.array([
-#     [0.0, 0.0],
-#     [1000.0, 0.0],
-#     [5000.0, 5000.0],
-# ], dtype=float)
-
-# dishing_sorted = debond_dishing_bounds_calculator(cfg, coords_um)
-# print("dishing_sorted shape =", dishing_sorted.shape)
-# print(dishing_sorted)
-
-# # 2) 导出 radial LUT 数组 (r, D_sio2, D_cu)
-# arr = get_radial_dishing_lut_array(cfg=cfg, n_r=4096, r_unit="um")
-# print("radial LUT array shape =", arr.shape)
-# print("columns = (r_um, D_sio2_nm, D_cu_nm)")
-# print(arr[:10])
-
-# # 3) 画图
-# plot_radial_dishing_lut(cfg=cfg, n_r=4096, r_unit="mm")
+    # 6) Return LUT array
+    return arr

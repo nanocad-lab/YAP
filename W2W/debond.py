@@ -855,39 +855,38 @@ def build_current_radial_dishing_lut_from_cfg(cfg, n_r: int = 4096) -> dict:
     return _ensure_radial_dishing_lut(peel_dict=peel, R_m=R_stack, n_r=n_r)
 
 
-def get_radial_dishing_lut_array(cfg=None,
-                                 peel_dict: dict | None = None,
-                                 R_m: float | None = None,
-                                 n_r: int = 4096,
-                                 r_unit: str = "um") -> np.ndarray:
+def get_radial_dishing_lut_array(r_unit: str = "um",
+                                 include_p_global: bool = True,
+                                 include_sigma_eff: bool = False,
+                                 require_prebuilt: bool = True) -> np.ndarray:
     """
-    Return LUT array with columns:
+    Export the already-built radial dishing LUT table directly from _RDISH_LUT.
+
+    This function does NOT use pad coordinates.
+
+    Returns columns (minimum):
       [r, D_sio2_nm, D_cu_nm]
 
-    Two usage modes:
-    1) Pass cfg:
-         arr = get_radial_dishing_lut_array(cfg=cfg, n_r=4096, r_unit="um")
-       -> internally rebuilds current wafer/die state and radial LUT.
-    2) Pass peel_dict + R_m:
-         arr = get_radial_dishing_lut_array(peel_dict=peel, R_m=R_stack)
-
-    Args:
-      r_unit: "m", "mm", or "um" (default "um")
-
-    Returns:
-      ndarray shape (N,3), columns:
-        col0 = r      [selected unit]
-        col1 = D_sio2 [nm]
-        col2 = D_cu   [nm]
+    Optional columns:
+      + p_global_MPa
+      + sigma_eff_Cu_MPa, sigma_eff_SiO2_MPa
     """
-    if cfg is not None:
-        lut = build_current_radial_dishing_lut_from_cfg(cfg, n_r=n_r)
-    else:
-        if peel_dict is None or R_m is None:
-            raise ValueError("Provide either cfg, or both (peel_dict and R_m).")
-        lut = _ensure_radial_dishing_lut(peel_dict=peel_dict, R_m=R_m, n_r=n_r)
+    global _RDISH_LUT
 
-    r_grid_m = np.asarray(lut["r_grid_m"], dtype=np.float64)
+    if _RDISH_LUT is None:
+        if require_prebuilt:
+            raise RuntimeError(
+                "Radial dishing LUT is not built yet. "
+                "Call _ensure_radial_dishing_lut(...) first."
+            )
+        else:
+            raise RuntimeError(
+                "No prebuilt LUT found. In this simplified mode, build LUT in main first."
+            )
+
+    lut = _RDISH_LUT
+
+    r_grid_m  = np.asarray(lut["r_grid_m"], dtype=np.float64)
     D_sio2_nm = np.asarray(lut["D_sio2_nm"], dtype=np.float64)
     D_cu_nm   = np.asarray(lut["D_cu_nm"], dtype=np.float64)
 
@@ -901,40 +900,48 @@ def get_radial_dishing_lut_array(cfg=None,
     else:
         raise ValueError(f"Unsupported r_unit={r_unit!r}. Use 'm', 'mm', or 'um'.")
 
-    return np.column_stack([r_out, D_sio2_nm, D_cu_nm])
+    cols = [r_out, D_sio2_nm, D_cu_nm]
 
+    if include_p_global:
+        cols.append(np.asarray(lut["p_global_MPa"], dtype=np.float64))
 
-def plot_radial_dishing_lut(cfg=None,
-                            peel_dict: dict | None = None,
-                            R_m: float | None = None,
-                            n_r: int = 4096,
-                            r_unit: str = "mm",
-                            show: bool = True):
+    if include_sigma_eff:
+        cols.append(np.asarray(lut["sigma_eff_Cu_MPa"], dtype=np.float64))
+        cols.append(np.asarray(lut["sigma_eff_SiO2_MPa"], dtype=np.float64))
+
+    return np.column_stack(cols)
+
+def plot_radial_dishing_lut(r_unit: str = "mm",
+                            show: bool = True,
+                            require_prebuilt: bool = True,
+                            print_table_preview: bool = False,
+                            preview_rows: int = 10):
     """
-    Plot the built radial dishing LUT curves:
-      x-axis = r
-      y-axis = dishing (nm)
+    Plot the already-built radial dishing LUT directly from _RDISH_LUT.
 
-    Curves:
-      - SiO2 dishing LUT
-      - Cu dishing LUT
-
-    Two usage modes:
-    1) cfg mode:
-         plot_radial_dishing_lut(cfg=cfg)
-    2) peel/R mode:
-         plot_radial_dishing_lut(peel_dict=peel, R_m=R_stack)
+    This function does NOT use pad coordinates.
 
     Returns:
-      (fig, ax, arr) where arr columns are [r, D_sio2_nm, D_cu_nm]
+      (fig, ax, arr)
+      arr columns = [r, D_sio2_nm, D_cu_nm, p_global_MPa]
     """
     arr = get_radial_dishing_lut_array(
-        cfg=cfg, peel_dict=peel_dict, R_m=R_m, n_r=n_r, r_unit=r_unit
+        r_unit=r_unit,
+        include_p_global=True,
+        include_sigma_eff=False,
+        require_prebuilt=require_prebuilt
     )
 
+    # columns = [r, D_sio2_nm, D_cu_nm, p_global_MPa]
     r = arr[:, 0]
     D_sio2 = arr[:, 1]
     D_cu   = arr[:, 2]
+
+    if print_table_preview:
+        n_show = int(max(1, min(preview_rows, arr.shape[0])))
+        print(f"[Radial LUT preview] showing first {n_show} / {arr.shape[0]} rows")
+        print("Columns = [r, D_sio2_nm, D_cu_nm, p_global_MPa]")
+        print(arr[:n_show])
 
     r_unit_l = str(r_unit).lower()
     if r_unit_l == "m":
@@ -949,10 +956,9 @@ def plot_radial_dishing_lut(cfg=None,
     fig, ax = plt.subplots()
     ax.plot(r, D_sio2, label="SiO2 dishing LUT")
     ax.plot(r, D_cu,   label="Cu dishing LUT")
-
     ax.set_xlabel(xlab)
     ax.set_ylabel("Dishing (nm)")
-    ax.set_title("Radial Dishing LUT: r -> dishing")
+    ax.set_title("Radial Dishing LUT (direct table plot)")
     ax.grid(True)
     ax.legend()
 
@@ -1105,19 +1111,33 @@ def build_effcrit_and_dishing_arrays(peel_dict: dict, coords_mm_np: np.ndarray, 
     dishing = np.column_stack([D_cu_nm, D_sio2_nm])
     return effcrit, dishing
 
-
 # =============================================================================
 # ================================= MAIN ======================================
 # =============================================================================
 
-def debond_dishing_bounds_calculator(cfg, coords_um):
+def debond_dishing_bounds_calculator(cfg,
+                                     n_r: int = 4096,
+                                     radial_lut_r_unit: str = "um",
+                                     print_radial_lut: bool = True,
+                                     radial_lut_preview_rows: int = 10,
+                                     plot_radial_lut_flag: bool = True,
+                                     include_p_global: bool = False,
+                                     include_sigma_eff: bool = False):
     """
-    Public API:
-      cfg: external config object, must provide all parameters required by __init_params(cfg)
-      coords_um: (N,2) pad coords in µm, center-origin (same convention as before)
+    Simplified public API (LUT-only mode):
+      - Build radial dishing LUT from current wafer/die state
+      - Directly return the LUT table array
+      - Optionally print a preview and/or plot the LUT
+
+    This function DOES NOT accept pad coordinates and DOES NOT perform pad lookup.
 
     Returns:
-      dishing_sorted: (N,2) each row sorted ascending: [min(D_Cu, D_SiO2), max(...)]
+      radial_lut_array: ndarray
+        minimum columns:
+          [r, D_sio2_nm, D_cu_nm]
+        optional appended columns:
+          + p_global_MPa
+          + sigma_eff_Cu_MPa, sigma_eff_SiO2_MPa
     """
     __init_params(cfg)
 
@@ -1139,39 +1159,37 @@ def debond_dishing_bounds_calculator(cfg, coords_um):
         sample_points=500
     )
 
-    # Optional eager build (lazy build also works)
-    _ensure_radial_dishing_lut(peel_dict=peel, R_m=R_stack, n_r=4096)
+    # 2) Build / ensure the radial LUT table (this is the target table)
+    _ensure_radial_dishing_lut(peel_dict=peel, R_m=R_stack, n_r=int(n_r))
 
-    # 2) Use manual coords (µm) and convert to mm
-    coords_um = np.asarray(coords_um, dtype=np.float64).reshape(-1, 2)
-    if coords_um.size == 0:
-        raise ValueError("Pad coords used for debond dishing bounds calculation is empty!")
-    coords_mm = coords_um * 1e-3
-
-    # 3) Build arrays and invert to dishing (radial-LUT fast)
-    _, dishing_array = build_effcrit_and_dishing_arrays(
-        peel_dict=peel,
-        coords_mm_np=coords_mm.astype(np.float64, copy=False),
-        R_m=R_stack,
+    # 3) Directly export the built LUT table
+    radial_lut_array = get_radial_dishing_lut_array(
+        r_unit=radial_lut_r_unit,
+        include_p_global=include_p_global,
+        include_sigma_eff=include_sigma_eff,
+        require_prebuilt=True
     )
 
-    # 4) Sort each row ascending (small first, large second) and return
-    dishing_sorted = np.sort(dishing_array, axis=1)
-    return dishing_sorted
+    # 4) Optional print preview (table preview only)
+    if print_radial_lut:
+        n_show = int(max(1, min(radial_lut_preview_rows, radial_lut_array.shape[0])))
+        col_names = [f"r ({radial_lut_r_unit})", "D_sio2_nm", "D_cu_nm"]
+        if include_p_global:
+            col_names.append("p_global_MPa")
+        if include_sigma_eff:
+            col_names.extend(["sigma_eff_Cu_MPa", "sigma_eff_SiO2_MPa"])
 
-#     from debond import (
-#     debond_dishing_bounds_calculator,
-#     get_radial_dishing_lut_array,
-#     plot_radial_dishing_lut,
-# )
+        print(f"[Radial dishing LUT] total rows = {radial_lut_array.shape[0]}")
+        print("Columns =", col_names)
+        print(radial_lut_array[:n_show])
 
-# # cfg: 你的配置对象
-# # coords_um: shape (N,2), 单位 µm
-# dishing_sorted = debond_dishing_bounds_calculator(cfg, coords_um)
+    # 5) Optional plot (direct LUT plot only)
+    if plot_radial_lut_flag:
+        plot_radial_dishing_lut(
+            r_unit=radial_lut_r_unit,
+            show=True,
+            require_prebuilt=True,
+            print_table_preview=False
+        )
 
-# # 直接拿 radial LUT 数组 (r, D_sio2, D_cu)
-# arr = get_radial_dishing_lut_array(cfg=cfg, n_r=4096, r_unit="um")
-# print(arr[:10])
-
-# # 画图
-# plot_radial_dishing_lut(cfg=cfg, n_r=4096, r_unit="mm")
+    return radial_lut_array
