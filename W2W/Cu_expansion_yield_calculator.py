@@ -341,8 +341,8 @@ def stack_stress_yield_calculator(
 
         # ---- 1) Build radial dishing LUT once (no pad coords needed) ----
         radial_lut_array = debond_dishing_bounds_calculator(
-            cfg, print_radial_lut=True, plot_radial_lut_flag=True,
-        )  # columns: [r_um, D_sio2_nm, D_cu_nm]
+            cfg, print_radial_lut=False, plot_radial_lut_flag=False,
+        )  # columns: [r_um, D_upper_bound_nm, D_lower_bound_nm]
 
         # ---- 2) Group dies by radial layer ----
         radial_bin_um = max(cfg.DIE_W_um, cfg.DIE_L_um)
@@ -355,7 +355,7 @@ def stack_stress_yield_calculator(
         # )
 
         # ---- 3) Vertex-distance yield cache ----
-        #   key  = (D_sio2_min, D_sio2_max, D_cu_min, D_cu_max) rounded to 0.1 nm
+        #   key  = (D_upper_bound_min, D_upper_bound_max, D_lower_bound_min, D_lower_bound_max) rounded to 0.1 nm
         #   value = computed die yield
         yield_cache = {}    # type: dict[tuple, float]
         cache_hits  = 0
@@ -398,7 +398,7 @@ def stack_stress_yield_calculator(
                     sigma_T=sigma_T,
                     sigma_eps=sigma_eps,
                     block_indices=block_idx,
-                    g=0.0,
+                    # g=0.0,
                 )
                 # print(
                 #     "GH yield for die {} (layer {}, count {}): {:.6f}  [{:.2f}s]".format(
