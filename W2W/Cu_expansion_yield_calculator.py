@@ -348,11 +348,11 @@ def stack_stress_yield_calculator(
         radial_bin_um = max(cfg.DIE_W_um, cfg.DIE_L_um)
         radial_info = interface.get_die_radial_layers(radius_bin_um=radial_bin_um)
         die_groups = radial_info['layers']
-        print(
-            "[{}] Radial-layer acceleration: {} dies -> {} representative groups".format(
-                interface_name, interface.num_dies, len(die_groups),
-            )
-        )
+        # print(
+        #     "[{}] Radial-layer acceleration: {} dies -> {} representative groups".format(
+        #         interface_name, interface.num_dies, len(die_groups),
+        #     )
+        # )
 
         # ---- 3) Vertex-distance yield cache ----
         #   key  = (D_sio2_min, D_sio2_max, D_cu_min, D_cu_max) rounded to 0.1 nm
@@ -378,12 +378,12 @@ def stack_stress_yield_calculator(
                 pad_dishing_bound_array = debond_dishing_bounds_calculator_coords(
                     cfg, die_pad_coords,
                 )  # (N_pads, 2): each row sorted (D_low_nm, D_high_nm)
-                print(
-                    "Pad dishing lookup for die {} (layer {}, count {}): {:.2f}s".format(
-                        die_ind, grp['layer_id'], grp['count'],
-                        time.time() - start_time,
-                    )
-                )
+                # print(
+                #     "Pad dishing lookup for die {} (layer {}, count {}): {:.2f}s".format(
+                #         die_ind, grp['layer_id'], grp['count'],
+                #         time.time() - start_time,
+                #     )
+                # )
 
                 # Derive survival bounds (same convention as original code)
                 upper_limits = -pad_dishing_bound_array[:, 0] * 2
@@ -400,20 +400,20 @@ def stack_stress_yield_calculator(
                     block_indices=block_idx,
                     g=0.0,
                 )
-                print(
-                    "GH yield for die {} (layer {}, count {}): {:.6f}  [{:.2f}s]".format(
-                        die_ind, grp['layer_id'], grp['count'],
-                        stress_die_yield, time.time() - time_before,
-                    )
-                )
+                # print(
+                #     "GH yield for die {} (layer {}, count {}): {:.6f}  [{:.2f}s]".format(
+                #         die_ind, grp['layer_id'], grp['count'],
+                #         stress_die_yield, time.time() - time_before,
+                #     )
+                # )
                 yield_cache[vkey] = stress_die_yield
 
             # Broadcast to all dies in this radial group
             stress_yield_array[grp['indices']] = stress_die_yield
 
-        print(
-            "[{}] Vertex-distance cache: {} groups, {} hits, {} unique GH evaluations".format(
-                interface_name, len(die_groups), cache_hits, len(yield_cache),
-            )
-        )
+        # print(
+        #     "[{}] Vertex-distance cache: {} groups, {} hits, {} unique GH evaluations".format(
+        #         interface_name, len(die_groups), cache_hits, len(yield_cache),
+        #     )
+        # )
         waf_stack.die_yield_list_per_interface_dict[interface_name]['mechanical'] = stress_yield_array
