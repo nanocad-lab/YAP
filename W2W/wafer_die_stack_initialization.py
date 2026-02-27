@@ -116,6 +116,77 @@ class Wafer_Interface:
                 self.die_list.append(die)
         self.num_dies = len(self.die_list)
 
+    def get_die_radial_layers(self, radius_bin_um: float = None, decimals: int = 0):
+        """
+        Group dies by their distance from wafer center into radial layers.
+
+        Two dies belong to the same layer when their centre-to-origin
+        distances round to the same value under the chosen binning.
+
+        Parameters
+        ----------
+        radius_bin_um : float or None
+            Bin width in um.  If given, each die's radius is quantised as
+            ``round(r / radius_bin_um) * radius_bin_um`` before grouping.
+            If None, radii are simply rounded to *decimals* decimal places.
+        decimals : int
+            Rounding precision (only used when radius_bin_um is None).
+
+        Returns
+        -------
+        dict with keys
+            'layers' : list[dict]
+                Each dict has:
+                    'layer_id'             – int, 0-based layer index
+                    'indices'              – np.ndarray of die indices
+                    'count'                – int, number of dies in layer
+                    'representative_index' – int, first die index in layer
+                    'radius_um'            – float, binned radius value
+            'counts' : np.ndarray of int, count per layer
+            'representative_indices' : np.ndarray of int
+        """
+        cache_key = (radius_bin_um, decimals)
+        if not hasattr(self, '_radial_layers_cache'):
+            self._radial_layers_cache = {}
+        if cache_key in self._radial_layers_cache:
+            return self._radial_layers_cache[cache_key]
+
+        radii = np.array(
+            [np.linalg.norm(d.die_center) for d in self.die_list],
+            dtype=np.float64,
+        )
+
+        if radius_bin_um is not None and radius_bin_um > 0:
+            binned = np.round(radii / radius_bin_um) * radius_bin_um
+        else:
+            binned = np.round(radii, decimals=decimals)
+
+        unique_bins, inverse = np.unique(binned, return_inverse=True)
+
+        layers = []
+        counts_list = []
+        rep_list = []
+        for lid, bval in enumerate(unique_bins):
+            idx = np.where(inverse == lid)[0]
+            rep = int(idx[0])
+            layers.append({
+                'layer_id': lid,
+                'indices': idx,
+                'count': len(idx),
+                'representative_index': rep,
+                'radius_um': float(bval),
+            })
+            counts_list.append(len(idx))
+            rep_list.append(rep)
+
+        result = {
+            'layers': layers,
+            'counts': np.array(counts_list, dtype=np.int64),
+            'representative_indices': np.array(rep_list, dtype=np.int64),
+        }
+        self._radial_layers_cache[cache_key] = result
+        return result
+
     def draw_wafer_die(self, fig_size=(30, 30), draw_pad_yield_map_option=None):
         fig, ax = plt.subplots(figsize=fig_size, dpi=600)
         wafer_circle = plt.Circle((0, 0), self.wafer_radius, color="black", fill=False)

@@ -53,7 +53,7 @@ def Assembly_Yield_Calculator(
     print("Defect yield calculation time: {:.2f} seconds.".format(defect_yield_time))
 
     # Calculate the Cu expansion yield
-    # stack_stress_yield_calculator_0(
+    # stack_stress_yield_calculator_old(
     #     cfg_dict                    =   cfg_dict,
     #     waf_stack                   =   waf_stack,
     #     pad_bitmap_collection_dict  =   pad_bitmap_collection_dict,

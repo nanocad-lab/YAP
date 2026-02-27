@@ -67,7 +67,7 @@ BOT_DISH_MEAN_nm: -2
 BOT_DISH_STD_L_nm: 0.35
 BOT_DISH_STD_T_nm: 0.27
 BOT_DISH_STD_E_nm: 0.22
-TL_um: 50
+TL_um: 200
 k_et: 0.053
 k_eb: 0.053
 T_R: 25

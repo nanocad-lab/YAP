@@ -1183,7 +1183,7 @@ def debond_dishing_bounds_calculator(cfg,
 
         print(f"[Radial dishing LUT] total rows = {radial_lut_array.shape[0]}")
         print("Columns =", col_names)
-        print(radial_lut_array[:n_show])
+        print(radial_lut_array[-n_show:])
 
     # 5) Optional plot (direct LUT plot only)
     if plot_radial_lut_flag:
@@ -1295,7 +1295,7 @@ def debond_dishing_bounds_calculator_coords(cfg,
     )
 
     # Output format required by your docstring: sorted(D_Cu_nm, D_SiO2_nm)
-    dishing_intervals = np.sort(np.column_stack([D_cu_nm, D_sio2_nm]), axis=1)
+    dishing_intervals = np.column_stack([D_sio2_nm, D_cu_nm])
 
     # -----------------------
     # 5) Optional outputs
