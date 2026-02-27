@@ -101,7 +101,7 @@ def __init_params(cfg):
     _RDISH_LUT = None
 
     # ---------- (A) Pad-scale: Geometry & Temps ----------
-    if cfg.PAD_ARRANGE_PATTERN == 'checkerboard':
+    if cfg.PAD_ARRANGE_PATTERN in ('checkerboard', 'rectangular'):
         PITCH_UM = min(np.sqrt(cfg.PITCH_r_um ** 2 + cfg.PITCH_c_um ** 2), 2 * cfg.PITCH_r_um, 2 * cfg.PITCH_c_um)
     else:
         PITCH_UM = cfg.PITCH_r_um
