@@ -262,46 +262,5 @@ def pad_overlay_yield_map_generator(*,
             plt.xlabel('Pad Column Index')
             plt.ylabel('Pad Row Index')
             plt.show()
-
-            # # 假设 pad 的物理范围是 -2500 μm 到 +2500 μm
-            # x_min, x_max = -2500, 2500
-            # y_min, y_max = -2500, 2500
-
-            # plt.figure(figsize=(8, 6))
-            # im = plt.imshow(
-            #     1 - overlay_pad_yield_map_sub,
-            #     cmap='viridis',
-            #     vmin=1 - die.glb_pad_yield_min_max_dict['Y_ovl'][1],
-            #     vmax=1 - die.glb_pad_yield_min_max_dict['Y_ovl'][0],
-            #     interpolation='nearest',
-            #     origin='lower',
-            #     aspect='equal',
-            #     extent=[x_min, x_max, y_min, y_max]  # ← 定义物理坐标范围（μm）
-            # )
-
-            # plt.colorbar(im, label='Pad Overlay Risk')
-            # plt.xlabel('X (μm)')
-            # plt.ylabel('Y (μm)')
-            # plt.title('Pad Overlay Risk Map')
-
-            # ax = plt.gca()
-
-            # # 坐标轴格式与剥离应力图一致
-            # ax.tick_params(which='both', direction='in', top=True, right=True)
-            # ax.tick_params(which='major', length=6, labelsize=12)
-            # ax.tick_params(which='minor', length=3)
-
-            # # 添加主次刻度
-            # from matplotlib.ticker import MultipleLocator
-            # ax.xaxis.set_major_locator(MultipleLocator(1000))  # 主刻度：1000 μm
-            # ax.yaxis.set_major_locator(MultipleLocator(1000))
-            # ax.xaxis.set_minor_locator(MultipleLocator(500))   # 次刻度：500 μm
-            # ax.yaxis.set_minor_locator(MultipleLocator(500))
-
-            # # 添加网格线
-            # ax.grid(which='major', linestyle='-', linewidth=0.8, alpha=0.6)
-            # ax.grid(which='minor', linestyle='--', linewidth=0.4, alpha=0.4)
-
-            # plt.show()
         
     return overlay_pad_yield_map_sub
