@@ -12,8 +12,8 @@ from matplotlib.patches import Rectangle
 V_MIN_V = 0.0
 V_MAX_V = 5.0
 
-WEIBULL_K        = 3.981285
-WEIBULL_LAMBDA   = 0.224454
+WEIBULL_K        = 4.44985
+WEIBULL_LAMBDA   = 0.0621816
 CUTOFF_MIN_A     = 0.0
 
 # =========================
