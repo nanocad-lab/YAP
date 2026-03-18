@@ -160,11 +160,11 @@ def Assembly_Yield_Simulator(
             fail_map_dict['mechanical'] += epoch_fail_map_dict['mechanical']
             fail_map_dict['ESD']        += epoch_fail_map_dict['ESD']
             fail_map_dict['overall']    += epoch_fail_map_dict['overall']
-            fail_vec_dict['overlay'][epoch*cfg.SIM_BATCH_SIZE:(epoch+1)*cfg.SIM_BATCH_SIZE * num_dies_per_wafer] = epoch_fail_vec_dict['overlay']
-            fail_vec_dict['particle'][epoch*cfg.SIM_BATCH_SIZE:(epoch+1)*cfg.SIM_BATCH_SIZE * num_dies_per_wafer] = epoch_fail_vec_dict['particle']
-            fail_vec_dict['mechanical'][epoch*cfg.SIM_BATCH_SIZE:(epoch+1)*cfg.SIM_BATCH_SIZE * num_dies_per_wafer] = epoch_fail_vec_dict['mechanical']
-            fail_vec_dict['ESD'][epoch*cfg.SIM_BATCH_SIZE:(epoch+1)*cfg.SIM_BATCH_SIZE * num_dies_per_wafer] = epoch_fail_vec_dict['ESD']
-            fail_vec_dict['overall'][epoch*cfg.SIM_BATCH_SIZE:(epoch+1)*cfg.SIM_BATCH_SIZE * num_dies_per_wafer] = epoch_fail_vec_dict['overall']
+            fail_vec_dict['overlay'][epoch*cfg.SIM_BATCH_SIZE*num_dies_per_wafer:(epoch+1)*cfg.SIM_BATCH_SIZE * num_dies_per_wafer] = epoch_fail_vec_dict['overlay']
+            fail_vec_dict['particle'][epoch*cfg.SIM_BATCH_SIZE*num_dies_per_wafer:(epoch+1)*cfg.SIM_BATCH_SIZE * num_dies_per_wafer] = epoch_fail_vec_dict['particle']
+            fail_vec_dict['mechanical'][epoch*cfg.SIM_BATCH_SIZE*num_dies_per_wafer:(epoch+1)*cfg.SIM_BATCH_SIZE * num_dies_per_wafer] = epoch_fail_vec_dict['mechanical']
+            fail_vec_dict['ESD'][epoch*cfg.SIM_BATCH_SIZE*num_dies_per_wafer:(epoch+1)*cfg.SIM_BATCH_SIZE * num_dies_per_wafer] = epoch_fail_vec_dict['ESD']
+            fail_vec_dict['overall'][epoch*cfg.SIM_BATCH_SIZE*num_dies_per_wafer:(epoch+1)*cfg.SIM_BATCH_SIZE * num_dies_per_wafer] = epoch_fail_vec_dict['overall']
 
         print(f"Simulation progress: {(epoch+1)*cfg.SIM_BATCH_SIZE}/{cfg.NUM_WAFERS} wafers simulated. Epoch yield: {np.mean(yield_list):.4f}. Time taken: {time.time() - start_time:.2f} seconds.")
         
