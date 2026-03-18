@@ -49,29 +49,24 @@ def overall_yield_simulator(
     # Get the valid pad mask
     valid_pad_mask = (pad_bitmap_collection['CRITICAL_PAD_BITMAP'] == 1) | (pad_bitmap_collection['REDUNDANT_PAD_BITMAP'] == 1) | (pad_bitmap_collection['DUMMY_PAD_BITMAP'] == 1)
     valid_die_pad_coords = die_list[0].pad_coords[valid_pad_mask.flatten() == 1]
-    if not os.path.exists(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp/' + cfg.DESIGN + "_dishing_bound_array.npy") or cfg.DEBUG:
-        if not os.path.exists(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp/'):
-            os.makedirs(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp/')
+    if not os.path.exists(cfg.OUTPUT_DIR + cfg.INTERFACE + '/temp/' + cfg.INTERFACE + "_dishing_bound_array.npy") or cfg.DEBUG:
+        if not os.path.exists(cfg.OUTPUT_DIR + cfg.INTERFACE + '/temp/'):
+            os.makedirs(cfg.OUTPUT_DIR + cfg.INTERFACE + '/temp/')
         # start_time = time.time()
         valid_pad_dishing_bound_array = debond_dishing_bounds_calculator(cfg, valid_die_pad_coords) # (num_pads, 2) array: (dishing_low_nm, dishing_high_nm)
         # print("Dishing bound calculation time: {:.2f} seconds".format(time.time() - start_time))
-        np.save(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp/' + cfg.DESIGN + "_dishing_bound_array.npy", valid_pad_dishing_bound_array)
+        np.save(cfg.OUTPUT_DIR + cfg.INTERFACE + '/temp/' + cfg.INTERFACE + "_dishing_bound_array.npy", valid_pad_dishing_bound_array)
     else:
-        valid_pad_dishing_bound_array = np.load(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp/' + cfg.DESIGN + "_dishing_bound_array.npy")
+        valid_pad_dishing_bound_array = np.load(cfg.OUTPUT_DIR + cfg.INTERFACE + '/temp/' + cfg.INTERFACE + "_dishing_bound_array.npy")
 
     epoch_fail_map_dict = {}    # This dict stores the fail bump maps for all die samples in this epoch for each mechanism
     epoch_fail_vec_dict = {}    # This dict stores failure reason (each mechanism) for all die samples in this epoch
-    if cfg.verbose:     
-        epoch_fail_map_dict['overlay']    = np.zeros((PAD_ARR_ROW, PAD_ARR_COL))
-        epoch_fail_map_dict['particle']   = np.zeros((PAD_ARR_ROW, PAD_ARR_COL))
-        epoch_fail_map_dict['mechanical'] = np.zeros((PAD_ARR_ROW, PAD_ARR_COL))
-        epoch_fail_map_dict['ESD']        = np.zeros((PAD_ARR_ROW, PAD_ARR_COL))
-        epoch_fail_map_dict['overall']    = np.zeros((PAD_ARR_ROW, PAD_ARR_COL))
-        epoch_fail_vec_dict['overlay']    = np.zeros(NUM_DIE_SAMPLES)
-        epoch_fail_vec_dict['particle']   = np.zeros(NUM_DIE_SAMPLES)
-        epoch_fail_vec_dict['mechanical'] = np.zeros(NUM_DIE_SAMPLES)
-        epoch_fail_vec_dict['ESD']        = np.zeros(NUM_DIE_SAMPLES)
-        epoch_fail_vec_dict['overall']    = np.zeros(NUM_DIE_SAMPLES)
+    
+    failure_mechanism_list = ['overlay', 'particle', 'mechanical', 'ESD', 'overall']
+    if cfg.verbose:    
+        for mechanism in failure_mechanism_list:
+            epoch_fail_map_dict[mechanism] = np.zeros((PAD_ARR_ROW, PAD_ARR_COL))
+            epoch_fail_vec_dict[mechanism] = np.zeros(NUM_DIE_SAMPLES) 
 
 
     for die_ind in range(NUM_DIE_SAMPLES):
@@ -98,7 +93,8 @@ def overall_yield_simulator(
         # Read the redundant net to 1D physical mask mapping
         redundant_net_to_1d_physical_mask = pad_bitmap_collection["redundant_net_to_1d_physical_mask"]
         redundant_pad_fail_map = np.zeros((PAD_ARR_ROW, PAD_ARR_COL))
-
+        temp_overall_fail_map = np.zeros((PAD_ARR_ROW, PAD_ARR_COL), dtype=int)   # This temporary map is used to record the overall fail map for this die, which will be added to epoch_fail_map_dict['overall'] at the end of this die's checking. This is to avoid double counting when one pad fails due to multiple reasons.
+        
         """
         Check the overlay errors
         """
@@ -118,6 +114,7 @@ def overall_yield_simulator(
             die.pad_misalignment = die.pad_misalignment.reshape(cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL)
             if cfg.verbose:
                 epoch_fail_map_dict['overlay'] += (die.pad_misalignment >= MAX_ALLOWED_MISALIGNMENT_um).astype(int) 
+                temp_overall_fail_map |= (die.pad_misalignment >= MAX_ALLOWED_MISALIGNMENT_um).astype(int)
 
             critical_pad_misalignment = die.pad_misalignment * die_critical_pad_bitmap
             # Check if any critical pad misalignment is greater than the maximum allowed misalignment
@@ -211,7 +208,10 @@ def overall_yield_simulator(
                     check_redundant_pad_bitmap = die_redundant_pad_bitmap[PAD_ARR_ROW-j_max-1:PAD_ARR_ROW-j_min, i_min:i_max+1]
                     # Record the fail pads due to voids
                     if cfg.verbose:
-                        epoch_fail_map_dict['particle'][PAD_ARR_ROW-j_max-1:PAD_ARR_ROW-j_min, i_min:i_max+1][overlap_void_pad_mask] += 1
+                        sub_fail_map_particle = epoch_fail_map_dict['particle'][PAD_ARR_ROW-j_max-1:PAD_ARR_ROW-j_min, i_min:i_max+1]
+                        sub_fail_map_particle[overlap_void_pad_mask] += 1
+                        sub_fail_map_overall = temp_overall_fail_map[PAD_ARR_ROW-j_max-1:PAD_ARR_ROW-j_min, i_min:i_max+1]
+                        sub_fail_map_overall[overlap_void_pad_mask] = 1
 
                     # Check if any void overlaps with the critical pads
                     overlap_critical = overlap_void_pad_mask & check_critical_pad_bitmap.astype(bool)
@@ -271,6 +271,7 @@ def overall_yield_simulator(
 
         if cfg.verbose:
             epoch_fail_map_dict['mechanical'] += ((Cu_gap_map > zeta_1) | (Cu_gap_map < zeta_0)).astype(int)
+            temp_overall_fail_map |= ((Cu_gap_map > zeta_1) | (Cu_gap_map < zeta_0)).astype(int)
 
         # Check critical pad Cu gap
         critical_pad_Cu_gap = Cu_gap_map * die_critical_pad_bitmap  # shape: (PAD_ARR_ROW, PAD_ARR_COL)
@@ -326,6 +327,7 @@ def overall_yield_simulator(
             r_idx, c_idx = first_contact_pad_idx // PAD_ARR_COL, first_contact_pad_idx % PAD_ARR_COL
             if cfg.verbose:
                 epoch_fail_map_dict['ESD'][r_idx, c_idx] += 1
+                temp_overall_fail_map[r_idx, c_idx] |= 1
             if die_esd_critical_pad_bitmap[r_idx, c_idx] == 1:  # If the failing pad is critical w.r.t. ESD
                 print(f"Die {die_ind} fails due to ESD on critical pad.")
                 die.survival = False
@@ -346,6 +348,8 @@ def overall_yield_simulator(
         if die.survival:
             safe_die_count += 1
 
+        if cfg.verbose == 0:
+            epoch_fail_map_dict['overall'] += temp_overall_fail_map.astype(int)
 
         # # Check the time taken for each die
         # end_time = time.time()

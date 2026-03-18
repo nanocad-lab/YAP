@@ -5,7 +5,7 @@ w2w_simulation:
   OUTPUT_DIR: "output/"
   INPUT_DIR: "input/"          # Output directory for simulation results
   DEBUG: false                                      # Enable debug mode
-  DESIGN: "HBM_footprint_A_dummy_row_1"                      # Design name
+  INTERFACE: "HBM_footprint_A_dummy_row_1"                      # Design name
 
   # === Wafer and Die Settings ===
   NUM_WAFERS: 1                        # Number of wafers used in simulation
@@ -178,7 +178,7 @@ w2w_modeling:
   DEBUG: false                          # Enable debug mode
   OUTPUT_DIR: "output/"
   INPUT_DIR: "input/"          # Output directory for simulation results
-  DESIGN: "HBM_footprint_A_dummy_row_1"                      # Design name
+  INTERFACE: "HBM_footprint_A_dummy_row_1"                      # Design name
 
   # === Per Wafer Parameters ===
   PITCH_r_um: 55                             # Row pad PITCH_um (µm)
