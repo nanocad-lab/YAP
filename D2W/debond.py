@@ -33,6 +33,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Tuple
 import math
+import time
 import matplotlib.pyplot as plt
 import numpy as np
 from roughness_coefficients import get_eff_contact_area_ratio
@@ -782,11 +783,16 @@ def build_effcrit_and_dishing_arrays(peel_dict: dict, coords_mm_np: np.ndarray, 
 # =============================================================================
 
 def debond_dishing_bounds_calculator(cfg, coords_um):
+    timer_start = time.perf_counter()
+    verbose = bool(getattr(cfg, "verbose", False) or getattr(cfg, "DEBUG", False))
+
     __init_params(cfg)
+    t_after_init = time.perf_counter()
 
     # 1) Wafer-level stack to get peeling kernel
     resA = process_wafer(WAFER_A)  # bottom
     resB = process_wafer(WAFER_B)  # top
+    t_after_wafer = time.perf_counter()
 
     # NOTE: sign convention kept as previous code (s_total = s_init - D)
     s_total_A_m = S_INIT_A_M - resA.D_m
@@ -801,12 +807,14 @@ def debond_dishing_bounds_calculator(cfg, coords_um):
         sag_total_B_m=s_total_B_m,
         sample_points=500
     )
+    t_after_peel = time.perf_counter()
 
     # 2) Use manual coords (µm) and convert to mm
     coords_um = np.asarray(coords_um, dtype=np.float64).reshape(-1, 2)
     if coords_um.size == 0:
         raise ValueError("Pad coords used for debond dishing bounds calculation is empty!")
     coords_mm = coords_um * 1e-3
+    t_after_coords = time.perf_counter()
 
     # 3) Build arrays and invert to dishing (LUT-fast)
     _, dishing_array = build_effcrit_and_dishing_arrays(
@@ -814,7 +822,10 @@ def debond_dishing_bounds_calculator(cfg, coords_um):
         coords_mm_np=coords_mm.astype(np.float64, copy=False),
         R_m=R_stack,
     )
+    t_after_invert = time.perf_counter()
 
-    # 4) Sort each row ascending (small first, large second) and return
-    dishing_sorted = np.sort(dishing_array, axis=1)
-    return dishing_sorted
+    # 4) Sort each row ascending (dishing lowerbound, dishing upperbound) and return
+    dishing_lb_ub = np.sort(dishing_array, axis=1)
+    t_after_sort = time.perf_counter()
+
+    return dishing_lb_ub

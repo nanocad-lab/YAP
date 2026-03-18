@@ -52,7 +52,7 @@ N_TILTS         = 5    # demo1: 倾角样本数
 N_DISHES        = 5    # demo1: dishing 样本数
 # 每次运行都不一样：从系统熵生成 seed（不需要复现）
 BASE_SEED        = int(np.random.default_rng().integers(0, 2**32 - 1, dtype=np.uint32))
-print(f"[Seed] BASE_SEED = {BASE_SEED}")
+# print(f"[Seed] BASE_SEED = {BASE_SEED}")
 
 # =========================
 # Helpers
@@ -403,7 +403,11 @@ def pad_esd_yield_map_generator(
         for d in range(n_dishes):
             progress_counter += 1
             if (progress_counter % 1000) == 0 or (progress_counter == total_runs):
-                print(f"[ESD Sim] Progress: {progress_counter} / {total_runs} runs completed.")
+                print(
+                    f"[ESD Sim] Progress: {progress_counter} / {total_runs} runs completed.",
+                    end="\r",
+                    flush=True,
+                )
 
             seed = base_seed + (t * n_dishes + d)
             rng_top  = np.random.default_rng(seed ^ 0x9E3779B1)
@@ -442,7 +446,7 @@ def pad_esd_yield_map_generator(
             # 逐轮累加风险
             counts_vec[int(pad_choice)] += 1
             risk_accum[int(pad_choice)] += float(p_fail_run)
-
+    print()
     prob_vec = counts_vec.astype(np.float64) / float(total_runs)
     print("Prob_vec min/max: {:.6f} / {:.6f}".format(float(prob_vec.min()), float(prob_vec.max())))
 

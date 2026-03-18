@@ -27,17 +27,17 @@ def main():
     # Extract the design input files directory if provided
     input_ds_dir = args.ds_dir
     # Determine .3dbv path
-    blox_3dbv_path = input_ds_dir + "/generated_chiplet_definitions.3dbv"
+    _3dbv_path = input_ds_dir + "/generated_chiplet_definitions.3dbv"
     # Determine .bmap path
-    blox_bmap_path = args.__dict__.get("bmap", None)
+    _bmap_path = args.__dict__.get("bmap", None)
     # Determine criticality file path
     criticality_path = args.criticality
 
     # Load config and update with design and ADK parameters (from .3dbv and .bmap)
     cfg = load_base_config(base_config_path=args.config, 
                            input_ds_dir=input_ds_dir,
-                           blox_3dbv_path=blox_3dbv_path,
-                           blox_bmap_path=blox_bmap_path,
+                           _3dbv_path=_3dbv_path,
+                           _bmap_path=_bmap_path,
                            mode=args.mode, 
                            debug=args.debug)
 
@@ -54,7 +54,7 @@ def main():
 
     # Step 1: convert .bmap -> pad bitmap collection
     pad_bitmap_collection = convert_3dblox_to_pad_bitmap(cfg=cfg,
-                                                        blox_bmap_path=blox_bmap_path,
+                                                        _bmap_path=_bmap_path,
                                                         criticality_path=criticality_path,
                                                         pad_arrange_pattern=cfg.PAD_ARRANGE_PATTERN)
 

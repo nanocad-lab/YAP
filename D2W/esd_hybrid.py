@@ -52,7 +52,7 @@ N_TILTS         = 5    # demo1: 倾角样本数
 N_DISHES        = 5    # demo1: dishing 样本数
 # 每次运行都不一样：从系统熵生成一个 32-bit seed
 BASE_SEED = int(np.random.default_rng().integers(0, 2**32 - 1, dtype=np.uint32))
-print(f"[Seed] BASE_SEED = {BASE_SEED}")
+# print(f"[Seed] BASE_SEED = {BASE_SEED}")
 
 
 # =========================
@@ -414,7 +414,11 @@ def pad_esd_yield_map_generator(
         for d in range(n_dishes):
             progress_counter += 1
             if (progress_counter % 1000) == 0 or (progress_counter == total_runs):
-                print(f"[ESD Sim] Progress: {progress_counter} / {total_runs} runs completed.")
+                print(
+                    f"[ESD Sim] Progress: {progress_counter} / {total_runs} runs completed.",
+                    end="\r",
+                    flush=True,
+                )
             seed = base_seed + (t * n_dishes + d)
             rng_top  = np.random.default_rng(seed ^ 0x9E3779B1)
             rng_bot  = np.random.default_rng(seed ^ 0x85EBCA77)
@@ -455,17 +459,17 @@ def pad_esd_yield_map_generator(
                 counts_vec[int(pad_choice)] += 1
                 risk_accum_vec[int(pad_choice)] += float(p_fail_run)
 
-
+    print()
     prob_vec = counts_vec.astype(np.float64) / float(total_runs)
-    print("Prob_vec min/max: {:.6f} / {:.6f}".format(float(prob_vec.min()), float(prob_vec.max())))
+    # print("Prob_vec min/max: {:.6f} / {:.6f}".format(float(prob_vec.min()), float(prob_vec.max())))
 
     # 每轮随机电压 → risk_map 直接按逐run累加求期望
     valid_pad_risk_map_vec = risk_accum_vec / float(total_runs)
 
     p_fail_avg = p_fail_sum / float(total_runs)  # 仅用于汇报
-    print("Avg p_fail over runs (V~U[0,5]): {:.6f}".format(float(p_fail_avg)))
-    print("Risk map min/max: {:.6e} / {:.6e}".format(float(valid_pad_risk_map_vec.min()),
-                                                    float(valid_pad_risk_map_vec.max())))
+    # print("Avg p_fail over runs (V~U[0,5]): {:.6f}".format(float(p_fail_avg)))
+    # print("Risk map min/max: {:.6e} / {:.6e}".format(float(valid_pad_risk_map_vec.min()),
+                                                    # float(valid_pad_risk_map_vec.max())))
 
     fig = plot_probability_over_pads_with_pitch(
         pad_coords_um=pad_coords_um,

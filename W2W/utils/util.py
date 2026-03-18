@@ -26,16 +26,16 @@ def add_config_items(cfg, keys, values):
 
 def load_base_config(base_config_path: str,
                      input_ds_dir: str,
-                     blox_3dbv_path: str,
-                     blox_bmap_path: str,
+                     _3dbv_path: str,
+                     _bmap_path: str,
                      mode, 
                      debug=False):
     full_cfg = OmegaConf.load(base_config_path)
     cfg = full_cfg[mode]
     cfg = update_config_with_3dblox_params(cfg,
                                            input_ds_dir=input_ds_dir,
-                                           blox_3dbv_path=blox_3dbv_path,
-                                           blox_bmap_path=blox_bmap_path)
+                                           _3dbv_path=_3dbv_path,
+                                           _bmap_path=_bmap_path)
 
     if mode == "w2w_simulation" or mode == "w2w_modeling":
         cfg.SYSTEM_MAGNIFICATION_MEAN_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_MEAN_um + cfg.M_0) / 1e6
@@ -60,19 +60,19 @@ def load_base_config(base_config_path: str,
     return cfg
 
 
-def update_config_from_bmap(cfg, blox_bmap_path, y_tol=0.1, x_tol=0.1):
+def update_config_from_bmap(cfg, _bmap_path, y_tol=0.1, x_tol=0.1):
     """
     Extract pad array layout from .bmap file.
 
     args:
         cfg: configuration object
-        blox_bmap_path: path to .bmap file
+        _bmap_path: path to .bmap file
         y_tol: tolerance for clustering y coordinates (um), if the difference between two y coordinates is less than y_tol, they are considered in the same row
         x_tol: tolerance for clustering x coordinates (um), if the difference between two x coordinates is less than x_tol, they are considered in the same column
     """
     coords = []
 
-    with open(blox_bmap_path, 'r') as f:
+    with open(_bmap_path, 'r') as f:
         for line in f:
             parts = line.strip().split()
             if len(parts) < 4:
@@ -115,15 +115,15 @@ def update_config_from_bmap(cfg, blox_bmap_path, y_tol=0.1, x_tol=0.1):
 
 def update_config_with_3dblox_params(cfg, 
                                     input_ds_dir: str,
-                                    blox_3dbv_path: str,
-                                    blox_bmap_path: str):
+                                    _3dbv_path: str,
+                                    _bmap_path: str):
     """
     Update configuration with design parameters from .3dbv and .bmap files.
     args:
         cfg: configuration object
         input_ds_dir: path to design input files directory
-        blox_3dbv_path: path to .3dbv file
-        blox_bmap_path: path to .bmap file
+        _3dbv_path: path to .3dbv file
+        _bmap_path: path to .bmap file
     file structure:
         input_ds_dir/
           |-  generated_chiplet_definitions.3dbv
@@ -137,7 +137,7 @@ def update_config_with_3dblox_params(cfg,
     ### Update cfg with design parameters from .3dbv and .bmap files
 
     ## Extract interface name from .bmap file name
-    cfg.INTERFACE = blox_bmap_path.split('/')[-1].split('.')[0]
+    cfg.INTERFACE = _bmap_path.split('/')[-1].split('.')[0]
     if cfg.INTERFACE.split('_')[1] == 'From':
         cfg.INTERFACE_TOP = cfg.INTERFACE.split('_')[0]
         cfg.INTERFACE_BOT = cfg.INTERFACE.split('_')[2].split('.')[0]
@@ -149,7 +149,7 @@ def update_config_with_3dblox_params(cfg,
 
     ### Read .3dbv and .bmap files
     ## Extract design parameters from .3dbv and .3dbf file
-    blox_3dbv = OmegaConf.load(blox_3dbv_path)
+    blox_3dbv = OmegaConf.load(_3dbv_path)
     top_3dbf_path = input_ds_dir + "/" + blox_3dbv.ChipletDef[cfg.INTERFACE_TOP].external["3dbf_file"]
     bot_3dbf_path = input_ds_dir + "/" + blox_3dbv.ChipletDef[cfg.INTERFACE_BOT].external["3dbf_file"]
     top_3dbf = OmegaConf.load(top_3dbf_path)
@@ -171,7 +171,7 @@ def update_config_with_3dblox_params(cfg,
     
 
     ## Extract design parameters from .bmap file
-    update_config_from_bmap(cfg, blox_bmap_path, y_tol=cfg.PITCH_r_um * 0.1, x_tol=cfg.PITCH_c_um * 0.1)
+    update_config_from_bmap(cfg, _bmap_path, y_tol=cfg.PITCH_r_um * 0.1, x_tol=cfg.PITCH_c_um * 0.1)
 
     return cfg
 
@@ -368,7 +368,7 @@ def risk_map_generator(cfg,
     return
 
 def convert_3dblox_to_pad_bitmap(cfg, 
-                                 blox_bmap_path: str, 
+                                 _bmap_path: str, 
                                  criticality_path: str,
                                  pad_arrange_pattern: str,
                                  ):
@@ -381,13 +381,13 @@ def convert_3dblox_to_pad_bitmap(cfg,
     if not os.path.exists(cfg.OUTPUT_DIR + cfg.INTERFACE):
         os.makedirs(cfg.OUTPUT_DIR + cfg.INTERFACE)
 
-    sort_pads_bmap(blox_bmap_path, blox_bmap_path)
+    sort_pads_bmap(_bmap_path, _bmap_path)
 
     # Read the bump data from the .bmap file
     bump_data = []
     # Initialize the pad array boundaries
     [pad_array_left, pad_array_right, pad_array_top, pad_array_bottom] = [float('inf'), float('-inf'), float('-inf'), float('inf')]
-    with open(blox_bmap_path, 'r') as f:
+    with open(_bmap_path, 'r') as f:
         bumpid = 0  # Initialize bumpid
         for line in f:
             parts = line.strip().split()

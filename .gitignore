@@ -1,5 +1,8 @@
 __pycache__/
 *.pyc
+design_*/
+*.npz
+*.npy
 /D2W_correlation_experiments/
 /Repair_Analysis/
 yap_env/

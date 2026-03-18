@@ -47,6 +47,7 @@ def Pad_Yield_Map_Generator(
     # die.draw_die(ax)
 
     # Calculate the overlay yield
+    overlay_start_time = time.perf_counter()
     overlay_pad_yield_map = pad_overlay_yield_map_generator(
         cfg                             =       cfg,
         PAD_TOP_R_um                    =       cfg.PAD_TOP_R_um,
@@ -73,10 +74,11 @@ def Pad_Yield_Map_Generator(
         pad_yield_map_sub_factor        =       cfg.pad_yield_map_sub_factor,
     )
     die.pad_yield_map['Y_ovl'] = overlay_pad_yield_map
+    print(f"Overlay yield calculation took {time.perf_counter() - overlay_start_time:.2f} seconds")
     # raise Exception("Overlay yield calculation done. Stop execution here for debugging.")
 
     # Calculate the defect yield
-    start_time = time.time()
+    start_time = time.perf_counter()
     defect_pad_yield_map = pad_defect_yield_map_generator(
         cfg               =       cfg,
         D0                =       cfg.D0,
@@ -92,10 +94,10 @@ def Pad_Yield_Map_Generator(
         pad_yield_map_sub_factor = cfg.pad_yield_map_sub_factor,
     )
     die.pad_yield_map['Y_df'] = defect_pad_yield_map
-    print(f"Defect yield calculation took {time.time() - start_time:.2f} seconds")
+    print(f"Defect yield calculation took {time.perf_counter() - start_time:.2f} seconds")
 
     # Calculate the Cu expansion yield
-    Cu_expansion_start_time = time.time()
+    Cu_expansion_start_time = time.perf_counter()
     Cu_expansion_pad_yield_map = pad_Cu_expansion_yield_map_generator(
         cfg                 =       cfg,
         die                 =       die,
@@ -106,9 +108,9 @@ def Pad_Yield_Map_Generator(
         pad_bitmap_collection =   pad_bitmap_collection,
     )
     die.pad_yield_map['Y_ce'] = Cu_expansion_pad_yield_map
-    print(f"Cu expansion yield calculation took {time.time() - Cu_expansion_start_time:.2f} seconds")
+    print(f"Cu expansion yield calculation took {time.perf_counter() - Cu_expansion_start_time:.2f} seconds")
 
-    esd_start_time = time.time()
+    esd_start_time = time.perf_counter()
     # Calculate the ESD yield
     esd_valid_pad_yield_vec, _, _ = pad_esd_yield_map_generator(
         cfg                   = cfg,
@@ -148,7 +150,7 @@ def Pad_Yield_Map_Generator(
         plt.ylabel('Pad Row Index')
         plt.show()
     
-    print(f"ESD yield calculation took {time.time() - esd_start_time:.2f} seconds")
+    print(f"ESD yield calculation took {time.perf_counter() - esd_start_time:.2f} seconds")
     die.pad_yield_map['Y_bond'] = die.pad_yield_map['Y_ovl'] * die.pad_yield_map['Y_df'] * die.pad_yield_map['Y_ce'] * die.pad_yield_map['Y_esd']
     die.glb_pad_yield_min_max_dict['Y_bond'] = (np.nanmin(die.pad_yield_map['Y_bond']), np.nanmax(die.pad_yield_map['Y_bond']))
     print(f"Overall pad bonding yield min: {die.glb_pad_yield_min_max_dict['Y_bond'][0]:.6f}, max: {die.glb_pad_yield_min_max_dict['Y_bond'][1]:.6f}")

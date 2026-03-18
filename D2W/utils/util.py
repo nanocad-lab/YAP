@@ -26,16 +26,16 @@ def add_config_items(cfg, keys, values):
 
 def load_base_config(base_config_path: str,
                      input_ds_dir: str,
-                     blox_3dbv_path: str,
-                     blox_bmap_path: str,
+                     _3dbv_path: str,
+                     _bmap_path: str,
                      mode, 
                      debug=False):
     """
     Load base configuration from a YAML file and update with .3dbv and .bmap design parameters.
     args:
         base_config_path: path to base config yaml file
-        blox_3dbv_path: path to .3dbv file
-        blox_bmap_path: path to .bmap file
+        _3dbv_path: path to .3dbv file
+        _bmap_path: path to .bmap file
         mode: mode to load from config (w2w_simulation, w2w_modeling, d2w_simulation, d2w_modeling)
         debug: whether to enable debug output
     """
@@ -43,8 +43,8 @@ def load_base_config(base_config_path: str,
     cfg = full_cfg[mode]
     cfg = update_config_with_3dblox_params(cfg,
                                            input_ds_dir=input_ds_dir,
-                                           blox_3dbv_path=blox_3dbv_path,
-                                           blox_bmap_path=blox_bmap_path)
+                                           _3dbv_path=_3dbv_path,
+                                           _bmap_path=_bmap_path)
 
     # Derive additional parameters based on mode
     if mode == "w2w_simulation" or mode == "w2w_modeling":
@@ -128,8 +128,8 @@ def update_config_from_bmap(cfg, blox_bmap_path, y_tol=0.1, x_tol=0.1):
 
 def update_config_with_3dblox_params(cfg, 
                                     input_ds_dir: str,
-                                    blox_3dbv_path: str,
-                                    blox_bmap_path: str):
+                                    _3dbv_path: str,
+                                    _bmap_path: str):
     """
     Update configuration with design parameters from .3dbv and .bmap files.
     args:
@@ -139,18 +139,18 @@ def update_config_with_3dblox_params(cfg,
         blox_bmap_path: path to .bmap file
     file structure:
         input_ds_dir/
-          |-  generated_chiplet_definitions.3dbv
-          |-  generated_stack_config.3dbx (not used for now)
+          |-  chiplet_definitions.3dbv
+          |-  stack_config.3dbx (not used for now)
           |-  3dbf_files/
           |-  bmap_files/
             |-  <INTERFACE>.bmap
-          |-criticality_files/
+          |-  criticality_files/
             |-  <INTERFACE>_criticality.txt
     """
     ### Update cfg with design parameters from .3dbv and .bmap files
 
     ## Extract interface name from .bmap file name
-    cfg.INTERFACE = blox_bmap_path.split('/')[-1].split('.')[0]
+    cfg.INTERFACE = _bmap_path.split('/')[-1].split('.')[0]
     if 'From' in cfg.INTERFACE:
         cfg.INTERFACE_TOP = cfg.INTERFACE.split('_From_')[0]
         cfg.INTERFACE_BOT = cfg.INTERFACE.split('_From_')[1]
@@ -162,7 +162,7 @@ def update_config_with_3dblox_params(cfg,
 
     ### Read .3dbv and .bmap files
     ## Extract design parameters from .3dbv and .3dbf file
-    blox_3dbv = OmegaConf.load(blox_3dbv_path)
+    blox_3dbv = OmegaConf.load(_3dbv_path)
     top_3dbf_path = input_ds_dir + "/" + cfg.INTERFACE_TOP + ".3dbf"
     bot_3dbf_path = input_ds_dir + "/" + cfg.INTERFACE_BOT + ".3dbf"
     top_3dbf = OmegaConf.load(top_3dbf_path)
@@ -177,7 +177,7 @@ def update_config_with_3dblox_params(cfg,
     bump_type_list = list(top_3dbf.Bump_Types.keys())   # silicon_individual_bonding, organic_individual_bonding, ...
     for bump_type in bump_type_list:
         # Check if bump_type in the bmap file
-        if bump_type in open(blox_bmap_path).readline().split()[1]: # Read the first line of the .bmap file to get the bump type
+        if bump_type in open(_bmap_path).readline().split()[1]: # Read the first line of the .bmap file to get the bump type
             selected_bump_type = bump_type
             break
     add_config_items(cfg, keys=['PAD_TOP_R_um', 'PAD_BOT_R_um'], 
@@ -190,7 +190,7 @@ def update_config_with_3dblox_params(cfg,
     
 
     ## Extract design parameters from .bmap file
-    update_config_from_bmap(cfg, blox_bmap_path, y_tol=cfg.PITCH_r_um * 0.1, x_tol=cfg.PITCH_c_um * 0.1)
+    update_config_from_bmap(cfg, _bmap_path, y_tol=cfg.PITCH_r_um * 0.1, x_tol=cfg.PITCH_c_um * 0.1)
 
     return cfg
 
@@ -351,7 +351,7 @@ def risk_map_generator(cfg,
 
 
 def convert_3dblox_to_pad_bitmap(cfg, 
-                                 blox_bmap_path: str,
+                                 _bmap_path: str,
                                  criticality_path: str,
                                  pad_arrange_pattern: str):
     '''
@@ -361,13 +361,13 @@ def convert_3dblox_to_pad_bitmap(cfg,
     if not os.path.exists(cfg.OUTPUT_DIR + cfg.INTERFACE):
         os.makedirs(cfg.OUTPUT_DIR + cfg.INTERFACE)
         
-    sort_pads_bmap(blox_bmap_path, blox_bmap_path)
+    sort_pads_bmap(_bmap_path, _bmap_path)
 
     # Read the bump data from the .bmap file
     bump_data = []
     # Initialize the pad array boundaries
     [pad_array_left, pad_array_right, pad_array_top, pad_array_bottom] = [float('inf'), float('-inf'), float('-inf'), float('inf')]
-    with open(blox_bmap_path, 'r') as f:
+    with open(_bmap_path, 'r') as f:
         bumpid = 0
         for line in f:
             parts = line.strip().split()
