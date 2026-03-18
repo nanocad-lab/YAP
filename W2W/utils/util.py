@@ -144,8 +144,8 @@ def update_config_with_3dblox_params(cfg_skeleton: object,
         _bmap_path: path to .bmap file (bump map)
     file structure:
         input_ds_dir/
-          |-  generated_chiplet_definitions.3dbv
-          |-  generated_stack_config.3dbx
+          |-  xx_chiplet_definitions.3dbv
+          |-  xx_stack_config.3dbx
           |-  XX_From_XX.bmap
           |-  XX.3dbf
           |-  XX_From_XX_criticality.txt
