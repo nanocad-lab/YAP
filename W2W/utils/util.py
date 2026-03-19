@@ -29,10 +29,12 @@ def load_base_config(base_config_path: str,
                      _3dbv_path: str,
                      _bmap_path: str,
                      mode, 
-                     debug=False):
+                     debug=False,
+                     cfg_specify_flag=False):
     full_cfg = OmegaConf.load(base_config_path)
     cfg = full_cfg[mode]
-    cfg = update_config_with_3dblox_params(cfg,
+    if not cfg_specify_flag:
+        cfg = update_config_with_3dblox_params(cfg,
                                            input_ds_dir=input_ds_dir,
                                            _3dbv_path=_3dbv_path,
                                            _bmap_path=_bmap_path)
