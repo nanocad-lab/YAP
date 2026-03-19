@@ -11,11 +11,8 @@ from wafer_die_initialization import die_initialize
 from overlay_yield_calculator import pad_overlay_yield_map_generator
 from defect_yield_calculator import pad_defect_yield_map_generator
 from Cu_expansion_yield_calculator import pad_Cu_expansion_yield_map_generator
-from utils.util import risk_map_generator
+from utils.util import risk_map_generator, _upsample_pad_yield_map
 from esd_hybrid import pad_esd_yield_map_generator
-
-
-
 
 def Pad_Yield_Map_Generator(
     cfg,
@@ -42,6 +39,7 @@ def Pad_Yield_Map_Generator(
     )
     die = die_list[0]
     valid_pad_mask = (pad_bitmap_collection['CRITICAL_PAD_BITMAP'] == 1) | (pad_bitmap_collection['REDUNDANT_PAD_BITMAP'] == 1) | (pad_bitmap_collection['DUMMY_PAD_BITMAP'] == 1)
+    pad_map_shape = pad_bitmap_collection['CRITICAL_PAD_BITMAP'].shape
     valid_die_pad_coords = die.pad_coords[valid_pad_mask.flatten() == 1]
     # fig, ax = plt.subplots(figsize=(4, 6))
     # die.draw_die(ax)
@@ -73,6 +71,11 @@ def Pad_Yield_Map_Generator(
         pad_yield_flag                  =       cfg.pad_yield_flag,
         pad_yield_map_sub_factor        =       cfg.pad_yield_map_sub_factor,
     )
+    overlay_pad_yield_map = _upsample_pad_yield_map(
+        overlay_pad_yield_map,
+        pad_map_shape,
+        cfg.pad_yield_map_sub_factor,
+    )
     die.pad_yield_map['Y_ovl'] = overlay_pad_yield_map
     print(f"Overlay yield calculation took {time.perf_counter() - overlay_start_time:.2f} seconds")
     # raise Exception("Overlay yield calculation done. Stop execution here for debugging.")
@@ -92,6 +95,11 @@ def Pad_Yield_Map_Generator(
         die               =       die,
         pad_yield_flag    =       cfg.pad_yield_flag,
         pad_yield_map_sub_factor = cfg.pad_yield_map_sub_factor,
+    )
+    defect_pad_yield_map = _upsample_pad_yield_map(
+        defect_pad_yield_map,
+        pad_map_shape,
+        cfg.pad_yield_map_sub_factor,
     )
     die.pad_yield_map['Y_df'] = defect_pad_yield_map
     print(f"Defect yield calculation took {time.perf_counter() - start_time:.2f} seconds")

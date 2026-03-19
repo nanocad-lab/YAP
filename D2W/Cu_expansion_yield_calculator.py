@@ -16,7 +16,7 @@ import numpy as np
 from scipy.integrate import quad
 from scipy.stats import norm
 import matplotlib.pyplot as plt
-from debond import debond_dishing_bounds_calculator
+from debond import debond_dishing_intervals_from_coords
 
 
 
@@ -45,7 +45,7 @@ def pad_Cu_expansion_yield_map_generator(*,
     #     valid_pad_dishing_bound_array = np.load(cfg.OUTPUT_DIR + cfg.INTERFACE + '/' + cfg.INTERFACE + "_dishing_bound_array.npy")
 
     start_time = time.perf_counter()
-    valid_pad_dishing_bound_array = debond_dishing_bounds_calculator(cfg, valid_die_pad_coords) # (num_pads, 2) array: (dishing_low_nm, dishing_high_nm)
+    valid_pad_dishing_bound_array = debond_dishing_intervals_from_coords(cfg, valid_die_pad_coords) # (num_pads, 2) array: (dishing_low_nm, dishing_high_nm)
     print(
         "Dishing bound calculation time for {} pads: {:.2f} seconds".format(
             valid_die_pad_coords.shape[0],

@@ -269,6 +269,7 @@ def overall_yield_simulator(
         zeta_0[valid_pad_mask == 1] = - valid_pad_dishing_bound_array[:, 1] * 2 # lower limits of the sum of top and bottom Cu heights
         zeta_1[valid_pad_mask == 1] = - valid_pad_dishing_bound_array[:, 0] * 2 # upper limits of the sum of top and bottom Cu heights
 
+        # Commented on 03/18/2026
         if cfg.verbose:
             epoch_fail_map_dict['mechanical'] += ((Cu_gap_map > zeta_1) | (Cu_gap_map < zeta_0)).astype(int)
             temp_overall_fail_map |= ((Cu_gap_map > zeta_1) | (Cu_gap_map < zeta_0)).astype(int)
@@ -297,6 +298,16 @@ def overall_yield_simulator(
                     epoch_fail_vec_dict['overall'][die_ind] = 1
                 if not cfg.verbose:
                     break
+
+        # # Check whether there are too many pads with Cu gap out of the safe range, which will cause die failure
+        # num_cu_pad_fail_limit = cfg.CU_RECESS_PAD_FAIL_RATIO * np.sum(die_critical_pad_bitmap)
+        # if np.sum(Cu_gap_map[valid_pad_mask == 1] > 0) > num_cu_pad_fail_limit:
+        #     die.survival = False
+        #     if cfg.verbose:
+        #         epoch_fail_vec_dict['mechanical'][die_ind] = 1
+        #         epoch_fail_vec_dict['overall'][die_ind] = 1
+        #     if not cfg.verbose:
+        #         continue
             
         # # Get the fail bump indices
         # fail_bump_id = mapping_physical_to_bumpid[redundant_pad_fail_map == 1]

@@ -24,12 +24,60 @@ def add_config_items(cfg, keys, values):
     for key, value in zip(keys, values):
         cfg[key] = value
 
+
+def _upsample_pad_yield_map(pad_yield_map: np.ndarray,
+                            pad_map_shape,
+                            pad_yield_map_sub_factor: int) -> np.ndarray:
+    """
+    Upsample a subsampled pad yield map back to the full pad-array shape.
+
+    The sampling grid follows the same endpoint-preserving indexing used in the
+    overlay/defect calculators, so we reconstruct the dense map with 1D linear
+    interpolation along columns and then rows.
+    """
+    if pad_yield_map.shape == pad_map_shape or pad_yield_map_sub_factor <= 1:
+        return pad_yield_map
+
+    target_rows, target_cols = pad_map_shape
+    src_rows, src_cols = pad_yield_map.shape
+
+    row_coords = np.round(np.linspace(0, target_rows - 1, src_rows)).astype(np.float64)
+    col_coords = np.round(np.linspace(0, target_cols - 1, src_cols)).astype(np.float64)
+
+    # Guard against duplicate coordinates in very small arrays.
+    col_coords, unique_col_idx = np.unique(col_coords, return_index=True)
+    pad_yield_map = pad_yield_map[:, unique_col_idx]
+    row_coords, unique_row_idx = np.unique(row_coords, return_index=True)
+    pad_yield_map = pad_yield_map[unique_row_idx, :]
+
+    full_col_coords = np.arange(target_cols, dtype=np.float64)
+    full_row_coords = np.arange(target_rows, dtype=np.float64)
+
+    if pad_yield_map.shape[1] == 1:
+        col_upsampled = np.repeat(pad_yield_map, target_cols, axis=1)
+    else:
+        col_upsampled = np.vstack([
+            np.interp(full_col_coords, col_coords, row_vals)
+            for row_vals in pad_yield_map
+        ])
+
+    if col_upsampled.shape[0] == 1:
+        return np.repeat(col_upsampled, target_rows, axis=0)
+
+    full_pad_yield_map = np.vstack([
+        np.interp(full_row_coords, row_coords, col_upsampled[:, col_ind])
+        for col_ind in range(target_cols)
+    ]).T
+
+    return full_pad_yield_map
+
 def load_base_config(base_config_path: str,
                      input_ds_dir: str,
                      _3dbv_path: str,
                      _bmap_path: str,
                      mode, 
-                     debug=False):
+                     debug=False,
+                     cfg_specify_flag=False):
     """
     Load base configuration from a YAML file and update with .3dbv and .bmap design parameters.
     args:
@@ -41,7 +89,8 @@ def load_base_config(base_config_path: str,
     """
     full_cfg = OmegaConf.load(base_config_path)
     cfg = full_cfg[mode]
-    cfg = update_config_with_3dblox_params(cfg,
+    if not cfg_specify_flag:
+        cfg = update_config_with_3dblox_params(cfg,
                                            input_ds_dir=input_ds_dir,
                                            _3dbv_path=_3dbv_path,
                                            _bmap_path=_bmap_path)
