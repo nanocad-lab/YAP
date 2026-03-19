@@ -263,8 +263,8 @@ def overall_yield_simulator(
         Cu_gap_map[valid_pad_mask == 1] = Cu_gap_in_valid_pads
 
         # Calculate the safe range for single pad Cu recess
-        zeta_0 = np.full((PAD_ARR_ROW, PAD_ARR_COL), np.nan)
-        zeta_1 = np.full((PAD_ARR_ROW, PAD_ARR_COL), np.nan)
+        zeta_0 = np.full((PAD_ARR_ROW, PAD_ARR_COL), np.nan)    # lower limits to prevent Cu connection open
+        zeta_1 = np.full((PAD_ARR_ROW, PAD_ARR_COL), np.nan)    # upper limits to prevent dielectric delamination
 
         zeta_0[valid_pad_mask == 1] = - valid_pad_dishing_bound_array[:, 1] * 2 # lower limits of the sum of top and bottom Cu heights
         zeta_1[valid_pad_mask == 1] = - valid_pad_dishing_bound_array[:, 0] * 2 # upper limits of the sum of top and bottom Cu heights
@@ -276,7 +276,8 @@ def overall_yield_simulator(
 
         # Check critical pad Cu gap
         critical_pad_Cu_gap = Cu_gap_map * die_critical_pad_bitmap  # shape: (PAD_ARR_ROW, PAD_ARR_COL)
-        if np.any(critical_pad_Cu_gap > zeta_1 * die_critical_pad_bitmap) or np.any(critical_pad_Cu_gap < zeta_0 * die_critical_pad_bitmap):
+        # if np.any(critical_pad_Cu_gap > zeta_1 * die_critical_pad_bitmap) or np.any(critical_pad_Cu_gap < zeta_0 * die_critical_pad_bitmap):
+        if np.any(critical_pad_Cu_gap < zeta_0 * die_critical_pad_bitmap):
             die.survival = False
             if cfg.verbose:
                 epoch_fail_vec_dict['mechanical'][die_ind] = 1
@@ -286,7 +287,7 @@ def overall_yield_simulator(
 
         # Check redundant pad Cu gap
         redundant_pad_Cu_gap = Cu_gap_map * die_redundant_pad_bitmap
-        redundant_pad_fail_map[redundant_pad_Cu_gap > zeta_1 * die_redundant_pad_bitmap] = 1
+        # redundant_pad_fail_map[redundant_pad_Cu_gap > zeta_1 * die_redundant_pad_bitmap] = 1
         redundant_pad_fail_map[redundant_pad_Cu_gap < zeta_0 * die_redundant_pad_bitmap] = 1
         for redundant_net, physical_mask in redundant_net_to_1d_physical_mask.items():
             tolerated_mechanical_failures = criticality_info[redundant_net]['tolerated_mechanical_failures']
@@ -299,15 +300,15 @@ def overall_yield_simulator(
                 if not cfg.verbose:
                     break
 
-        # # Check whether there are too many pads with Cu gap out of the safe range, which will cause die failure
-        # num_cu_pad_fail_limit = cfg.CU_RECESS_PAD_FAIL_RATIO * np.sum(die_critical_pad_bitmap)
-        # if np.sum(Cu_gap_map[valid_pad_mask == 1] > 0) > num_cu_pad_fail_limit:
-        #     die.survival = False
-        #     if cfg.verbose:
-        #         epoch_fail_vec_dict['mechanical'][die_ind] = 1
-        #         epoch_fail_vec_dict['overall'][die_ind] = 1
-        #     if not cfg.verbose:
-        #         continue
+        # Check whether there are too many pads with Cu gap out of the safe range, which will cause die failure
+        num_cu_pad_fail_limit = cfg.CU_RECESS_PAD_FAIL_RATIO * np.sum(die_critical_pad_bitmap)
+        if np.sum(Cu_gap_map[valid_pad_mask == 1] > 0) > num_cu_pad_fail_limit:
+            die.survival = False
+            if cfg.verbose:
+                epoch_fail_vec_dict['mechanical'][die_ind] = 1
+                epoch_fail_vec_dict['overall'][die_ind] = 1
+            if not cfg.verbose:
+                continue
             
         # # Get the fail bump indices
         # fail_bump_id = mapping_physical_to_bumpid[redundant_pad_fail_map == 1]

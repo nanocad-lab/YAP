@@ -3,6 +3,11 @@ __pycache__/
 design_*/
 *.npz
 *.npy
+*.3dbv
+*.3dbx
+*.3dbf
+*.bmap
+*.log
 /D2W_correlation_experiments/
 /Repair_Analysis/
 yap_env/
