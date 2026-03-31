@@ -10,7 +10,7 @@ import time
 import os
 from overlay_yield_simulator import die_pad_misalignment
 from Cu_gap_simulator import Cu_gap_simulator
-from debond import debond_dishing_bounds_calculator
+from debond import debond_dishing_bounds_calculator, post_bond_warpage_calculator
 from esd_hybrid import esd_failure_simulator
 
 def overall_yield_simulator(
@@ -302,7 +302,8 @@ def overall_yield_simulator(
 
         # Check whether there are too many pads with Cu gap out of the safe range, which will cause die failure
         num_cu_pad_fail_limit = cfg.CU_RECESS_PAD_FAIL_RATIO * np.sum(die_critical_pad_bitmap)
-        if np.sum(Cu_gap_map[valid_pad_mask == 1] > 0) > num_cu_pad_fail_limit:
+        post_bond_warpage = post_bond_warpage_calculator(cfg)
+        if (np.sum(Cu_gap_map[valid_pad_mask == 1] > 0) > num_cu_pad_fail_limit) or (post_bond_warpage > cfg.WARPAGE_LIMIT_UM):
             die.survival = False
             if cfg.verbose:
                 epoch_fail_vec_dict['mechanical'][die_ind] = 1

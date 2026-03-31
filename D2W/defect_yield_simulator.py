@@ -67,6 +67,90 @@ class void_tail:
 
 
 
+def get_particle_density_map(
+    *,
+    D0,
+    D1,
+    DIE_W_um,
+    DIE_L_um,
+    edge_region_width_um=300.0,
+    grid_size=300,
+):
+    x_coords = np.linspace(-DIE_W_um / 2.0, DIE_W_um / 2.0, grid_size)
+    y_coords = np.linspace(-DIE_L_um / 2.0, DIE_L_um / 2.0, grid_size)
+    xx, yy = np.meshgrid(x_coords, y_coords, indexing="xy")
+
+    density_map = np.full_like(xx, float(D0), dtype=np.float64)
+    if D1 <= D0 or edge_region_width_um <= 0:
+        return x_coords, y_coords, density_map
+
+    edge_region_width_um = min(
+        float(edge_region_width_um),
+        DIE_W_um / 2.0,
+        DIE_L_um / 2.0,
+    )
+    if edge_region_width_um <= 0:
+        return x_coords, y_coords, density_map
+
+    dist_to_nearest_edge = np.minimum(
+        DIE_W_um / 2.0 - np.abs(xx),
+        DIE_L_um / 2.0 - np.abs(yy),
+    )
+    edge_weight = np.clip(
+        1.0 - dist_to_nearest_edge / edge_region_width_um,
+        0.0,
+        1.0,
+    )
+    density_map += (float(D1) - float(D0)) * edge_weight
+    return x_coords, y_coords, density_map
+
+
+def draw_particle_density_heatmap(
+    *,
+    cfg,
+    D0,
+    DIE_W_um,
+    DIE_L_um,
+    output_path=None,
+    grid_size=300,
+):
+    D1 = float(cfg.get("D1", D0))
+    edge_region_width_um = float(cfg.get("EDGE_REGION_WIDTH_um", 300.0))
+    x_coords, y_coords, density_map = get_particle_density_map(
+        D0=D0,
+        D1=D1,
+        DIE_W_um=DIE_W_um,
+        DIE_L_um=DIE_L_um,
+        edge_region_width_um=edge_region_width_um,
+        grid_size=grid_size,
+    )
+
+    fig, ax = plt.subplots(figsize=(8, 6), dpi=200)
+    image = ax.imshow(
+        density_map,
+        origin="lower",
+        extent=[x_coords[0], x_coords[-1], y_coords[0], y_coords[-1]],
+        cmap="hot",
+        aspect="auto",
+    )
+    fig.colorbar(image, ax=ax, label="Particle Density (1/um^2)")
+    ax.set_xlabel("x (um)")
+    ax.set_ylabel("y (um)")
+    ax.set_title(
+        "Particle Density Distribution\n"
+        f"D0={float(D0):.3e}, D1={D1:.3e}, w={edge_region_width_um:.1f} um"
+    )
+    ax.set_aspect("equal")
+
+    if output_path is not None:
+        fig.savefig(output_path, bbox_inches="tight")
+        plt.close(fig)
+    else:
+        plt.show()
+
+    return x_coords, y_coords, density_map
+
+
 def defect_yield_simulator(
     cfg,
     D0,
@@ -89,13 +173,68 @@ def defect_yield_simulator(
     def inverse_cdf_particle_thickness(u):
         return t_0 / (1 - u) ** (1 / (z - 1))
 
-    def generate_particles(particle_thickness, DIE_W_um, DIE_L_um, drop_particle_range):
+    def generate_particles_across_die(particle_thickness, DIE_W_um, DIE_L_um, drop_particle_range):
         particles = []
         for i in range(len(particle_thickness)):
             # x, y = np.random.uniform(-DIE_W_um / 2, DIE_W_um / 2), np.random.uniform(-DIE_L_um / 2, DIE_L_um / 2)
             x, y = np.random.uniform(-DIE_W_um / 2 * drop_particle_range, DIE_W_um / 2 * drop_particle_range), np.random.uniform(-DIE_L_um / 2 * drop_particle_range, DIE_L_um / 2 * drop_particle_range)
             particles.append(particle(x, y, particle_thickness[i]))
         return particles
+    
+    def generate_particles_at_die_edges(DIE_W_um, DIE_L_um):
+        D1 = float(cfg.get("D1", D0))
+        edge_region_width_um = float(cfg.get("EDGE_REGION_WIDTH_um", 300.0))
+
+        assert D1 >= D0, "D1 should be greater than or equal to D0 to have edge effect"
+
+        edge_region_width_um = min(
+            edge_region_width_um,
+            DIE_W_um / 2.0,
+            DIE_L_um / 2.0,
+        )
+        assert edge_region_width_um > 0, "EDGE_REGION_WIDTH_um should be positive"
+
+        # The uniform background sampler already contributes D0 everywhere.
+        # Here we only sample the excess edge density:
+        # delta_D(x, y) = (D1 - D0) * (1 - d(x, y) / w), for d(x, y) < w.
+        delta_density_peak = D1 - D0
+        num_candidate_particles = np.random.poisson(
+            delta_density_peak * DIE_W_um * DIE_L_um
+        )
+        if num_candidate_particles == 0:
+            return []
+
+        x_coords = np.random.uniform(
+            -DIE_W_um / 2.0, DIE_W_um / 2.0, num_candidate_particles
+        )
+        y_coords = np.random.uniform(
+            -DIE_L_um / 2.0, DIE_L_um / 2.0, num_candidate_particles
+        )
+
+        dist_to_nearest_edge = np.minimum(
+            DIE_W_um / 2.0 - np.abs(x_coords),
+            DIE_L_um / 2.0 - np.abs(y_coords),
+        )
+        keep_prob = np.clip(
+            1.0 - dist_to_nearest_edge / edge_region_width_um,
+            0.0,
+            1.0,
+        )
+        keep_mask = np.random.rand(num_candidate_particles) < keep_prob
+        if not np.any(keep_mask):
+            return []
+
+        edge_particle_thickness = inverse_cdf_particle_thickness(
+            np.random.rand(np.count_nonzero(keep_mask))
+        )
+        return [
+            particle(x, y, thickness)
+            for x, y, thickness in zip(
+                x_coords[keep_mask],
+                y_coords[keep_mask],
+                edge_particle_thickness,
+            )
+        ]
     
     # Generate the main void and void tail based on the particles
     def generate_voids(cfg, particles, k_r, k_r0, k_n, k_S):
@@ -136,7 +275,9 @@ def defect_yield_simulator(
         particle_thickness = np.zeros(num_particles)
         u = np.random.rand(num_particles)
         particle_thickness = inverse_cdf_particle_thickness(u)
-        particles = generate_particles(particle_thickness, DIE_W_um, DIE_L_um, drop_particle_range)
+        particles_across_die = generate_particles_across_die(particle_thickness, DIE_W_um, DIE_L_um, drop_particle_range)
+        particles_at_die_edges = generate_particles_at_die_edges(DIE_W_um, DIE_L_um)
+        particles = particles_across_die + particles_at_die_edges
 
         # Generate the main void and void tail based on the particles for each die
         voids, main_voids, tail_voids = generate_voids(cfg, particles, k_r, k_r0, k_n, k_S)

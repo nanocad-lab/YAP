@@ -70,6 +70,8 @@ d2w_simulation:
   # === Defect Parameters ===
   first_contact: 'center'            # First contact location: 'center' or 'edge' or 'corner (left-top)'
   D0: 1e-9                              # Particle density (1/µm²)
+  D1: 1e-8                              # Edge peak particle density (1/µm²)
+  EDGE_REGION_WIDTH_um: 300.0           # Width of the edge region for elevated particle density (µm)
   z: 3                                  # Particle thickness distribution exponent
   t_0: 0.1                                # Minimum particle thickness (µm)
   k_r: 1.8e-4
@@ -212,6 +214,8 @@ d2w_modeling:
   # === Defect Parameters ===
   first_contact: 'center'            # First contact location: 'center' or 'vertical-edge' or 'horizontal-edge' or 'corner' (left-bottom)
   D0: 1e-9                              # Particle density (1/µm²)
+  D1: 1e-8                              # Edge peak particle density (1/µm²)
+  EDGE_REGION_WIDTH_um: 300.0           # Width of the edge region for elevated particle density (µm)
   z: 3                                  # Thickness distribution exponent factor
   t_0: 0.1                              # Minimum particle thickness (µm)
   k_r: 1.8e-4
