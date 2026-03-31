@@ -335,6 +335,7 @@ def overall_yield_simulator(
                                                 tilt_x_std_deg=TILT_X_STD_DEG,
                                                 tilt_y_mean_deg=TILT_Y_MEAN_DEG,
                                                 tilt_y_std_deg=TILT_Y_STD_DEG,
+                                                dummy_pad_bitmap=pad_bitmap_collection['DUMMY_PAD_BITMAP'].flatten()[valid_pad_mask.flatten() == 1],
                                                 )
         if first_contact_pad_idx is not None and survive_bool == False:    # One pad will form the first contact and fail
             r_idx, c_idx = first_contact_pad_idx // PAD_ARR_COL, first_contact_pad_idx % PAD_ARR_COL

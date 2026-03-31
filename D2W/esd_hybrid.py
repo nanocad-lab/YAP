@@ -442,6 +442,7 @@ def pad_esd_yield_map_generator(
     top_dish_std_nm: float,
     bot_dish_mean_nm: float,
     bot_dish_std_nm: float,
+    dummy_pad_bitmap: np.ndarray, # 1D array of length equal to number of valid pads, indicating which pads are dummy pads
     base_seed: int = 20251006,
     z_top_um: float = 100.0,
 ) -> Tuple[np.ndarray, Optional[plt.Figure], float]:
@@ -540,6 +541,7 @@ def esd_failure_simulator(
     tilt_x_std_deg: float,
     tilt_y_mean_deg: float,
     tilt_y_std_deg: float,
+    dummy_pad_bitmap: np.ndarray,   # 1D array of length equal to number of valid pads, indicating which pads are dummy pads
     base_seed: int = 20251006,
     z_top_um: float = 100.0,
 ) -> Tuple[Optional[int], bool]:
