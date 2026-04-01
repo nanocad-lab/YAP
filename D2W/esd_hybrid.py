@@ -133,6 +133,25 @@ def _prepare_die_geometry_cache(
     return 0.5 * float(top_die_w_um), 0.5 * float(top_die_h_um)
 
 
+def _active_pad_ids_from_bitmap(
+    pad_coords_um: np.ndarray,
+    dummy_pad_bitmap: np.ndarray,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Return the original pad array plus the ids of pads that are not dummy pads."""
+    pad_coords_um = np.asarray(pad_coords_um, dtype=np.float64)
+    if pad_coords_um.ndim != 2 or pad_coords_um.shape[1] != 2:
+        raise ValueError("pad_coords_um must have shape (n_pads, 2).")
+
+    dummy_pad_bitmap = np.asarray(dummy_pad_bitmap, dtype=bool).reshape(-1)
+    if pad_coords_um.shape[0] != dummy_pad_bitmap.shape[0]:
+        raise ValueError("pad_coords_um and dummy_pad_bitmap must have the same length.")
+
+    active_ids = np.flatnonzero(~dummy_pad_bitmap)
+    if active_ids.size <= 0:
+        raise ValueError("dummy_pad_bitmap masks out all pads.")
+    return pad_coords_um, active_ids
+
+
 def _candidate_pad_ids(
     top_dish_um_raw: np.ndarray,
     bot_dish_um: np.ndarray,
@@ -449,7 +468,10 @@ def pad_esd_yield_map_generator(
     """Run Monte Carlo sampling and accumulate a per-pad ESD risk map."""
     _ = cfg
 
+    pad_coords_um, active_ids = _active_pad_ids_from_bitmap(pad_coords_um, dummy_pad_bitmap)
+    active_pad_coords_um = pad_coords_um[active_ids]
     pad_count = pad_coords_um.shape[0]
+    active_pad_count = active_ids.size
     total_runs = int(n_tilts) * int(n_dishes)
     if total_runs <= 0:
         raise ValueError("n_tilts * n_dishes must be positive.")
@@ -484,12 +506,12 @@ def pad_esd_yield_map_generator(
             top_dish_um_raw = rng_top.normal(
                 loc=float(top_dish_mean_nm) * NM_TO_UM,
                 scale=max(float(top_dish_std_nm), 0.0) * NM_TO_UM,
-                size=(pad_count,),
+                size=(active_pad_count,),
             ).astype(np.float64)
             bot_dish_um = rng_bot.normal(
                 loc=float(bot_dish_mean_nm) * NM_TO_UM,
                 scale=max(float(bot_dish_std_nm), 0.0) * NM_TO_UM,
-                size=(pad_count,),
+                size=(active_pad_count,),
             ).astype(np.float64)
 
             v_chg = float(rng_v.uniform(V_MIN_V, V_MAX_V))
@@ -500,8 +522,8 @@ def pad_esd_yield_map_generator(
             # _arc_time = time.perf_counter() - start_time
             # print("_arc time: {:.4f} seconds".format(_arc_time))
 
-            pad_choice, _, _, _ = _binary_halving_until_pad(
-                pad_coords_um=pad_coords_um,
+            pad_choice_active, _, _, _ = _binary_halving_until_pad(
+                pad_coords_um=active_pad_coords_um,
                 pad_size_um=pad_size_um,
                 top_die_w_um=top_die_w_um,
                 top_die_h_um=top_die_h_um,
@@ -522,9 +544,10 @@ def pad_esd_yield_map_generator(
             # raise NotImplementedError("The rest of the ESD yield map generator is not implemented yet.")
             p_fail_sum += p_fail_run
 
-            if pad_choice is not None:
-                counts_vec[int(pad_choice)] += 1
-                risk_accum_vec[int(pad_choice)] += float(p_fail_run)
+            if pad_choice_active is not None:
+                pad_choice = int(active_ids[int(pad_choice_active)])
+                counts_vec[pad_choice] += 1
+                risk_accum_vec[pad_choice] += float(p_fail_run)
 
     print()
     valid_pad_risk_map_vec = risk_accum_vec / float(total_runs)
@@ -560,6 +583,11 @@ def esd_failure_simulator(
     z_top_um: float = 100.0,
 ) -> Tuple[Optional[int], bool]:
     """Run a single stochastic experiment and return (first_touch_pad, survive_bool)."""
+    pad_coords_um, active_ids = _active_pad_ids_from_bitmap(pad_coords_um, dummy_pad_bitmap)
+    active_pad_coords_um = pad_coords_um[active_ids]
+    top_dish_nm_ext = np.asarray(top_dish_nm_ext, dtype=np.float64).reshape(-1)
+    bot_dish_nm_ext = np.asarray(bot_dish_nm_ext, dtype=np.float64).reshape(-1)
+
     if not (
         pad_coords_um.shape[0] == top_dish_nm_ext.shape[0] == bot_dish_nm_ext.shape[0]
     ):
@@ -573,11 +601,11 @@ def esd_failure_simulator(
     v_chg = float(rng.uniform(V_MIN_V, V_MAX_V))
     arc_distance_um = _arc_distance_um_from_voltage(v_chg)
 
-    top_dish_um_raw = top_dish_nm_ext.astype(np.float64) * NM_TO_UM
-    bot_dish_um = bot_dish_nm_ext.astype(np.float64) * NM_TO_UM
+    top_dish_um_raw = top_dish_nm_ext[active_ids] * NM_TO_UM
+    bot_dish_um = bot_dish_nm_ext[active_ids] * NM_TO_UM
 
-    pad_choice, _, _, _ = _binary_halving_until_pad(
-        pad_coords_um=pad_coords_um,
+    pad_choice_active, _, _, _ = _binary_halving_until_pad(
+        pad_coords_um=active_pad_coords_um,
         pad_size_um=pad_size_um,
         top_die_w_um=top_die_w_um,
         top_die_h_um=top_die_h_um,
@@ -590,6 +618,7 @@ def esd_failure_simulator(
         arc_distance_um=arc_distance_um,
     )
 
+    pad_choice = int(active_ids[int(pad_choice_active)]) if pad_choice_active is not None else None
     p_fail_single = _compute_p_fail_for_die(top_die_w_um, top_die_h_um, v_chg)
     survive_bool = not ((pad_choice is not None) and (float(rng.uniform(0.0, 1.0)) < p_fail_single))
     return pad_choice, survive_bool
@@ -648,6 +677,7 @@ if __name__ == "__main__":
     pad_coords = np.asarray(PAD_COORDS_UM, dtype=np.float64).reshape(-1, 2)
     rng = np.random.default_rng(BASE_SEED ^ 0x13579BDF)
     pad_count = pad_coords.shape[0]
+    dummy_pad_bitmap = np.zeros((pad_count,), dtype=bool)
     top_ext_nm = rng.normal(TOP_DISH_MEAN_NM, TOP_DISH_STD_NM, size=pad_count).astype(np.float64)
     bot_ext_nm = rng.normal(BOT_DISH_MEAN_NM, BOT_DISH_STD_NM, size=pad_count).astype(np.float64)
 
@@ -662,6 +692,7 @@ if __name__ == "__main__":
         tilt_x_std_deg=TILT_X_STD_DEG,
         tilt_y_mean_deg=TILT_Y_MEAN_DEG,
         tilt_y_std_deg=TILT_Y_STD_DEG,
+        dummy_pad_bitmap=dummy_pad_bitmap,
         base_seed=BASE_SEED,
         z_top_um=100.0,
     )
