@@ -44,19 +44,19 @@ def pad_Cu_expansion_yield_map_generator(*,
     #     print("Loading dishing bound array from file {}".format(cfg.OUTPUT_DIR + cfg.INTERFACE + '/' + cfg.INTERFACE + "_dishing_bound_array.npy"))
     #     valid_pad_dishing_bound_array = np.load(cfg.OUTPUT_DIR + cfg.INTERFACE + '/' + cfg.INTERFACE + "_dishing_bound_array.npy")
 
-    start_time = time.perf_counter()
+    # start_time = time.perf_counter()
     valid_pad_dishing_bound_array = debond_dishing_intervals_from_coords(cfg, valid_die_pad_coords) # (num_pads, 2) array: (dishing_low_nm, dishing_high_nm)
-    print(
-        "Dishing bound calculation time for {} pads: {:.2f} seconds".format(
-            valid_die_pad_coords.shape[0],
-            time.perf_counter() - start_time,
-        )
-    )
+    # print(
+    #     "Dishing bound calculation time for {} pads: {:.2f} seconds".format(
+    #         valid_die_pad_coords.shape[0],
+    #         time.perf_counter() - start_time,
+    #     )
+    # )
 
     upper_cu_height_limits_valid_pads = - valid_pad_dishing_bound_array[:, 0] * 2 # - upper Cu height limits
     lower_cu_height_limits_valid_pads = - valid_pad_dishing_bound_array[:, 1] * 2 # - lower Cu height limits
-    print("Max upper Cu height (nm): {:.2f}, Min upper Cu height (nm): {:.2f}".format(np.max(upper_cu_height_limits_valid_pads), np.min(upper_cu_height_limits_valid_pads)))
-    print("Max lower Cu height (nm): {:.2f}, Min lower Cu height (nm): {:.2f}".format(np.max(lower_cu_height_limits_valid_pads), np.min(lower_cu_height_limits_valid_pads)))
+    # print("Max upper Cu height (nm): {:.2f}, Min upper Cu height (nm): {:.2f}".format(np.max(upper_cu_height_limits_valid_pads), np.min(upper_cu_height_limits_valid_pads)))
+    # print("Max lower Cu height (nm): {:.2f}, Min lower Cu height (nm): {:.2f}".format(np.max(lower_cu_height_limits_valid_pads), np.min(lower_cu_height_limits_valid_pads)))
     pos_valid_pads = norm.cdf(upper_cu_height_limits_valid_pads, loc=TOP_DISH_MEAN_nm + BOT_DISH_MEAN_nm, scale=np.sqrt(TOP_DISH_STD_nm**2 + BOT_DISH_STD_nm**2)) - \
                      norm.cdf(lower_cu_height_limits_valid_pads, loc=TOP_DISH_MEAN_nm + BOT_DISH_MEAN_nm, scale=np.sqrt(TOP_DISH_STD_nm**2 + BOT_DISH_STD_nm**2))
     pad_yield_map = np.full((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL), np.nan)
@@ -65,8 +65,8 @@ def pad_Cu_expansion_yield_map_generator(*,
     glb_cu_expansion_pad_yield_min = min(glb_cu_expansion_pad_yield_min, np.nanmin(pad_yield_map))
     glb_cu_expansion_pad_yield_max = max(glb_cu_expansion_pad_yield_max, np.nanmax(pad_yield_map))
     die.glb_pad_yield_min_max_dict['Y_ce'] = (glb_cu_expansion_pad_yield_min, glb_cu_expansion_pad_yield_max)
-    print("Cu Expansion Pad Yield Min: {:.6f}".format(glb_cu_expansion_pad_yield_min))
-    print("Cu Expansion Pad Yield Max: {:.6f}".format(glb_cu_expansion_pad_yield_max))
+    # print("Cu Expansion Pad Yield Min: {:.6f}".format(glb_cu_expansion_pad_yield_min))
+    # print("Cu Expansion Pad Yield Max: {:.6f}".format(glb_cu_expansion_pad_yield_max))
 
 
     if cfg.plot_flag:

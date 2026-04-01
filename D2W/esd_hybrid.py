@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import math
 from typing import List, Optional, Tuple
-
+import time
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
@@ -467,6 +467,7 @@ def pad_esd_yield_map_generator(
 
         for dish_index in range(n_dishes):
             progress_counter += 1
+            # sample_start_time = time.perf_counter()
             if (progress_counter % 1000) == 0 or (progress_counter == total_runs):
                 print(
                     f"[ESD Sim] Progress: {progress_counter} / {total_runs} runs completed.",
@@ -492,7 +493,12 @@ def pad_esd_yield_map_generator(
             ).astype(np.float64)
 
             v_chg = float(rng_v.uniform(V_MIN_V, V_MAX_V))
+            # print("Sample generation time: {:.4f} seconds".format(time.perf_counter() - sample_start_time))
+
+            # start_time = time.perf_counter()
             arc_distance_um = _arc_distance_um_from_voltage(v_chg)
+            # _arc_time = time.perf_counter() - start_time
+            # print("_arc time: {:.4f} seconds".format(_arc_time))
 
             pad_choice, _, _, _ = _binary_halving_until_pad(
                 pad_coords_um=pad_coords_um,
@@ -507,8 +513,13 @@ def pad_esd_yield_map_generator(
                 rng_pick=rng_pick,
                 arc_distance_um=arc_distance_um,
             )
+            # _binary_time = time.perf_counter() - start_time - _arc_time
+            # print("_binary_halving_until_pad time: {:.4f} seconds".format(_binary_time))
 
             p_fail_run = _compute_p_fail_for_die(top_die_w_um, top_die_h_um, v_chg)
+            # _p_fail_time = time.perf_counter() - start_time - _arc_time - _binary_time
+            # print("_compute_p_fail_for_die time: {:.4f} seconds".format(_p_fail_time))
+            # raise NotImplementedError("The rest of the ESD yield map generator is not implemented yet.")
             p_fail_sum += p_fail_run
 
             if pad_choice is not None:
@@ -519,12 +530,15 @@ def pad_esd_yield_map_generator(
     valid_pad_risk_map_vec = risk_accum_vec / float(total_runs)
     p_fail_avg = p_fail_sum / float(total_runs)
 
-    fig = plot_probability_over_pads_with_pitch(
-        pad_coords_um=pad_coords_um,
-        prob_vec=valid_pad_risk_map_vec,
-        pitch_um=pad_pitch_um,
-        title="Risk Pad Map = E[1(first-touch pad) * p_fail(V)], V~U[0,5]",
-    )
+    if cfg.plot_flag:
+        fig = plot_probability_over_pads_with_pitch(
+            pad_coords_um=pad_coords_um,
+            prob_vec=valid_pad_risk_map_vec,
+            pitch_um=pad_pitch_um,
+            title="Risk Pad Map = E[1(first-touch pad) * p_fail(V)], V~U[0,5]",
+        )
+    else:
+        fig = None
     valid_pad_yield_map_vec = 1.0 - valid_pad_risk_map_vec
     return valid_pad_yield_map_vec, fig, float(p_fail_avg)
 

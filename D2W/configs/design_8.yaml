@@ -66,6 +66,7 @@ d2w_simulation:
   BOW_DIFFERENCE_STD_um: 0.1                 # Bow difference std (µm)
   k_mag: 0.1                           # Magnification slope coefficient
   M_0: 0                                # Magnification offset
+  WARPAGE_LIMIT_UM: 100                 # Maximum post-bonding warpage
 
   # === Defect Parameters ===
   first_contact: 'center'            # First contact location: 'center' or 'edge' or 'corner (left-top)'
@@ -166,7 +167,7 @@ d2w_modeling:
   VOID_SHAPE: "circle"                  # Shape of void: "circle" or "square"
   dice_width: 100                      # Dice width to separate dies (µm)
   pad_yield_flag: True                  # Enable pad yield map generation
-  pad_yield_map_sub_factor: 1          # Subsampling factor for pad yield map (1: no subsampling, 10: rows/10 and cols/10)
+  pad_yield_map_sub_factor: 10          # Subsampling factor for pad yield map (1: no subsampling, 10: rows/10 and cols/10)
   PAD_ARRANGE_PATTERN: "rectangular"
   # === Die Warpage Peeling Stress Mdodel ===
   # === Bottom Wafer Settings ===
@@ -209,6 +210,7 @@ d2w_modeling:
   BOW_DIFFERENCE_STD_um: 0.1                 # Bow difference std (µm)
   k_mag: 0.1                           # Magnification slope coefficient
   M_0: 0                                # Magnification offset
+  WARPAGE_LIMIT_UM: 100                 # Maximum post-bonding warpage
 
   # === Defect Parameters ===
   first_contact: 'center'            # First contact location: 'center' or 'vertical-edge' or 'horizontal-edge' or 'corner' (left-bottom)
