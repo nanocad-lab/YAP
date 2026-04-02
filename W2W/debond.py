@@ -13,7 +13,7 @@ UPDATED (paper Eq.(27)–(36) pad-scale core):
   Eq.(27)–(36) replace the previous 9-parameter pad-scale model.
 
 INVERSION (FIXED WINDOW, consistent with Eq.(30) singularity):
-  - SiO2: search D in [0, 10] nm; if no root -> return 0
+  - SiO2: search D in [-5, 10] nm; if no root -> return -5
   - Cu  : search D in [0, D_contact_max] where D_contact_max = delta_heat/2;
           if no root -> return D_contact_max
   - To avoid phi->0 divergence at the boundary D = D_contact_max, evaluate f(hi)
@@ -21,7 +21,7 @@ INVERSION (FIXED WINDOW, consistent with Eq.(30) singularity):
 
 FAST VERSION (LUT lookup, same window rules):
   - Build LUT once per __init_params(cfg): D_grid -> sigma(D)
-      * SiO2 uses Eq.(32) over D in [0, 10] nm
+      * SiO2 uses Eq.(32) over D in [-5, 10] nm
       * Cu   uses Eq.(36) over D in [0, hi_eval] where hi_eval = nextafter(D_contact_max, 0)
   - Enforce monotonicity on LUT curves (numerical robustness)
   - Invert sigma_eff -> D by interpolation (vectorized for all points)
@@ -35,7 +35,7 @@ NEW FASTER VERSION (radial dishing LUT):
 
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Tuple
+from typing import Sequence, Tuple
 import math
 import numpy as np
 import matplotlib.pyplot as plt
@@ -77,6 +77,31 @@ class WaferConfig:
     L_m: float
     T_C: float
     T0_C: float
+
+
+@dataclass(frozen=True)
+class BondedLayerInput:
+    name: str
+    E_GPa: float
+    alpha_ppm: float
+    nu: float
+    t_um: float
+
+
+@dataclass(frozen=True)
+class BondedStackResult:
+    bond_temperature_C: float
+    target_temperature_C: float
+    delta_T_C: float
+    wafer_diameter_mm: float
+    layers_bottom_to_top: Tuple[BondedLayerInput, ...]
+    uniform_strain: float
+    bending_axis_um: float
+    bending_axis_from_bottom_um: float
+    curvature_1_per_m: float
+    radius_m: float
+    warpage_um: float
+    warpage_small_deflection_um: float
 
 
 # =============================================================================
@@ -474,7 +499,7 @@ def _ensure_luts_ready(sio2_n: int = 2001, cu_n: int = 4001):
     """
     Build LUTs once per __init_params(cfg).
 
-    SiO2 window: D in [0,10] nm
+    SiO2 window: D in [-5,10] nm
     Cu window:   D in [0,hi_eval], hi_eval = nextafter(D_contact_max, 0)
     """
     global _LUT_READY, _LUT_SIO2, _LUT_CU
@@ -484,7 +509,7 @@ def _ensure_luts_ready(sio2_n: int = 2001, cu_n: int = 4001):
     const = _padscale_precompute_constants()
 
     # ---------- SiO2 LUT ----------
-    D_sio2 = np.linspace(0.0, 10.0, int(sio2_n), dtype=np.float64)
+    D_sio2 = np.linspace(-5.0, 10.0, int(sio2_n), dtype=np.float64)
     sig_sio2 = _sigma_sio2_vec_MPa(D_sio2, const)
 
     # enforce monotone non-increasing (numerical robustness)
@@ -493,7 +518,7 @@ def _ensure_luts_ready(sio2_n: int = 2001, cu_n: int = 4001):
     _LUT_SIO2 = dict(
         D_nm=D_sio2,
         sigma_MPa=sig_sio2_mono,
-        lo=0.0,
+        lo=-5.0,
         hi=10.0,
         f_lo=float(sig_sio2_mono[0]),
         f_hi=float(sig_sio2_mono[-1]),
@@ -564,18 +589,19 @@ def _ensure_luts_ready(sio2_n: int = 2001, cu_n: int = 4001):
 def _invert_sio2_from_lut(sigma_eff_MPa: np.ndarray) -> np.ndarray:
     """
     Vectorized inversion for SiO2 using LUT.
-    Rule: window [0,10] nm; if no root -> return 0.
+    Rule: window [-5,10] nm; if no root -> return -5.
     """
     _ensure_luts_ready()
     lut = _LUT_SIO2
     D = lut["D_nm"]
     f = lut["sigma_MPa"]  # decreasing (monotone-enforced)
 
+    lo = float(lut["lo"])
     f_lo = float(lut["f_lo"])
     f_hi = float(lut["f_hi"])
 
     t = np.asarray(sigma_eff_MPa, dtype=np.float64)
-    out = np.zeros_like(t, dtype=np.float64)
+    out = np.full_like(t, fill_value=lo, dtype=np.float64)
 
     # Valid range for decreasing curve: t in [f_hi, f_lo]
     mask = (t >= f_hi) & (t <= f_lo)
@@ -637,11 +663,31 @@ def compute_critical_peeling_all():
         }
     }
 
+def _critical_peeling_pair_MPa() -> Tuple[float, float]:
+    """Return (sigma_crit_SiO2_MPa, sigma_crit_Cu_MPa)."""
+    crits = compute_critical_peeling_all()
+    return float(crits["sigma_crit_MPa"]["SiO2"]), float(crits["sigma_crit_MPa"]["Cu"])
+
+def _effcrit_and_dishing_from_global_peel_MPa(p_global_MPa: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Convert global peeling stress to effective thresholds and inverted dishing arrays.
+
+    Returns:
+      sigma_eff_Cu_MPa, sigma_eff_SiO2_MPa, D_cu_nm, D_sio2_nm
+    """
+    p_mpa = np.asarray(p_global_MPa, dtype=np.float64)
+    sigma_crit_SiO2, sigma_crit_Cu = _critical_peeling_pair_MPa()
+    sigma_eff_SiO2 = sigma_crit_SiO2 - p_mpa
+    sigma_eff_Cu   = sigma_crit_Cu   - p_mpa
+    D_sio2_nm = _invert_sio2_from_lut(sigma_eff_SiO2)
+    D_cu_nm   = _invert_cu_from_lut(sigma_eff_Cu)
+    return sigma_eff_Cu, sigma_eff_SiO2, D_cu_nm, D_sio2_nm
+
 def invert_dishing_sio2_given_sigma_eff(sigma_eff_MPa: float) -> Tuple[float, dict]:
     """
     Fixed window inversion for SiO2 (LUT):
-      - window D in [0,10] nm
-      - if no root -> return 0
+      - window D in [-5,10] nm
+      - if no root -> return -5
     """
     _ensure_luts_ready()
     t = float(sigma_eff_MPa)
@@ -651,7 +697,7 @@ def invert_dishing_sio2_given_sigma_eff(sigma_eff_MPa: float) -> Tuple[float, di
     f_lo = float(lut["f_lo"])
     f_hi = float(lut["f_hi"])
     if not (f_hi <= t <= f_lo):
-        return 0.0, dict(
+        return float(lut["lo"]), dict(
             mode="no_root_in_window",
             lo=lut["lo"], hi=lut["hi"],
             target=t,
@@ -754,6 +800,230 @@ def process_wafer(cfg: WaferConfig) -> WaferResult:
     final_eq = combine_two_layers_to_one(top_eq, bot_eq)
     return WaferResult(D_m=float(D), final_eq=final_eq)
 
+
+def _eq_layer_to_bonded_layer(name: str, layer_eff: EqLayer) -> BondedLayerInput:
+    """Convert an EqLayer in SI units to the bonded-stack layer format used by the post-bond model."""
+    return BondedLayerInput(
+        name=str(name),
+        E_GPa=float(layer_eff.E_Pa) / 1e9,
+        alpha_ppm=float(layer_eff.alpha_perC) * 1e6,
+        nu=float(layer_eff.nu),
+        t_um=float(layer_eff.t_m) * 1e6,
+    )
+
+
+def _resolve_post_bond_wafer_diameter_mm(cfg) -> float:
+    """
+    Resolve the in-plane diameter used by the post-bond warpage model.
+
+    For W2W post-bond warpage, use the full wafer diameter:
+      diameter_um = 2 * WAF_R_um
+    """
+    waf_r_um = getattr(cfg, "WAF_R_um", None)
+    if waf_r_um is not None and float(waf_r_um) > 0.0:
+        return 2.0 * float(waf_r_um) * 1e-3
+
+    raise ValueError("Cannot resolve post-bond wafer diameter from cfg. Provide positive WAF_R_um.")
+
+
+def _build_post_bond_stack_from_cfg(cfg) -> Tuple[BondedLayerInput, ...]:
+    """
+    Build the bonded stack in physical order from bottom free surface to top free surface.
+
+    Order:
+      bottom substrate -> bottom chip -> top substrate -> top chip
+    """
+    mat_cu = Material("Cu", E_Pa=float(cfg.CU_E_GPA) * 1e9, alpha_perC=float(cfg.CU_ALPHA_PPM) * 1e-6, nu=float(cfg.CU_NU))
+    mat_sio2 = Material("SiO2", E_Pa=float(cfg.OX_E_GPA) * 1e9, alpha_perC=float(cfg.OX_ALPHA_PPM) * 1e-6, nu=float(cfg.OX_NU))
+    mat_si = Material("Si", E_Pa=float(cfg.SI_E_GPA) * 1e9, alpha_perC=float(cfg.SI_ALPHA_PPM) * 1e-6, nu=float(cfg.SI_NU))
+
+    bottom_sub = _eq_layer_to_bonded_layer(
+        "BOTTOM_SUBSTRATE",
+        equiv_from_three(LayerMix3(mat_si, cfg.B_Sub_Si_V, mat_sio2, cfg.B_Sub_Sio2_V, mat_cu, cfg.B_Sub_Cu_V, cfg.B_Sub_T)),
+    )
+    bottom_chip = _eq_layer_to_bonded_layer(
+        "BOTTOM_CHIP",
+        equiv_from_three(LayerMix3(mat_cu, cfg.B_Chip_Cu_V, mat_sio2, cfg.B_Chip_Sio2_V, mat_si, cfg.B_Chip_Si_V, cfg.B_Chip_T)),
+    )
+    top_sub = _eq_layer_to_bonded_layer(
+        "TOP_SUBSTRATE",
+        equiv_from_three(LayerMix3(mat_si, cfg.T_Sub_Si_V, mat_sio2, cfg.T_Sub_Sio2_V, mat_cu, cfg.T_Sub_Cu_V, cfg.T_Sub_T)),
+    )
+    top_chip = _eq_layer_to_bonded_layer(
+        "TOP_CHIP",
+        equiv_from_three(LayerMix3(mat_cu, cfg.T_Chip_Cu_V, mat_sio2, cfg.T_Chip_Sio2_V, mat_si, cfg.T_Chip_Si_V, cfg.T_Chip_T)),
+    )
+    return (bottom_sub, bottom_chip, top_sub, top_chip)
+
+
+def _biaxial_modulus_pa(E_GPa: float, nu: float) -> float:
+    """Return the biaxial modulus E / (1 - nu) in Pa."""
+    if float(nu) >= 1.0:
+        raise ValueError(f"Poisson ratio must be < 1. Got nu={nu}.")
+    return float(E_GPa) * 1e9 / (1.0 - float(nu))
+
+
+def _compute_warpage_from_curvature(
+    curvature_1_per_m: float,
+    wafer_diameter_mm: float,
+) -> Tuple[float, float]:
+    """
+    Convert curvature to exact circular-arc warpage and small-deflection warpage, both in um.
+    """
+    if float(wafer_diameter_mm) <= 0.0:
+        raise ValueError("wafer_diameter_mm must be > 0.")
+
+    curvature_abs = abs(float(curvature_1_per_m))
+    diameter_m = float(wafer_diameter_mm) * 1e-3
+    warpage_small_deflection_m = curvature_abs * diameter_m ** 2 / 8.0
+
+    if math.isclose(curvature_abs, 0.0, abs_tol=1e-18):
+        return 0.0, 0.0
+
+    radius_abs_m = 1.0 / curvature_abs
+    half_diameter_m = 0.5 * diameter_m
+    if half_diameter_m > radius_abs_m:
+        raise ValueError(
+            "wafer_diameter_mm is too large for the current curvature under the circular-arc assumption."
+        )
+
+    warpage_exact_m = radius_abs_m - math.sqrt(radius_abs_m ** 2 - half_diameter_m ** 2)
+    return float(warpage_exact_m * 1e6), float(warpage_small_deflection_m * 1e6)
+
+
+def _compute_post_bond_curvature_formula10(
+    *,
+    layers_bottom_to_top: Sequence[BondedLayerInput],
+    bond_temperature_C: float,
+    target_temperature_C: float,
+    wafer_diameter_mm: float,
+) -> BondedStackResult:
+    """
+    Exact multilayer curvature from Hsueh (Thin Solid Films 418, 2002).
+
+    This mirrors the flow in effective_layer.py:
+      Eq. (6): uniform strain
+      Eq. (8): bending-axis location
+      Eq. (10): curvature
+    """
+    if len(layers_bottom_to_top) < 2:
+        raise ValueError("Need at least 2 bonded layers to compute curvature.")
+
+    delta_T_C = float(target_temperature_C) - float(bond_temperature_C)
+
+    layers = []
+    for layer in layers_bottom_to_top:
+        if float(layer.t_um) <= 0.0:
+            raise ValueError(f"Layer '{layer.name}' thickness must be > 0.")
+        layers.append(
+            {
+                "name": str(layer.name),
+                "E_biaxial_Pa": _biaxial_modulus_pa(layer.E_GPa, layer.nu),
+                "alpha_perC": float(layer.alpha_ppm) * 1e-6,
+                "t_m": float(layer.t_um) * 1e-6,
+                "t_um": float(layer.t_um),
+            }
+        )
+
+    substrate = layers[0]
+    films = layers[1:]
+
+    extensional_sum = substrate["E_biaxial_Pa"] * substrate["t_m"]
+    weighted_alpha_sum = extensional_sum * substrate["alpha_perC"]
+    for film in films:
+        extensional_sum += film["E_biaxial_Pa"] * film["t_m"]
+        weighted_alpha_sum += film["E_biaxial_Pa"] * film["t_m"] * film["alpha_perC"]
+
+    uniform_strain = delta_T_C * weighted_alpha_sum / extensional_sum
+
+    h_prev = 0.0
+    tb_numerator = -substrate["E_biaxial_Pa"] * substrate["t_m"] ** 2
+    for film in films:
+        tb_numerator += film["E_biaxial_Pa"] * film["t_m"] * (2.0 * h_prev + film["t_m"])
+        h_prev += film["t_m"]
+    t_b_m = tb_numerator / (2.0 * extensional_sum)
+
+    h_prev = 0.0
+    curvature_numerator = (
+        3.0
+        * substrate["E_biaxial_Pa"]
+        * (uniform_strain - substrate["alpha_perC"] * delta_T_C)
+        * substrate["t_m"] ** 2
+    )
+    for film in films:
+        curvature_numerator -= (
+            3.0
+            * film["E_biaxial_Pa"]
+            * film["t_m"]
+            * (uniform_strain - film["alpha_perC"] * delta_T_C)
+            * (2.0 * h_prev + film["t_m"])
+        )
+        h_prev += film["t_m"]
+
+    h_prev = 0.0
+    curvature_denominator = (
+        substrate["E_biaxial_Pa"]
+        * substrate["t_m"]
+        * (2.0 * substrate["t_m"] ** 2 + 3.0 * substrate["t_m"] * t_b_m)
+    )
+    for film in films:
+        curvature_denominator += (
+            film["E_biaxial_Pa"]
+            * film["t_m"]
+            * (
+                6.0 * h_prev ** 2
+                + 6.0 * h_prev * film["t_m"]
+                + 2.0 * film["t_m"] ** 2
+                - 3.0 * t_b_m * (2.0 * h_prev + film["t_m"])
+            )
+        )
+        h_prev += film["t_m"]
+
+    curvature_1_per_m = curvature_numerator / curvature_denominator
+    radius_m = math.inf if math.isclose(curvature_1_per_m, 0.0, abs_tol=1e-18) else 1.0 / curvature_1_per_m
+    bending_axis_um = t_b_m * 1e6
+    bending_axis_from_bottom_um = substrate["t_um"] + bending_axis_um
+    warpage_um, warpage_small_deflection_um = _compute_warpage_from_curvature(
+        curvature_1_per_m=curvature_1_per_m,
+        wafer_diameter_mm=wafer_diameter_mm,
+    )
+
+    return BondedStackResult(
+        bond_temperature_C=float(bond_temperature_C),
+        target_temperature_C=float(target_temperature_C),
+        delta_T_C=delta_T_C,
+        wafer_diameter_mm=float(wafer_diameter_mm),
+        layers_bottom_to_top=tuple(layers_bottom_to_top),
+        uniform_strain=float(uniform_strain),
+        bending_axis_um=float(bending_axis_um),
+        bending_axis_from_bottom_um=float(bending_axis_from_bottom_um),
+        curvature_1_per_m=float(curvature_1_per_m),
+        radius_m=float(radius_m) if not math.isinf(radius_m) else math.inf,
+        warpage_um=float(warpage_um),
+        warpage_small_deflection_um=float(warpage_small_deflection_um),
+    )
+
+
+def post_bond_warpage_calculator(cfg) -> float:
+    """
+    Return post-bond warpage [um] using the effective-layer multilayer curvature flow.
+
+    Mapping for W2W:
+      - bonded stack order: B_Sub -> B_Chip -> T_Sub -> T_Chip
+      - bond temperature : cfg.T_R
+      - target temperature: cfg.T_anl
+      - in-plane diameter : 2 * cfg.WAF_R_um
+    """
+    stack = _build_post_bond_stack_from_cfg(cfg)
+    result = _compute_post_bond_curvature_formula10(
+        layers_bottom_to_top=stack,
+        bond_temperature_C=float(cfg.T_R),
+        target_temperature_C=float(cfg.T_anl),
+        wafer_diameter_mm=_resolve_post_bond_wafer_diameter_mm(cfg),
+    )
+    return float(result.warpage_um)
+
+
 def plate_bending_stiffness(E: float, nu: float, h: float) -> float:
     E = float(E); nu = float(nu); h = float(h)
     return E * h**3 / (12.0 * (1.0 - nu**2))
@@ -820,7 +1090,40 @@ def peeling_stress_at_points_vec_MPa(peel_dict: dict, coords_mm_np: np.ndarray, 
 # ========================= RADIAL DISHING LUT (NEW) ==========================
 # =============================================================================
 
-def build_current_radial_dishing_lut_from_cfg(cfg, n_r: int = 4096) -> dict:
+def _solve_peel_and_radius_from_cfg(cfg, *, include_global_peeling_stress: bool = True):
+    """
+    Initialize cfg-dependent globals and return (peel_dict_or_none, R_stack_m).
+
+    When include_global_peeling_stress=False, skip wafer-level peeling solve and
+    return peel_dict=None while keeping the same stack radius.
+    """
+    __init_params(cfg)
+    R_stack = float(min(WAFER_A.L_m, WAFER_B.L_m))
+
+    if not include_global_peeling_stress:
+        return None, R_stack
+
+    # 1) Wafer-level stack to get peeling kernel
+    resA = process_wafer(WAFER_A)  # bottom
+    resB = process_wafer(WAFER_B)  # top
+
+    # Keep same sign convention as main path
+    s_total_A_m = float(S_INIT_A_M) - float(resA.D_m)
+    s_total_B_m = float(S_INIT_B_M) - float(resB.D_m)
+
+    peel = suhir_peeling_two_wafers_bottomA_topB(
+        waferA_eq=resA.final_eq,
+        waferB_eq=resB.final_eq,
+        R_m=R_stack,
+        sag_total_A_m=s_total_A_m,
+        sag_total_B_m=s_total_B_m,
+        sample_points=500
+    )
+    return peel, R_stack
+
+
+def build_current_radial_dishing_lut_from_cfg(cfg, n_r: int = 4096,
+                                              include_global_peeling_stress: bool = True) -> dict:
     """
     Convenience helper:
     Build (or refresh) the current radial dishing LUT directly from cfg.
@@ -832,27 +1135,15 @@ def build_current_radial_dishing_lut_from_cfg(cfg, n_r: int = 4096) -> dict:
       radial LUT dict (_RDISH_LUT), with fields including:
         r_grid_m, D_sio2_nm, D_cu_nm, p_global_MPa, ...
     """
-    __init_params(cfg)
-
-    # 1) Wafer-level stack to get peeling kernel
-    resA = process_wafer(WAFER_A)  # bottom
-    resB = process_wafer(WAFER_B)  # top
-
-    # Keep same sign convention as main path
-    s_total_A_m = float(S_INIT_A_M) - float(resA.D_m)
-    s_total_B_m = float(S_INIT_B_M) - float(resB.D_m)
-    R_stack = float(min(WAFER_A.L_m, WAFER_B.L_m))
-
-    peel = suhir_peeling_two_wafers_bottomA_topB(
-        waferA_eq=resA.final_eq,
-        waferB_eq=resB.final_eq,
-        R_m=R_stack,
-        sag_total_A_m=s_total_A_m,
-        sag_total_B_m=s_total_B_m,
-        sample_points=500
+    peel, R_stack = _solve_peel_and_radius_from_cfg(
+        cfg, include_global_peeling_stress=include_global_peeling_stress
     )
-
-    return _ensure_radial_dishing_lut(peel_dict=peel, R_m=R_stack, n_r=n_r)
+    return _ensure_radial_dishing_lut(
+        peel_dict=peel,
+        R_m=R_stack,
+        n_r=n_r,
+        include_global_peeling_stress=include_global_peeling_stress,
+    )
 
 
 def get_radial_dishing_lut_array(r_unit: str = "um",
@@ -968,7 +1259,8 @@ def plot_radial_dishing_lut(r_unit: str = "mm",
     return fig, ax, arr
 
 
-def _build_radial_dishing_lut(peel_dict: dict, R_m: float, n_r: int = 4096) -> dict:
+def _build_radial_dishing_lut(peel_dict: dict | None, R_m: float, n_r: int = 4096,
+                              include_global_peeling_stress: bool = True) -> dict:
     """
     Build LUT for a fixed wafer/die state:
 
@@ -991,28 +1283,26 @@ def _build_radial_dishing_lut(peel_dict: dict, R_m: float, n_r: int = 4096) -> d
     n_r = max(2, int(n_r))
     r_grid = np.linspace(0.0, R_m, n_r, dtype=np.float64)
 
-    # p_global(r)
-    p_max = float(peel_dict["p_max_Pa"])
-    beta  = float(peel_dict["beta"])
-    s = R_m - r_grid
-    p_mpa = (p_max * np.exp(-beta * s) * (np.cos(beta * s) - np.sin(beta * s))) / 1e6
+    if include_global_peeling_stress:
+        if peel_dict is None:
+            raise ValueError("peel_dict must be provided when include_global_peeling_stress=True.")
+        p_max = float(peel_dict["p_max_Pa"])
+        beta  = float(peel_dict["beta"])
+        s = R_m - r_grid
+        p_mpa = (p_max * np.exp(-beta * s) * (np.cos(beta * s) - np.sin(beta * s))) / 1e6
+    else:
+        p_max = 0.0
+        beta = 0.0
+        p_mpa = np.zeros_like(r_grid)
 
-    # sigma_eff(r)
-    crits = compute_critical_peeling_all()
-    sigma_crit_SiO2 = float(crits["sigma_crit_MPa"]["SiO2"])
-    sigma_crit_Cu   = float(crits["sigma_crit_MPa"]["Cu"])
-    sigma_eff_SiO2 = sigma_crit_SiO2 - p_mpa
-    sigma_eff_Cu   = sigma_crit_Cu   - p_mpa
-
-    # D(r) via existing sigma->D LUTs
-    D_sio2_nm = _invert_sio2_from_lut(sigma_eff_SiO2)
-    D_cu_nm   = _invert_cu_from_lut(sigma_eff_Cu)
+    sigma_eff_Cu, sigma_eff_SiO2, D_cu_nm, D_sio2_nm = _effcrit_and_dishing_from_global_peel_MPa(p_mpa)
 
     _RDISH_LUT = dict(
         R_m=R_m,
         p_max_Pa=p_max,
         beta=beta,
         n_r=n_r,
+        include_global_peeling_stress=bool(include_global_peeling_stress),
 
         r_grid_m=r_grid,
         p_global_MPa=p_mpa,
@@ -1025,40 +1315,73 @@ def _build_radial_dishing_lut(peel_dict: dict, R_m: float, n_r: int = 4096) -> d
     )
     return _RDISH_LUT
 
-def _ensure_radial_dishing_lut(peel_dict: dict, R_m: float, n_r: int = 4096) -> dict:
+def _ensure_radial_dishing_lut(peel_dict: dict | None, R_m: float, n_r: int = 4096,
+                               include_global_peeling_stress: bool = True) -> dict:
     """
     Rebuild radial LUT only if state changed:
-      (R_m, p_max_Pa, beta, n_r)
+      (R_m, n_r, include_global_peeling_stress, p_max_Pa, beta)
     """
     global _RDISH_LUT
 
     R_m = float(R_m)
-    p_max = float(peel_dict["p_max_Pa"])
-    beta  = float(peel_dict["beta"])
     n_r = max(2, int(n_r))
 
     if _RDISH_LUT is None:
-        return _build_radial_dishing_lut(peel_dict, R_m, n_r=n_r)
+        return _build_radial_dishing_lut(
+            peel_dict,
+            R_m,
+            n_r=n_r,
+            include_global_peeling_stress=include_global_peeling_stress,
+        )
+
+    same_flag = bool(_RDISH_LUT.get("include_global_peeling_stress", True)) == bool(include_global_peeling_stress)
+    if not same_flag:
+        return _build_radial_dishing_lut(
+            peel_dict,
+            R_m,
+            n_r=n_r,
+            include_global_peeling_stress=include_global_peeling_stress,
+        )
 
     same = (
         float(_RDISH_LUT.get("R_m", np.nan)) == R_m and
-        float(_RDISH_LUT.get("p_max_Pa", np.nan)) == p_max and
-        float(_RDISH_LUT.get("beta", np.nan)) == beta and
         int(_RDISH_LUT.get("n_r", -1)) == n_r
     )
+
+    if include_global_peeling_stress:
+        if peel_dict is None:
+            raise ValueError("peel_dict must be provided when include_global_peeling_stress=True.")
+        p_max = float(peel_dict["p_max_Pa"])
+        beta  = float(peel_dict["beta"])
+        same = same and (
+            float(_RDISH_LUT.get("p_max_Pa", np.nan)) == p_max and
+            float(_RDISH_LUT.get("beta", np.nan)) == beta
+        )
+
     if not same:
-        return _build_radial_dishing_lut(peel_dict, R_m, n_r=n_r)
+        return _build_radial_dishing_lut(
+            peel_dict,
+            R_m,
+            n_r=n_r,
+            include_global_peeling_stress=include_global_peeling_stress,
+        )
 
     return _RDISH_LUT
 
-def _query_radial_dishing_lut_from_r(r_m: np.ndarray, peel_dict: dict, R_m: float, n_r: int = 4096):
+def _query_radial_dishing_lut_from_r(r_m: np.ndarray, peel_dict: dict | None, R_m: float, n_r: int = 4096,
+                                     include_global_peeling_stress: bool = True):
     """
     Query radial LUT by radius array r [m].
 
     Returns:
       D_cu_nm, D_sio2_nm, p_global_MPa
     """
-    lut = _ensure_radial_dishing_lut(peel_dict, R_m, n_r=n_r)
+    lut = _ensure_radial_dishing_lut(
+        peel_dict,
+        R_m,
+        n_r=n_r,
+        include_global_peeling_stress=include_global_peeling_stress,
+    )
 
     r = np.asarray(r_m, dtype=np.float64)
     r_clip = np.clip(r, 0.0, float(lut["R_m"]))
@@ -1074,7 +1397,8 @@ def _query_radial_dishing_lut_from_r(r_m: np.ndarray, peel_dict: dict, R_m: floa
 # ===================== EFFICIENT CRITICAL & DISHING ARRAYS ===================
 # =============================================================================
 
-def build_effcrit_and_dishing_arrays(peel_dict: dict, coords_mm_np: np.ndarray, R_m: float) -> Tuple[np.ndarray, np.ndarray]:
+def build_effcrit_and_dishing_arrays(peel_dict: dict | None, coords_mm_np: np.ndarray, R_m: float, *,
+                                     include_global_peeling_stress: bool = True) -> Tuple[np.ndarray, np.ndarray]:
     """
     Returns:
       effcrit_array: (N,2) columns = (σ_eff_crit_Cu, σ_eff_crit_SiO2) [MPa]
@@ -1096,13 +1420,15 @@ def build_effcrit_and_dishing_arrays(peel_dict: dict, coords_mm_np: np.ndarray, 
 
     # Direct query: r -> dishing (and p_global for effcrit reconstruction)
     D_cu_nm, D_sio2_nm, p_MPa = _query_radial_dishing_lut_from_r(
-        r_m=r_m, peel_dict=peel_dict, R_m=R_m, n_r=4096
+        r_m=r_m,
+        peel_dict=peel_dict,
+        R_m=R_m,
+        n_r=4096,
+        include_global_peeling_stress=include_global_peeling_stress,
     )
 
     # Reconstruct effcrit output (to keep same API)
-    crits = compute_critical_peeling_all()
-    sigma_crit_SiO2 = float(crits["sigma_crit_MPa"]["SiO2"])
-    sigma_crit_Cu   = float(crits["sigma_crit_MPa"]["Cu"])
+    sigma_crit_SiO2, sigma_crit_Cu = _critical_peeling_pair_MPa()
 
     sigma_eff_SiO2 = sigma_crit_SiO2 - p_MPa
     sigma_eff_Cu   = sigma_crit_Cu   - p_MPa
@@ -1124,7 +1450,8 @@ def debond_dishing_bounds_calculator(cfg,
                                      radial_lut_preview_rows: int = 10,
                                      plot_radial_lut_flag: bool = True,
                                      include_p_global: bool = False,
-                                     include_sigma_eff: bool = False):
+                                     include_sigma_eff: bool = False,
+                                     include_global_peeling_stress: bool = True):
     """
     Simplified public API (LUT-only mode):
       - Build radial dishing LUT from current wafer/die state
@@ -1141,28 +1468,17 @@ def debond_dishing_bounds_calculator(cfg,
           + p_global_MPa
           + sigma_eff_Cu_MPa, sigma_eff_SiO2_MPa
     """
-    __init_params(cfg)
-
-    # 1) Wafer-level stack to get peeling kernel
-    resA = process_wafer(WAFER_A)  # bottom
-    resB = process_wafer(WAFER_B)  # top
-
-    # NOTE: sign convention kept as previous code (s_total = s_init - D)
-    s_total_A_m = float(S_INIT_A_M) - float(resA.D_m)
-    s_total_B_m = float(S_INIT_B_M) - float(resB.D_m)
-    R_stack = float(min(WAFER_A.L_m, WAFER_B.L_m))
-
-    peel = suhir_peeling_two_wafers_bottomA_topB(
-        waferA_eq=resA.final_eq,
-        waferB_eq=resB.final_eq,
-        R_m=R_stack,
-        sag_total_A_m=s_total_A_m,
-        sag_total_B_m=s_total_B_m,
-        sample_points=500
+    peel, R_stack = _solve_peel_and_radius_from_cfg(
+        cfg, include_global_peeling_stress=include_global_peeling_stress
     )
 
     # 2) Build / ensure the radial LUT table (this is the target table)
-    _ensure_radial_dishing_lut(peel_dict=peel, R_m=R_stack, n_r=int(n_r))
+    _ensure_radial_dishing_lut(
+        peel_dict=peel,
+        R_m=R_stack,
+        n_r=int(n_r),
+        include_global_peeling_stress=include_global_peeling_stress,
+    )
 
     # 3) Directly export the built LUT table
     radial_lut_array = get_radial_dishing_lut_array(
@@ -1205,7 +1521,8 @@ def debond_dishing_bounds_calculator_coords(cfg,
                                             *,
                                             n_r: int = 4096,
                                             return_effcrit: bool = False,
-                                            return_debug: bool = False):
+                                            return_debug: bool = False,
+                                            include_global_peeling_stress: bool = True):
     """
     New main API (coords -> per-pad dishing intervals):
 
@@ -1228,6 +1545,9 @@ def debond_dishing_bounds_calculator_coords(cfg,
           [sigma_eff_Cu_MPa, sigma_eff_SiO2_MPa]
     return_debug : bool
         If True, also return debug dict including peel_dict, R_stack, and LUT cache key.
+    include_global_peeling_stress : bool
+        If True, include wafer-level global peeling p(r). If False, ignore global
+        peeling and invert using local peeling stress only.
 
     Returns
     -------
@@ -1250,29 +1570,19 @@ def debond_dishing_bounds_calculator_coords(cfg,
     # -----------------------
     # 1) Same wafer-level pipeline as radial LUT main
     # -----------------------
-    __init_params(cfg)
-
-    resA = process_wafer(WAFER_A)  # bottom
-    resB = process_wafer(WAFER_B)  # top
-
-    # Keep the same sign convention: s_total = s_init - D
-    s_total_A_m = float(S_INIT_A_M) - float(resA.D_m)
-    s_total_B_m = float(S_INIT_B_M) - float(resB.D_m)
-    R_stack = float(min(WAFER_A.L_m, WAFER_B.L_m))
-
-    peel = suhir_peeling_two_wafers_bottomA_topB(
-        waferA_eq=resA.final_eq,
-        waferB_eq=resB.final_eq,
-        R_m=R_stack,
-        sag_total_A_m=s_total_A_m,
-        sag_total_B_m=s_total_B_m,
-        sample_points=500
+    peel, R_stack = _solve_peel_and_radius_from_cfg(
+        cfg, include_global_peeling_stress=include_global_peeling_stress
     )
 
     # -----------------------
     # 2) Ensure radial LUT exists for this (R_stack, p_max, beta, n_r)
     # -----------------------
-    _ensure_radial_dishing_lut(peel_dict=peel, R_m=R_stack, n_r=int(n_r))
+    _ensure_radial_dishing_lut(
+        peel_dict=peel,
+        R_m=R_stack,
+        n_r=int(n_r),
+        include_global_peeling_stress=include_global_peeling_stress,
+    )
 
     # -----------------------
     # 3) coords_um -> r_m
@@ -1291,7 +1601,11 @@ def debond_dishing_bounds_calculator_coords(cfg,
     # 4) Query radial LUT: r -> (D_cu_nm, D_sio2_nm, p_global_MPa)
     # -----------------------
     D_cu_nm, D_sio2_nm, p_MPa = _query_radial_dishing_lut_from_r(
-        r_m=r_m, peel_dict=peel, R_m=R_stack, n_r=int(n_r)
+        r_m=r_m,
+        peel_dict=peel,
+        R_m=R_stack,
+        n_r=int(n_r),
+        include_global_peeling_stress=include_global_peeling_stress,
     )
 
     # Output format required by your docstring: sorted(D_Cu_nm, D_SiO2_nm)
@@ -1302,9 +1616,7 @@ def debond_dishing_bounds_calculator_coords(cfg,
     # -----------------------
     effcrit = None
     if return_effcrit or return_debug:
-        crits = compute_critical_peeling_all()
-        sigma_crit_SiO2 = float(crits["sigma_crit_MPa"]["SiO2"])
-        sigma_crit_Cu   = float(crits["sigma_crit_MPa"]["Cu"])
+        sigma_crit_SiO2, sigma_crit_Cu = _critical_peeling_pair_MPa()
         sigma_eff_SiO2 = sigma_crit_SiO2 - p_MPa
         sigma_eff_Cu   = sigma_crit_Cu   - p_MPa
         effcrit = np.column_stack([sigma_eff_Cu, sigma_eff_SiO2])
@@ -1313,13 +1625,15 @@ def debond_dishing_bounds_calculator_coords(cfg,
     if return_debug:
         debug = {
             "R_stack_m": R_stack,
-            "peel_dict": dict(peel),
+            "include_global_peeling_stress": bool(include_global_peeling_stress),
+            "peel_dict": None if peel is None else dict(peel),
             "n_r": int(n_r),
             "RDISH_cache_key": None if _RDISH_LUT is None else {
                 "R_m": float(_RDISH_LUT.get("R_m", np.nan)),
                 "p_max_Pa": float(_RDISH_LUT.get("p_max_Pa", np.nan)),
                 "beta": float(_RDISH_LUT.get("beta", np.nan)),
                 "n_r": int(_RDISH_LUT.get("n_r", -1)),
+                "include_global_peeling_stress": bool(_RDISH_LUT.get("include_global_peeling_stress", True)),
             },
         }
 
