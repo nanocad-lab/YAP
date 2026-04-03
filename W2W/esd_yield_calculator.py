@@ -157,21 +157,6 @@ def _arc_distance_um_from_voltage(v_chg: float) -> float:
     return max(plateau_upper_gap_um, root * root)
 
 
-def _validate_pad_bitmap_compatibility(
-    pad_coords_um: np.ndarray,
-    dummy_pad_bitmap: np.ndarray,
-) -> np.ndarray:
-    """Validate the dummy bitmap length while keeping all pads in analytical calculation."""
-    pad_coords_um = np.asarray(pad_coords_um, dtype=np.float64)
-    if pad_coords_um.ndim != 2 or pad_coords_um.shape[1] != 2:
-        raise ValueError("pad_coords_um must have shape (n_pads, 2).")
-
-    dummy_pad_bitmap = np.asarray(dummy_pad_bitmap, dtype=bool).reshape(-1)
-    if pad_coords_um.shape[0] != dummy_pad_bitmap.shape[0]:
-        raise ValueError("pad_coords_um and dummy_pad_bitmap must have the same length.")
-    return pad_coords_um
-
-
 def _legendre_quadrature_interval(q: int, low: float, high: float) -> Tuple[np.ndarray, np.ndarray]:
     """Return Gauss-Legendre nodes and weights over [low, high]."""
     x, w = leggauss(int(q))
@@ -330,7 +315,6 @@ def pad_esd_yield_map_generator(
     *,
     cfg,
     pad_coords_um: np.ndarray,
-    dummy_pad_bitmap: np.ndarray,
     pad_size_um: Optional[float] = None,
     pad_pitch_um: Optional[float] = None,
     top_wafer_radius_um: Optional[float] = None,
@@ -378,7 +362,9 @@ def pad_esd_yield_map_generator(
     fill_residual_uniformly = bool(_resolve_calc_param(cfg, "ESD_ANALYTICAL_FILL_RESIDUAL_UNIFORMLY", True))
     verbose = bool(_resolve_calc_param(cfg, "verbose", False))
 
-    pad_coords_um = _validate_pad_bitmap_compatibility(pad_coords_um, dummy_pad_bitmap)
+    pad_coords_um = np.asarray(pad_coords_um, dtype=np.float64)
+    if pad_coords_um.ndim != 2 or pad_coords_um.shape[1] != 2:
+        raise ValueError("pad_coords_um must have shape (n_pads, 2).")
     pad_count = pad_coords_um.shape[0]
     active_pad_count = pad_count
 
