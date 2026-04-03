@@ -128,6 +128,15 @@ pip install -r requirements.txt
    - Each net name should appear only once in the entire file
    - See UCIe_advanced_criticality.txt for a complete example of the current format
 
+**4. 3dbv File (.3dbv):**
+
+   Input file in 3dblox format. This file contains info including the die size and the path of 3dbf file. 
+
+**5. 3dbf File (.3dbf):**
+
+   Input file in 3dblox format. This file contains info including bump pitch and bump size.
+
+
 # Output
 **1.assembly_fail_map_dict.npz**
 
