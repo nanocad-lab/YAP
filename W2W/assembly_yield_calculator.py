@@ -79,9 +79,8 @@ def Assembly_Yield_Calculator(
 
     die_stack_yield, die_stack_yield_list = waf_stack.get_die_stack_yield()
     print(f"Calculated die stack yield: {die_stack_yield:.6f}")
-
        
 
     del waf_stack
 
-    return die_stack_yield, die_stack_yield_list
+    return die_stack_yield, die_stack_yield_list      

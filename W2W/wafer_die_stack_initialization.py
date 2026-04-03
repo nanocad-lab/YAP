@@ -625,21 +625,24 @@ def wafer_stack_list_initialize(
     cfg_dict: dict,
     pad_bitmap_collection_dict: dict,
     num_stack_samples: int,
+    mode: str,
 ):
     """
     Inputs:
-    - cfg_dict: Configuration dictionary containing parameters
-    - num_stack_samples: Number of wafer stack samples to generate
-    Outputs:
-    - wafer_stacks: WaferStack object containing the initialized wafer stack samples
+        - cfg_dict: Configuration dictionary containing parameters
+        - num_stack_samples: Number of wafer stack samples to generate
+        Outputs:
+        - wafer_stacks: WaferStack object containing the initialized wafer stack samples
+        - mode: 'simulation' or 'modeling' to determine the initialization of yield/survival attributes
     Output Structure:
-    stack_list -> layer_list
+        
     """
     wafer_stack_list = []
     for _ in range(num_stack_samples):
         wafer_stack = WaferStack(
             cfg_dict=cfg_dict,
             pad_bitmap_collection_dict=pad_bitmap_collection_dict,
+            mode=mode,
         )
         wafer_stack_list.append(wafer_stack)
         
