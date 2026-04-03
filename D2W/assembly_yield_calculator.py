@@ -6,166 +6,113 @@
 #### Date: Sep 26, 2024
 
 import numpy as np
+import time
 import matplotlib.pyplot as plt
 from wafer_die_initialization import die_initialize
 from overlay_yield_calculator import overlay_yield_calculator
 from defect_yield_calculator import defect_yield_calculator
 from Cu_expansion_yield_calculator import Cu_expansion_yield_calculator
-from roughness_parameters import roughness_parameters
+
 
 
 
 
 def Assembly_Yield_Calculator(
-        NUM_DIES_ON_WAF = 100,  # number of dies on the wafer (to correct the defect density)
-        NUM_DIES = 1,  # number of dies to generate
-        WAF_R = 150e+3,  # wafer radius (um)
-        dice_width = 1e+4,  # die width (um)
-        PITCH = 5,  # pitch (um)
-        DIE_W = 8e+3,  # die width (um)
-        DIE_L = 12e+3,  # die length (um)
-        PAD_TOP_R = 1.0,  # top Cu pad radius (um)
-        PAD_BOT_R = 1.5,  # bottom Cu pad radius (um)
-        PAD_ARR_ROW = 800,  # number of pads in a row of pad array
-        PAD_ARR_COL = 400,  # number of pads in a column of pad array
-        VOID_SHAPE = "circle",  # void shape: 'circle' or 'square'
-        CONTACT_AREA_CONSTRAINT = 0.75,
-        CRITICAL_DIST_CONSTRAINT = 0.75,
-        RANDOM_MISALIGNMENT_MEAN = 0,  # random misalignment mean (um)
-        RANDOM_MISALIGNMENT_STD = 1e-3,  # random misalignment standard deviation (um)
-        SYSTEM_TRANSLATION_X_MEAN = 0.0,  # systematic translation mean (um) - x direction
-        SYSTEM_TRANSLATION_X_STD = 1e-2,  # systematic translation standard deviation (um)  - x direction
-        SYSTEM_TRANSLATION_Y_MEAN = 0.0,  # systematic translation mean (um) - y direction
-        SYSTEM_TRANSLATION_Y_STD = 1e-2,  # systematic translation standard deviation (um)  - y direction
-        SYSTEM_ROTATION_MEAN = 0.0,  # systematic rotation mean (rad)
-        SYSTEM_ROTATION_STD = 1e-7,  # systematic rotation standard deviation (rad)
-        BOW_DIFFERENCE_MEAN = 0.0,  # bow difference mean (um)
-        BOW_DIFFERENCE_STD = 30,  # bow difference standard deviation (um)
-        k_mag = 0.03,
-        M_0 = -1,
-        D0 = 1e-8,  # Number of particles of all thicknesses per unit area (um^{-1})
-        z = 3,  # Exponential factor of the particle thickness distribution
-        t_0 = 1,  # The smallest particle thickness (um)
-        k_r = 1.8e-4,
-        k_r0 = 230,
-        k_L = 6.2e-2,
-        k_n = 9e-5,
-        k_S = 2.7,
-        TOP_DISH_MEAN = -10.0,        # Top Cu pad dish mean (nm), negative value means the dish is concave
-        TOP_DISH_STD = 1.0,          # Top Cu pad dish standard deviation (nm)
-        BOT_DISH_MEAN = -10.0,        # Bottom Cu pad dish mean (nm), negative value means the dish is concave
-        BOT_DISH_STD = 1.0,          # Bottom Cu pad dish standard deviation (nm)
-        k_et = 0.052,            # Top Cu pad expansion/temp coefficient (nm/K)
-        k_eb = 0.052,            # Bottom Cu pad expansion/temp coefficient (nm/K)
-        T_R = 25,                # Room temperature (°C)
-        T_anl = 300,             # Annealing temperature (°C)
-        Asperity_R = 2e-6,  # Asperity curvature radius (m)
-        Roughness_sigma = 1.0e-9,  # Surface roughness standard deviation (m)
-        eta_s = 40e+12,  # Asperity density (m^{-2})
-        Roughness_constant = 0.07,
-        Adhesion_energy = 1.2,  # Adhesion energy (J/m^2)
-        Young_modulus = 73e+9,  # Young's modulus of dielectric material (Pa)
-        Dielectric_thickness = 1.5e-6,  # Dielectric thickness (m)
-        DISH_0 = 75e-9,  # Reference dish (m)
-        k_peel = 6.66e+15  # Peel force constant (N/m^4/K)
-):
-    PAD_ARR_L = (PAD_ARR_ROW - 1) * PITCH
-    PAD_ARR_W = (PAD_ARR_COL - 1) * PITCH
-    eff_DIE_R = np.sqrt(DIE_W * DIE_L / np.pi)  # Effective wafer radius (um)
-    SYSTEM_MAGNIFICATION_MEAN = (k_mag * BOW_DIFFERENCE_MEAN + M_0) / 1e6  # systematic magnification mean (ppm)
-    SYSTEM_MAGNIFICATION_STD = (k_mag * BOW_DIFFERENCE_STD) ** 2 / 1e6 # systematic magnification standard deviation (ppm)
-
-    # SYSTEM_MAGNIFICATION_MEAN = SYSTEM_MAGNIFICATION_MEAN * WAF_R / np.sqrt((DIE_W/2)**2 + (DIE_L/2)**2)
-
-    zeta_1_ = roughness_parameters(
-        Asperity_R=Asperity_R,
-        Roughness_sigma=Roughness_sigma,
-        eta_s=eta_s,
-        Roughness_constant=Roughness_constant,
-        Adhesion_energy=Adhesion_energy,
-        Young_modulus=Young_modulus,
-        Dielectric_thickness=Dielectric_thickness,
-        PITCH=PITCH,
-        PAD_BOT_R=PAD_BOT_R,
-        DISH_0=DISH_0,
-        k_peel=k_peel,
-    )
-    zeta_1 = max(zeta_1_, 0)
-    
+    cfg,
+    pad_bitmap_collection: dict,
+):  
     # Initialize the die list
     die_list, _ = die_initialize(
-        NUM_DIES=1,
-        DIE_W=DIE_W,
-        DIE_L=DIE_L,
-        PAD_ARR_W=PAD_ARR_W,
-        PAD_ARR_L=PAD_ARR_L,
-        PAD_ARR_ROW=PAD_ARR_ROW,
-        PAD_ARR_COL=PAD_ARR_COL,
-        PITCH=PITCH,
+        NUM_DIES            =       1,
+        DIE_W_um            =       cfg.DIE_W_um,
+        DIE_L_um            =       cfg.DIE_L_um,
+        PAD_ARR_W_um        =       cfg.PAD_ARR_W_um,
+        PAD_ARR_L_um        =       cfg.PAD_ARR_L_um,
+        PAD_ARR_ROW         =       cfg.PAD_ARR_ROW,
+        PAD_ARR_COL         =       cfg.PAD_ARR_COL,
+        PITCH_um            =       cfg.PITCH_um,
+        pad_bitmap_collection = pad_bitmap_collection,  
+        pad_yield_flag      =       cfg.pad_yield_flag,
     )
     die = die_list[0]
     # fig, ax = plt.subplots(figsize=(4, 6))
     # die.draw_die(ax)
 
     # Calculate the overlay yield
-    overlay_yield = overlay_yield_calculator(
-        PAD_TOP_R=PAD_TOP_R,
-        PAD_BOT_R=PAD_BOT_R,
-        PITCH=PITCH,
-        WAF_R=WAF_R,
-        DIE_W=DIE_W,    
-        DIE_L=DIE_L,
-        CONTACT_AREA_CONSTRAINT=CONTACT_AREA_CONSTRAINT,
-        CRITICAL_DIST_CONSTRAINT=CRITICAL_DIST_CONSTRAINT,
-        SYSTEM_MAGNIFICATION_MEAN=SYSTEM_MAGNIFICATION_MEAN,
-        SYSTEM_MAGNIFICATION_STD=SYSTEM_MAGNIFICATION_STD,
-        SYSTEM_ROTATION_MEAN=SYSTEM_ROTATION_MEAN,
-        SYSTEM_ROTATION_STD=SYSTEM_ROTATION_STD,
-        SYSTEM_TRANSLATION_X_MEAN=SYSTEM_TRANSLATION_X_MEAN,
-        SYSTEM_TRANSLATION_X_STD=SYSTEM_TRANSLATION_X_STD,
-        SYSTEM_TRANSLATION_Y_MEAN=SYSTEM_TRANSLATION_Y_MEAN,
-        SYSTEM_TRANSLATION_Y_STD=SYSTEM_TRANSLATION_Y_STD,
-        RANDOM_MISALIGNMENT_MEAN=RANDOM_MISALIGNMENT_MEAN,
-        RANDOM_MISALIGNMENT_STD=RANDOM_MISALIGNMENT_STD,
-        die=die,
-        num_samples=int(1e+5),
+    overlay_die_yield, overlay_pad_yield_map = overlay_yield_calculator(
+        PAD_TOP_R_um                    =       cfg.PAD_TOP_R_um,
+        PAD_BOT_R_um                    =       cfg.PAD_BOT_R_um,
+        PAD_ARR_ROW                     =       cfg.PAD_ARR_ROW,
+        PAD_ARR_COL                     =       cfg.PAD_ARR_COL,
+        PITCH_um                        =       cfg.PITCH_um,
+        num_samples                     =       cfg.num_samples,
+        CONTACT_AREA_CONSTRAINT         =       cfg.CONTACT_AREA_CONSTRAINT,
+        CRITICAL_DIST_CONSTRAINT        =       cfg.CRITICAL_DIST_CONSTRAINT,
+        SYSTEM_MAGNIFICATION_MEAN_ppm   =       cfg.SYSTEM_MAGNIFICATION_MEAN_ppm,
+        SYSTEM_MAGNIFICATION_STD_ppm    =       cfg.SYSTEM_MAGNIFICATION_STD_ppm,
+        SYSTEM_ROTATION_MEAN_rad        =       cfg.SYSTEM_ROTATION_MEAN_rad,
+        SYSTEM_ROTATION_STD_rad         =       cfg.SYSTEM_ROTATION_STD_rad,
+        SYSTEM_TRANSLATION_X_MEAN_um    =       cfg.SYSTEM_TRANSLATION_X_MEAN_um,
+        SYSTEM_TRANSLATION_X_STD_um     =       cfg.SYSTEM_TRANSLATION_X_STD_um,
+        SYSTEM_TRANSLATION_Y_MEAN_um    =       cfg.SYSTEM_TRANSLATION_Y_MEAN_um,
+        SYSTEM_TRANSLATION_Y_STD_um     =       cfg.SYSTEM_TRANSLATION_Y_STD_um,
+        RANDOM_MISALIGNMENT_MEAN_um     =       cfg.RANDOM_MISALIGNMENT_MEAN_um,
+        RANDOM_MISALIGNMENT_STD_um      =       cfg.RANDOM_MISALIGNMENT_STD_um,
+        die                             =       die,
+        redundant_flag                  =       cfg.redundant_flag,
+        pad_yield_flag                  =       cfg.pad_yield_flag,
+        pad_yield_map_sub_factor        =       cfg.pad_yield_map_sub_factor,
     )
-    # Calculate the defect distribution
-    defect_yield = defect_yield_calculator(
-        dice_width=dice_width,
-        WAF_R=WAF_R,
-        eff_DIE_R=eff_DIE_R,
-        D0=D0,
-        t_0=t_0,
-        z=z,
-        k_r=k_r,
-        k_r0=k_r0,
-        k_n=k_n,
-        k_S=k_S,
-        k_L=k_L,
-        PAD_TOP_R=PAD_TOP_R,
-        PITCH=PITCH,
-        PAD_ARR_ROW=PAD_ARR_ROW,
-        PAD_ARR_COL=PAD_ARR_COL,
-        VOID_SHAPE=VOID_SHAPE,
-        PAD_ARR_W=PAD_ARR_W,
-        PAD_ARR_L=PAD_ARR_L,
-        NUM_DIES_ON_WAF=NUM_DIES_ON_WAF,
+    die.die_yield['Y_ovl'], die.pad_yield_map['Y_ovl'] = overlay_die_yield, overlay_pad_yield_map
+
+    # Calculate the defect yield
+    start_time = time.time()
+    defect_die_yield, defect_pad_yield_map = defect_yield_calculator(
+        cfg               =       cfg,
+        eff_DIE_R         =       cfg.eff_DIE_R,
+        D0                =       cfg.D0,
+        t_0               =       cfg.t_0,
+        z                 =       cfg.z,
+        k_r               =       cfg.k_r,
+        k_r0              =       cfg.k_r0,
+        k_n               =       cfg.k_n,
+        k_S               =       cfg.k_S,
+        k_L               =       cfg.k_L,
+        PAD_TOP_R_um      =       cfg.PAD_TOP_R_um,
+        PITCH_um          =       cfg.PITCH_um,
+        PAD_ARR_ROW       =       cfg.PAD_ARR_ROW,
+        PAD_ARR_COL       =       cfg.PAD_ARR_COL,
+        PAD_ARR_W_um      =       cfg.PAD_ARR_W_um,
+        PAD_ARR_L_um      =       cfg.PAD_ARR_L_um,
+        VOID_SHAPE        =       cfg.VOID_SHAPE,
+        die               =       die,
+        pad_bitmap_collection  = pad_bitmap_collection,
+        pad_yield_flag    =       cfg.pad_yield_flag,
+        pad_yield_map_sub_factor = cfg.pad_yield_map_sub_factor,
     )
+    die.die_yield['Y_df'], die.pad_yield_map['Y_df'] = defect_die_yield, defect_pad_yield_map
+    print(f"Defect yield calculation took {time.time() - start_time:.2f} seconds")
+
     # Calculate the Cu expansion yield
-    Cu_expansion_yield = Cu_expansion_yield_calculator(
-        top_dish_mean=TOP_DISH_MEAN,
-        top_dish_std=TOP_DISH_STD,
-        bot_dish_mean=BOT_DISH_MEAN,
-        bot_dish_std=BOT_DISH_STD,
-        k_et=k_et,
-        k_eb=k_eb,
-        T_R=T_R,
-        T_anl=T_anl,
-        die=die,
-        zeta_1=zeta_1,
+    Cu_expansion_die_yield, Cu_expansion_pad_yield_map = Cu_expansion_yield_calculator(
+        cfg                 =       cfg,
+        die                 =       die,
+        TOP_DISH_MEAN_nm    =       cfg.TOP_DISH_MEAN_nm,
+        TOP_DISH_STD_nm     =       cfg.TOP_DISH_STD_nm,
+        BOT_DISH_MEAN_nm    =       cfg.BOT_DISH_MEAN_nm,
+        BOT_DISH_STD_nm     =       cfg.BOT_DISH_STD_nm,
+        k_et                =       cfg.k_et,
+        k_eb                =       cfg.k_eb,
+        T_R                 =       cfg.T_R,
+        T_anl               =       cfg.T_anl,
+        pad_bitmap_collection  = pad_bitmap_collection,
+        pad_yield_flag      =       cfg.pad_yield_flag,
     )
-    assembly_yield = overlay_yield * defect_yield * Cu_expansion_yield
-    
+    die.die_yield['Y_cr'], die.pad_yield_map['Y_cr'] = Cu_expansion_die_yield, Cu_expansion_pad_yield_map
+    assembly_die_yield = overlay_die_yield * defect_die_yield * Cu_expansion_die_yield
+    assembly_pad_yield_map = overlay_pad_yield_map * defect_pad_yield_map * Cu_expansion_pad_yield_map if cfg.pad_yield_flag else None
+    die.die_yield['Y_asmb'], die.pad_yield_map['Y_asmb'] = assembly_die_yield, assembly_pad_yield_map
+    die_yield = die.die_yield
+    pad_yield_map = die.pad_yield_map
     del die
-    return assembly_yield, overlay_yield, defect_yield, Cu_expansion_yield
+    return die_yield, pad_yield_map

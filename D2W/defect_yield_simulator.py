@@ -29,7 +29,7 @@ class single_void:
 
 
 class void_tail:
-    def __init__(self, x, y, thickness, k_n, k_S, k_L, VOID_SHAPE, DIE_W, DIE_L):
+    def __init__(self, x, y, thickness, k_n, k_S, k_L, VOID_SHAPE, DIE_W_um, DIE_L_um):
         self.x = x
         self.y = y
         self.dist_from_center = np.sqrt(x**2 + y**2)
@@ -55,7 +55,7 @@ class void_tail:
             for i in range(int(self.n)):
                 x_vt = x + x_incrt * (int(self.n) - i)
                 y_vt = y + y_incrt * (int(self.n) - i)
-                if np.abs(x_vt) < DIE_W / 2 and np.abs(y_vt) < DIE_L / 2:
+                if np.abs(x_vt) < DIE_W_um / 2 and np.abs(y_vt) < DIE_L_um / 2:
                     self.voids.append(single_void(x_vt, y_vt, r_vt1 * (i + 1)))
 
 
@@ -70,8 +70,8 @@ def defect_yield_simulator(
     k_L,
     k_S,
     VOID_SHAPE,
-    DIE_W,
-    DIE_L,
+    DIE_W_um,
+    DIE_L_um,
     NUM_DIES,
     die_list,
 ):
@@ -81,11 +81,11 @@ def defect_yield_simulator(
     def inverse_cdf_particle_thickness(u):
         return t_0 / (1 - u) ** (1 / (z - 1))
 
-    def generate_particles(particle_thickness, DIE_W, DIE_L):
+    def generate_particles(particle_thickness, DIE_W_um, DIE_L_um, drop_particle_range):
         particles = []
         for i in range(len(particle_thickness)):
-            # x, y = np.random.uniform(-DIE_W / 2, DIE_W / 2), np.random.uniform(-DIE_L / 2, DIE_L / 2)
-            x, y = np.random.uniform(-DIE_W / 2 * 2, DIE_W / 2 * 2), np.random.uniform(-DIE_L / 2 * 2, DIE_L / 2 * 2)
+            # x, y = np.random.uniform(-DIE_W_um / 2, DIE_W_um / 2), np.random.uniform(-DIE_L_um / 2, DIE_L_um / 2)
+            x, y = np.random.uniform(-DIE_W_um / 2 * drop_particle_range, DIE_W_um / 2 * drop_particle_range), np.random.uniform(-DIE_L_um / 2 * drop_particle_range, DIE_L_um / 2 * drop_particle_range)
             particles.append(particle(x, y, particle_thickness[i]))
         return particles
     
@@ -103,15 +103,15 @@ def defect_yield_simulator(
             main_voids.append(single_void(p.x, p.y, r_mv))
             num_main_void += 1
             # generate void tail
-            void_tail_obj = void_tail(p.x, p.y, p.thickness, k_n, k_S, k_L, VOID_SHAPE, DIE_W, DIE_L)
+            void_tail_obj = void_tail(p.x, p.y, p.thickness, k_n, k_S, k_L, VOID_SHAPE, DIE_W_um, DIE_L_um)
             voids += void_tail_obj.voids
             tail_voids += void_tail_obj.voids
             num_void_in_tail += void_tail_obj.n
 
         return voids, main_voids, tail_voids
     
-
-    total_particles = (2 * DIE_W) * (2 * DIE_L) * D0 * NUM_DIES     # Put the particles on the 2*DIE_W * 2*DIE_L area
+    drop_particle_range = 2 # the range of the particles to drop regarding the die size
+    total_particles = (drop_particle_range * DIE_W_um) * (drop_particle_range * DIE_L_um) * D0 * NUM_DIES     # Put the particles on the 2*DIE_W_um * 2*DIE_L_um area
     particles_per_die = np.random.multinomial(
         total_particles, [1 / NUM_DIES] * NUM_DIES
     )
@@ -120,7 +120,7 @@ def defect_yield_simulator(
         particle_thickness = np.zeros(num_particles)
         u = np.random.rand(num_particles)
         particle_thickness = inverse_cdf_particle_thickness(u)
-        particles = generate_particles(particle_thickness, DIE_W, DIE_L)
+        particles = generate_particles(particle_thickness, DIE_W_um, DIE_L_um, drop_particle_range)
 
         # Generate the main void and void tail based on the particles for each die
         voids, main_voids, tail_voids = generate_voids(particles, k_r, k_r0, k_n, k_S)
