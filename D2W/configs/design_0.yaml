@@ -285,6 +285,13 @@ d2w_modeling:
   n_tilts_samples: 1000                  # Number of tilt samples for ESD simulation
   n_dishes_samples: 10             # Number of dish samples for ESD simulation
 
+  V_MIN_V: 0.0
+  V_MAX_V: 5.0
+
+  WEIBULL_K: 4.44985
+  WEIBULL_LAMBDA: 0.0621816
+  CUTOFF_MIN_A: 0.0
+
   # === Miscellaneous Parameters ===
   plot_flag: False                      # Enable plotting of results
  
