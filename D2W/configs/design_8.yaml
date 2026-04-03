@@ -137,6 +137,13 @@ d2w_simulation:
   TILT_Y_MEAN_DEG: 0.000
   TILT_Y_STD_DEG: 1e-4
 
+  V_MIN_V: 0.0
+  V_MAX_V: 5.0
+
+  WEIBULL_K: 4.44985
+  WEIBULL_LAMBDA: 0.0621816
+  CUTOFF_MIN_A: 0.0
+
   # === Simulation Control ===
   simulation_times: 1                  # Number of simulation iterations
   approximate_set: 1                   # 1: enable overlay simulation approximation, 0: disable
@@ -282,6 +289,14 @@ d2w_modeling:
   TILT_Y_STD_DEG: 1e-2
   n_tilts_samples: 1                  # Number of tilt samples for ESD simulation
   n_dishes_samples: 10000             # Number of dish samples for ESD simulation
+
+  V_MIN_V: 0.0
+  V_MAX_V: 5.0
+
+  WEIBULL_K: 4.44985
+  WEIBULL_LAMBDA: 0.0621816
+  CUTOFF_MIN_A: 0.0
+
 
   # === Miscellaneous Parameters ===
   plot_flag: True                      # Enable plotting of results

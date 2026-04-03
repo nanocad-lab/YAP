@@ -11,7 +11,7 @@ import os
 from overlay_yield_simulator import die_pad_misalignment
 from Cu_gap_simulator import Cu_gap_simulator
 from debond import debond_dishing_intervals_from_coords #, post_bond_warpage_calculator
-from esd_hybrid import esd_failure_simulator
+from esd_yield_simulator import esd_failure_simulator
 
 def overall_yield_simulator(
     cfg,
@@ -326,7 +326,9 @@ def overall_yield_simulator(
         Check the ESD failure
         '''
         # TODO: ESD failure simulation to be implemented
-        first_contact_pad_idx, survive_bool = esd_failure_simulator(pad_coords_um=valid_die_pad_coords,
+        first_contact_pad_idx, survive_bool = esd_failure_simulator(
+                                                cfg=cfg,
+                                                pad_coords_um=valid_die_pad_coords,
                                                 pad_size_um=PAD_TOP_R_um * 2,
                                                 top_die_w_um=die.DIE_W_um,
                                                 top_die_h_um=die.DIE_L_um,

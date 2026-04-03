@@ -2,47 +2,62 @@
 from __future__ import annotations
 
 import math
-from typing import List, Optional, Tuple
-
-import matplotlib as mpl
-import matplotlib.pyplot as plt
+from typing import Optional, Tuple
 import numpy as np
-from matplotlib.patches import Rectangle
 
-# Global ESD model parameters.
-V_MIN_V = 0.0
-V_MAX_V = 5.0
+def _require_cfg_attr(cfg, name: str):
+    """Return cfg.name or raise a clear error if the attribute is missing."""
+    if cfg is None or not hasattr(cfg, name):
+        raise AttributeError(f"cfg must provide '{name}' for ESD simulation.")
+    return getattr(cfg, name)
 
-WEIBULL_K = 4.44985
-WEIBULL_LAMBDA = 0.0621816
-CUTOFF_MIN_A = 0.0
 
-# Unit conversion.
-NM_TO_UM = 1e-3
+def _resolve_float_param(value: Optional[float], *, cfg, attr_name: str) -> float:
+    """Prefer an explicit argument; otherwise read the value from cfg."""
+    if value is not None:
+        return float(value)
+    return float(_require_cfg_attr(cfg, attr_name))
 
-# Default wafer and pad geometry.
-TOP_WAFER_RADIUS_UM: float = 75_000.0
 
-PAD_SIZE_UM: float = 50.0
-PAD_PITCH_UM: float = 100.0
-PAD_COORDS_UM: List[Tuple[float, float]] = []
+def _resolve_pad_size_um(pad_size_um: Optional[float], *, cfg) -> float:
+    """Resolve pad size from an explicit argument or cfg.PAD_TOP_R_um."""
+    if pad_size_um is not None:
+        return float(pad_size_um)
+    return 2.0 * float(_require_cfg_attr(cfg, "PAD_TOP_R_um"))
 
-# Default dishing distributions.
-TOP_DISH_MEAN_NM: float = -4.0
-TOP_DISH_STD_NM: float = 2.5
-BOT_DISH_MEAN_NM: float = -4.0
-BOT_DISH_STD_NM: float = 2.5
 
-# Default tilt distributions.
-TILT_X_MEAN_DEG = 0.000
-TILT_X_STD_DEG = 0.01
-TILT_Y_MEAN_DEG = 0.000
-TILT_Y_STD_DEG = 0.01
+def _resolve_base_seed(base_seed: Optional[int], *, cfg) -> int:
+    """Resolve the RNG seed, preferring an explicit argument, otherwise sampling one."""
+    if base_seed is not None:
+        return int(base_seed)
+    return int(np.random.default_rng().integers(0, 2**32 - 1, dtype=np.uint32))
 
-# Default Monte Carlo settings.
-N_TILTS = 5
-N_DISHES = 5
-BASE_SEED = int(np.random.default_rng().integers(0, 2**32 - 1, dtype=np.uint32))
+
+def _resolve_z_top_um(z_top_um: Optional[float], *, cfg) -> float:
+    """Resolve the initial wafer-to-wafer separation used by the gap model."""
+    if z_top_um is not None:
+        return float(z_top_um)
+    for attr_name in ("ESD_Z_TOP_UM", "Z_TOP_UM", "z_top_um"):
+        if cfg is not None and hasattr(cfg, attr_name):
+            return float(getattr(cfg, attr_name))
+    return 100.0
+
+
+def _resolve_voltage_range(cfg) -> Tuple[float, float]:
+    """Return the charging-voltage range [V] from cfg."""
+    return (
+        float(_require_cfg_attr(cfg, "V_MIN_V")),
+        float(_require_cfg_attr(cfg, "V_MAX_V")),
+    )
+
+
+def _resolve_failure_model_params(cfg) -> Tuple[float, float, float]:
+    """Return the Weibull failure-model parameters from cfg."""
+    return (
+        float(_require_cfg_attr(cfg, "WEIBULL_K")),
+        float(_require_cfg_attr(cfg, "WEIBULL_LAMBDA")),
+        float(_require_cfg_attr(cfg, "CUTOFF_MIN_A")),
+    )
 
 
 def _z_linear_coeffs(ax_deg: float, ay_deg: float) -> Tuple[float, float, float]:
@@ -75,11 +90,18 @@ def _fail_prob_single(current_a: float, k: float, lam: float, cutoff_a: float) -
     return _weibull_cdf(current_a, k, lam)
 
 
-def _compute_p_fail_for_die(top_wafer_radius_um: float, v_chg: float) -> float:
+def _compute_p_fail_for_die(
+    top_wafer_radius_um: float,
+    v_chg: float,
+    *,
+    weibull_k: float,
+    weibull_lambda: float,
+    cutoff_min_a: float,
+) -> float:
     """Return the wafer-level failure probability for a sampled charging voltage."""
     area_mm2 = (float(top_wafer_radius_um) * 1e-3) ** 2 * math.pi
     i_peak = _ipeak_from_die_voltage(area_mm2, float(v_chg))
-    return _fail_prob_single(i_peak, float(WEIBULL_K), float(WEIBULL_LAMBDA), float(CUTOFF_MIN_A))
+    return _fail_prob_single(i_peak, float(weibull_k), float(weibull_lambda), float(cutoff_min_a))
 
 
 def _arc_distance_um_from_voltage(v_chg: float) -> float:
@@ -441,132 +463,34 @@ def _binary_halving_until_pad(
     )
     return best_pad, tilt_x, tilt_y, float(best_gap)
 
-
-def pad_esd_yield_map_generator(
+def esd_failure_simulator(
     *,
     cfg,
     pad_coords_um: np.ndarray,
-    pad_size_um: float,
-    pad_pitch_um: float,
-    top_wafer_radius_um: float,
-    n_tilts: int,
-    n_dishes: int,
-    tilt_x_mean_deg: float,
-    tilt_x_std_deg: float,
-    tilt_y_mean_deg: float,
-    tilt_y_std_deg: float,
-    top_dish_mean_nm: float,
-    top_dish_std_nm: float,
-    bot_dish_mean_nm: float,
-    bot_dish_std_nm: float,
-    dummy_pad_bitmap: np.ndarray,
-    base_seed: int = 20251006,
-    z_top_um: float = 100.0,
-) -> Tuple[np.ndarray, Optional[plt.Figure], float]:
-    """Run Monte Carlo sampling and accumulate a per-pad ESD risk map."""
-    _ = cfg
-
-    pad_coords_um, active_ids = _active_pad_ids_from_bitmap(pad_coords_um, dummy_pad_bitmap)
-    active_pad_coords_um = pad_coords_um[active_ids]
-    pad_count = pad_coords_um.shape[0]
-    active_pad_count = active_ids.size
-    total_runs = int(n_tilts) * int(n_dishes)
-    if total_runs <= 0:
-        raise ValueError("n_tilts * n_dishes must be positive.")
-
-    counts_vec = np.zeros((pad_count,), dtype=np.int64)
-    risk_accum_vec = np.zeros((pad_count,), dtype=np.float64)
-    p_fail_sum = 0.0
-
-    rng_tilt = np.random.default_rng(base_seed ^ 0xC001FEED)
-    progress_counter = 0
-    wafer_span_um = 2.0 * float(top_wafer_radius_um)
-
-    for tilt_index in range(n_tilts):
-        tilt_x0 = float(rng_tilt.normal(tilt_x_mean_deg, tilt_x_std_deg))
-        tilt_y0 = float(rng_tilt.normal(tilt_y_mean_deg, tilt_y_std_deg))
-
-        for dish_index in range(n_dishes):
-            progress_counter += 1
-            if (progress_counter % 1000) == 0 or (progress_counter == total_runs):
-                print(
-                    f"[ESD Sim] Progress: {progress_counter} / {total_runs} runs completed.",
-                    end="\r",
-                    flush=True,
-                )
-
-            seed = base_seed + (tilt_index * n_dishes + dish_index)
-            rng_top = np.random.default_rng(seed ^ 0x9E3779B1)
-            rng_bot = np.random.default_rng(seed ^ 0x85EBCA77)
-            rng_pick = np.random.default_rng(seed ^ 0xDEADBEEF)
-            rng_v = np.random.default_rng(seed ^ 0xC0FFEE11)
-
-            top_dish_um_raw = rng_top.normal(
-                loc=float(top_dish_mean_nm) * NM_TO_UM,
-                scale=max(float(top_dish_std_nm), 0.0) * NM_TO_UM,
-                size=(active_pad_count,),
-            ).astype(np.float64)
-            bot_dish_um = rng_bot.normal(
-                loc=float(bot_dish_mean_nm) * NM_TO_UM,
-                scale=max(float(bot_dish_std_nm), 0.0) * NM_TO_UM,
-                size=(active_pad_count,),
-            ).astype(np.float64)
-
-            v_chg = float(rng_v.uniform(V_MIN_V, V_MAX_V))
-            arc_distance_um = _arc_distance_um_from_voltage(v_chg)
-
-            pad_choice_active, _, _, _ = _binary_halving_until_pad(
-                pad_coords_um=active_pad_coords_um,
-                pad_size_um=pad_size_um,
-                top_die_w_um=wafer_span_um,
-                top_die_h_um=wafer_span_um,
-                z_top_um=z_top_um,
-                tilt_x_init_deg=tilt_x0,
-                tilt_y_init_deg=tilt_y0,
-                top_dish_um_raw=top_dish_um_raw,
-                bot_dish_um=bot_dish_um,
-                rng_pick=rng_pick,
-                arc_distance_um=arc_distance_um,
-            )
-
-            p_fail_run = _compute_p_fail_for_die(top_wafer_radius_um, v_chg)
-            p_fail_sum += p_fail_run
-
-            if pad_choice_active is not None:
-                pad_choice = int(active_ids[int(pad_choice_active)])
-                counts_vec[pad_choice] += 1
-                risk_accum_vec[pad_choice] += float(p_fail_run)
-
-    print()
-    valid_pad_risk_map_vec = risk_accum_vec / float(total_runs)
-    p_fail_avg = p_fail_sum / float(total_runs)
-
-    fig = plot_probability_over_pads_with_pitch(
-        pad_coords_um=pad_coords_um,
-        prob_vec=valid_pad_risk_map_vec,
-        pitch_um=pad_pitch_um,
-        title="Risk Pad Map = E[1(first-touch pad) * p_fail(V)], V~U[0,5]",
-    )
-    valid_pad_yield_map_vec = 1.0 - valid_pad_risk_map_vec
-    return valid_pad_yield_map_vec, fig, float(p_fail_avg)
-
-
-def esd_failure_simulator(
-    *,
-    pad_coords_um: np.ndarray,
-    pad_size_um: float,
-    top_wafer_radius_um: float,
     top_dish_nm_ext: np.ndarray,
     bot_dish_nm_ext: np.ndarray,
-    tilt_x_mean_deg: float,
-    tilt_x_std_deg: float,
-    tilt_y_mean_deg: float,
-    tilt_y_std_deg: float,
     dummy_pad_bitmap: np.ndarray,
-    base_seed: int = 20251006,
-    z_top_um: float = 100.0,
+    pad_size_um: Optional[float] = None,
+    top_wafer_radius_um: Optional[float] = None,
+    tilt_x_mean_deg: Optional[float] = None,
+    tilt_x_std_deg: Optional[float] = None,
+    tilt_y_mean_deg: Optional[float] = None,
+    tilt_y_std_deg: Optional[float] = None,
+    base_seed: Optional[int] = None,
+    z_top_um: Optional[float] = None,
 ) -> Tuple[Optional[int], bool]:
     """Run a single stochastic experiment and return (first_touch_pad, survive_bool)."""
+    pad_size_um = _resolve_pad_size_um(pad_size_um, cfg=cfg)
+    top_wafer_radius_um = _resolve_float_param(top_wafer_radius_um, cfg=cfg, attr_name="WAF_R_um")
+    tilt_x_mean_deg = _resolve_float_param(tilt_x_mean_deg, cfg=cfg, attr_name="TILT_X_MEAN_DEG")
+    tilt_x_std_deg = _resolve_float_param(tilt_x_std_deg, cfg=cfg, attr_name="TILT_X_STD_DEG")
+    tilt_y_mean_deg = _resolve_float_param(tilt_y_mean_deg, cfg=cfg, attr_name="TILT_Y_MEAN_DEG")
+    tilt_y_std_deg = _resolve_float_param(tilt_y_std_deg, cfg=cfg, attr_name="TILT_Y_STD_DEG")
+    base_seed = _resolve_base_seed(base_seed, cfg=cfg)
+    z_top_um = _resolve_z_top_um(z_top_um, cfg=cfg)
+    v_min_v, v_max_v = _resolve_voltage_range(cfg)
+    weibull_k, weibull_lambda, cutoff_min_a = _resolve_failure_model_params(cfg)
+
     pad_coords_um, active_ids = _active_pad_ids_from_bitmap(pad_coords_um, dummy_pad_bitmap)
     active_pad_coords_um = pad_coords_um[active_ids]
     top_dish_nm_ext = np.asarray(top_dish_nm_ext, dtype=np.float64).reshape(-1)
@@ -582,11 +506,11 @@ def esd_failure_simulator(
 
     tilt_x = float(rng.normal(tilt_x_mean_deg, tilt_x_std_deg))
     tilt_y = float(rng.normal(tilt_y_mean_deg, tilt_y_std_deg))
-    v_chg = float(rng.uniform(V_MIN_V, V_MAX_V))
+    v_chg = float(rng.uniform(v_min_v, v_max_v))
     arc_distance_um = _arc_distance_um_from_voltage(v_chg)
 
-    top_dish_um_raw = top_dish_nm_ext[active_ids] * NM_TO_UM
-    bot_dish_um = bot_dish_nm_ext[active_ids] * NM_TO_UM
+    top_dish_um_raw = top_dish_nm_ext[active_ids] * 1e-3
+    bot_dish_um = bot_dish_nm_ext[active_ids] * 1e-3
     wafer_span_um = 2.0 * float(top_wafer_radius_um)
 
     pad_choice_active, _, _, _ = _binary_halving_until_pad(
@@ -604,83 +528,16 @@ def esd_failure_simulator(
     )
 
     pad_choice = int(active_ids[int(pad_choice_active)]) if pad_choice_active is not None else None
-    p_fail_single = _compute_p_fail_for_die(top_wafer_radius_um, v_chg)
+    p_fail_single = _compute_p_fail_for_die(
+        top_wafer_radius_um,
+        v_chg,
+        weibull_k=weibull_k,
+        weibull_lambda=weibull_lambda,
+        cutoff_min_a=cutoff_min_a,
+    )
     survive_bool = not ((pad_choice is not None) and (float(rng.uniform(0.0, 1.0)) < p_fail_single))
     return pad_choice, survive_bool
 
 
-def plot_probability_over_pads_with_pitch(
-    pad_coords_um: np.ndarray,
-    prob_vec: np.ndarray,
-    *,
-    pitch_um: float,
-    title: str = "Pad Selection Probability (squares at pitch)",
-) -> plt.Figure:
-    """Plot one display square per pad, using pitch as the display square size."""
-    fig, ax = plt.subplots()
-    try:
-        fig.canvas.toolbar_visible = True
-        fig.canvas.header_visible = False
-        fig.canvas.footer_visible = False
-    except Exception:
-        pass
-
-    vmax = float(prob_vec.max()) if prob_vec.size > 0 else 0.0
-    norm_max = vmax if vmax > 0.0 else 1.0
-    half_pix = 0.5 * float(pitch_um)
-
-    for (x, y), prob in zip(pad_coords_um, prob_vec):
-        if prob <= 0.0:
-            continue
-        rect = Rectangle((x - half_pix, y - half_pix), 2 * half_pix, 2 * half_pix, linewidth=0.0)
-        rect.set_facecolor(plt.cm.viridis(prob / norm_max))
-        rect.set_edgecolor("none")
-        ax.add_patch(rect)
-
-    ax.set_aspect("equal", adjustable="box")
-    ax.set_xlim(-TOP_WAFER_RADIUS_UM, TOP_WAFER_RADIUS_UM)
-    ax.set_ylim(-TOP_WAFER_RADIUS_UM, TOP_WAFER_RADIUS_UM)
-    ax.invert_yaxis()
-    ax.set_title(title)
-    ax.set_xlabel("x (um), center at 0")
-    ax.set_ylabel("y (um), top is smaller")
-
-    sm = mpl.cm.ScalarMappable(cmap="viridis", norm=mpl.colors.Normalize(vmin=0.0, vmax=norm_max))
-    sm.set_array([])
-    cbar = plt.colorbar(sm, ax=ax)
-    cbar.set_label("Risk = P_first-touch * p_fail_single")
-    return fig
-
-
 if __name__ == "__main__":
-    if not PAD_COORDS_UM:
-        xs = np.arange(-TOP_WAFER_RADIUS_UM + PAD_PITCH_UM * 0.5, TOP_WAFER_RADIUS_UM, PAD_PITCH_UM)
-        ys = np.arange(TOP_WAFER_RADIUS_UM - PAD_PITCH_UM * 0.5, -TOP_WAFER_RADIUS_UM, -PAD_PITCH_UM)
-        grid_x, grid_y = np.meshgrid(xs, ys)
-        PAD_COORDS_UM = list(zip(grid_x.ravel().tolist(), grid_y.ravel().tolist()))
-
-    pad_coords = np.asarray(PAD_COORDS_UM, dtype=np.float64).reshape(-1, 2)
-    rng = np.random.default_rng(BASE_SEED ^ 0x13579BDF)
-    pad_count = pad_coords.shape[0]
-    dummy_pad_bitmap = np.zeros((pad_count,), dtype=bool)
-    top_ext_nm = rng.normal(TOP_DISH_MEAN_NM, TOP_DISH_STD_NM, size=pad_count).astype(np.float64)
-    bot_ext_nm = rng.normal(BOT_DISH_MEAN_NM, BOT_DISH_STD_NM, size=pad_count).astype(np.float64)
-
-    pad_idx, survive = esd_failure_simulator(
-        pad_coords_um=pad_coords,
-        pad_size_um=PAD_SIZE_UM,
-        top_wafer_radius_um=TOP_WAFER_RADIUS_UM,
-        top_dish_nm_ext=top_ext_nm,
-        bot_dish_nm_ext=bot_ext_nm,
-        tilt_x_mean_deg=TILT_X_MEAN_DEG,
-        tilt_x_std_deg=TILT_X_STD_DEG,
-        tilt_y_mean_deg=TILT_Y_MEAN_DEG,
-        tilt_y_std_deg=TILT_Y_STD_DEG,
-        dummy_pad_bitmap=dummy_pad_bitmap,
-        base_seed=BASE_SEED,
-        z_top_um=100.0,
-    )
-
-    print("\nSingle-run demo")
-    print(f"first-touch pad index: {pad_idx}")
-    print(f"survive? {survive}")
+    raise SystemExit("esd_yield_simulator.py expects external cfg and pad inputs; import this module from the W2W flow.")

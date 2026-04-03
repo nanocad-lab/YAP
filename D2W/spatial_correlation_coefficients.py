@@ -11,7 +11,7 @@ import os
 from overlay_yield_simulator import die_pad_misalignment
 from Cu_gap_simulator import Cu_gap_simulator
 from debond import debond_dishing_bounds_calculator
-from esd_hybrid import esd_failure_simulator
+from esd_yield_simulator import esd_failure_simulator
 from sklearn.neighbors import KDTree
 
 def get_spatial_correlation_coefficients(
@@ -219,7 +219,9 @@ def get_spatial_correlation_coefficients(
             Check the ESD failure
             '''
             # TODO: ESD failure simulation to be implemented
-            first_contact_pad_idx, survive_bool = esd_failure_simulator(pad_coords_um=valid_die_pad_coords,
+            first_contact_pad_idx, survive_bool = esd_failure_simulator(
+                                                    cfg=cfg,
+                                                    pad_coords_um=valid_die_pad_coords,
                                                     pad_size_um=PAD_TOP_R_um * 2,
                                                     top_die_w_um=die.DIE_W_um,
                                                     top_die_h_um=die.DIE_L_um,
@@ -229,6 +231,7 @@ def get_spatial_correlation_coefficients(
                                                     tilt_x_std_deg=TILT_X_STD_DEG,
                                                     tilt_y_mean_deg=TILT_Y_MEAN_DEG,
                                                     tilt_y_std_deg=TILT_Y_STD_DEG,
+                                                    dummy_pad_bitmap=pad_bitmap_collection['DUMMY_PAD_BITMAP'].flatten()[valid_pad_mask.flatten() == 1],
                                                     )
             if first_contact_pad_idx is not None and survive_bool == False:    # One pad will form the first contact and fail
                 r_idx, c_idx = first_contact_pad_idx // PAD_ARR_COL, first_contact_pad_idx % PAD_ARR_COL
