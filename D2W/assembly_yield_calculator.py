@@ -127,8 +127,6 @@ def Pad_Yield_Map_Generator(
         pad_pitch_um          = cfg.PITCH_r_um,
         top_die_w_um          = cfg.DIE_W_um,
         top_die_h_um          = cfg.DIE_L_um,
-        n_tilts               = cfg.n_tilts_samples,
-        n_dishes              = cfg.n_dishes_samples,
         tilt_x_mean_deg       = cfg.TILT_X_MEAN_DEG,
         tilt_x_std_deg        = cfg.TILT_X_STD_DEG,
         tilt_y_mean_deg       = cfg.TILT_Y_MEAN_DEG,

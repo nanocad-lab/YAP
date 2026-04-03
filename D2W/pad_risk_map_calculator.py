@@ -28,10 +28,13 @@ def main():
 
     # Extract the design input files directory if provided
     input_ds_dir = args.ds_dir
+    assert os.path.exists(input_ds_dir), f"Design input directory not found at {input_ds_dir}"
     # Determine .3dbv path
     _3dbv_path = input_ds_dir + "/generated_chiplet_definitions.3dbv"
+    assert os.path.exists(_3dbv_path), f"3DBV file not found at {_3dbv_path}"
     # Determine .bmap path
     _bmap_path = args.__dict__.get("bmap", None)
+    assert _bmap_path is not None and os.path.exists(_bmap_path), f".bmap file not found at {_bmap_path}"
     # Determine criticality file path
     criticality_path = args.criticality
 

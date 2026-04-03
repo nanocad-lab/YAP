@@ -373,6 +373,9 @@ def risk_map_generator(cfg,
     <pad_coords_x> <pad_coords_y> <esd_failure_probability> <overlay_failure_probability> <particle_failure_probability> <mechanical_failure_probability>
     '''
     risk_map = list()
+    output_dir = os.path.join(cfg.OUTPUT_DIR, cfg.INTERFACE)
+    os.makedirs(output_dir, exist_ok=True)
+    risk_map_path = os.path.join(output_dir, f"{cfg.INTERFACE}_risk.map")
     for pad_id in range(len(die.pad_coords)):
         pad_coords_x = die.pad_coords[pad_id, 0]
         pad_coords_y = die.pad_coords[pad_id, 1]
@@ -390,10 +393,46 @@ def risk_map_generator(cfg,
             "particle_failure_probability": 1 - pad_df_yield,
             "mechanical_failure_probability": 1 - pad_ce_yield,
         })
-    with open(cfg.OUTPUT_DIR + cfg.INTERFACE + "/" + cfg.INTERFACE + "_risk.map", 'w') as f:
+    with open(risk_map_path, 'w') as f:
         for pad_risk in risk_map:
             f.write(f"{pad_risk['pad_coords_x']} {pad_risk['pad_coords_y']} {pad_risk['esd_failure_probability']} {pad_risk['overlay_failure_probability']} {pad_risk['particle_failure_probability']} {pad_risk['mechanical_failure_probability']}\n")
-    print("Risk map file saved in ", cfg.OUTPUT_DIR + cfg.INTERFACE + "/" + cfg.INTERFACE + "_risk.map")
+    print("Risk map file saved in ", risk_map_path)
+
+    mechanism_specs = {
+        "esd": ("Y_esd", "ESD Failure Probability"),
+        "overlay": ("Y_ovl", "Overlay Failure Probability"),
+        "particle": ("Y_df", "Particle Failure Probability"),
+        "mechanical": ("Y_ce", "Mechanical Failure Probability"),
+        "overall": ("Y_bond", "Overall Failure Probability"),
+    }
+    for mechanism, (yield_key, colorbar_label) in mechanism_specs.items():
+        failure_map = 1.0 - np.asarray(die.pad_yield_map[yield_key], dtype=np.float64)
+        masked_failure_map = np.ma.masked_invalid(failure_map)
+
+        finite_vals = failure_map[np.isfinite(failure_map)]
+        vmax = float(np.max(finite_vals)) if finite_vals.size > 0 else 1.0
+        if vmax <= 0.0:
+            vmax = 1.0
+
+        fig, ax = plt.subplots(figsize=(8, 6))
+        image = ax.imshow(
+            masked_failure_map,
+            cmap='hot',
+            interpolation='nearest',
+            vmin=0.0,
+            vmax=vmax,
+        )
+        fig.colorbar(image, ax=ax, label=colorbar_label)
+        ax.set_title(f"{mechanism.title()} Risk Map")
+        ax.set_xlabel('Pad Column Index')
+        ax.set_ylabel('Pad Row Index')
+
+        save_path = os.path.join(output_dir, f"{cfg.INTERFACE}_{mechanism}_risk_map.png")
+        fig.savefig(save_path, dpi=300, bbox_inches='tight')
+        plt.close(fig)
+
+    print("Failure mechanism risk maps saved in ", output_dir)
+    
     return
 
 
@@ -570,9 +609,9 @@ def result_wrapper(
             plt.imshow(fail_map, cmap='hot', interpolation='nearest')
             plt.colorbar(label='Failure Count')
             plt.title(f'Assembly Failure Map - {mechanism}')
-            plt.savefig(save_path + f'/failure_map_{mechanism}.png')
+            plt.savefig(save_path + f'/simulation_failure_map_{mechanism}.png')
             plt.close(figure)
-            print(f"Failure map for {mechanism} saved to {save_path + f'failure_map_{mechanism}.png'}")
+            print(f"Failure map for {mechanism} saved to {save_path + f'/simulation_failure_map_{mechanism}.png'}")
 
 
 

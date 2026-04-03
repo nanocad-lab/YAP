@@ -134,9 +134,16 @@ d2w_simulation:
 
   # === ESD Parameters ===
   TILT_X_MEAN_DEG: 0.000
-  TILT_X_STD_DEG: 1e-2
+  TILT_X_STD_DEG: 1e-5
   TILT_Y_MEAN_DEG: 0.000
-  TILT_Y_STD_DEG: 1e-2
+  TILT_Y_STD_DEG: 1e-5
+
+  V_MIN_V: 0.0
+  V_MAX_V: 5.0
+
+  WEIBULL_K: 4.44985
+  WEIBULL_LAMBDA: 0.0621816
+  CUTOFF_MIN_A: 0.0
 
   # === Simulation Control ===
   simulation_times: 1                  # Number of simulation iterations
@@ -205,8 +212,8 @@ d2w_modeling:
   SYSTEM_TRANSLATION_X_STD_um: 2e-2        # Std of systematic X translation (µm)
   SYSTEM_TRANSLATION_Y_MEAN_um: 0       # Mean of systematic Y translation (µm)
   SYSTEM_TRANSLATION_Y_STD_um: 2e-2        # Std of systematic Y translation (µm)
-  SYSTEM_ROTATION_MEAN_rad: 6e-4            # Systematic rotation mean (rad)
-  SYSTEM_ROTATION_STD_rad: 1e-4             # Systematic rotation std (rad)
+  SYSTEM_ROTATION_MEAN_rad: 6e-5            # Systematic rotation mean (rad)
+  SYSTEM_ROTATION_STD_rad: 1e-5             # Systematic rotation std (rad)
   BOW_DIFFERENCE_MEAN_um: 0.5               # Bow difference mean (µm)
   BOW_DIFFERENCE_STD_um: 0.1                 # Bow difference std (µm)
   k_mag: 0.1                           # Magnification slope coefficient
@@ -229,9 +236,9 @@ d2w_modeling:
   # === Cu Expansion / Dishing Parameters ===
   CU_RECESS_PAD_FAIL_RATIO: 0.01        # Ratio of pads with Cu recess > threshold to consider die as failed
   TOP_DISH_MEAN_nm: -1                  # Top pad height mean (nm)
-  TOP_DISH_STD_nm: 0.3                  # Top pad height std (nm)
+  TOP_DISH_STD_nm: 1.0                  # Top pad height std (nm)
   BOT_DISH_MEAN_nm: -1                  # Bottom pad height mean (nm)
-  BOT_DISH_STD_nm: 0.3                  # Bottom pad height std (nm)
+  BOT_DISH_STD_nm: 1.0                  # Bottom pad height std (nm)
   k_et: 0.053                           # Top Cu expansion coef (nm/K)
   k_eb: 0.053                           # Bottom Cu expansion coef (nm/K)
   T_R: 25                               # Room temperature (°C)
@@ -279,11 +286,9 @@ d2w_modeling:
 
   # === ESD Parameters ===
   TILT_X_MEAN_DEG: 0.000
-  TILT_X_STD_DEG: 1e-2
+  TILT_X_STD_DEG: 1e-5
   TILT_Y_MEAN_DEG: 0.000
-  TILT_Y_STD_DEG: 1e-2
-  n_tilts_samples: 1000                  # Number of tilt samples for ESD simulation
-  n_dishes_samples: 10             # Number of dish samples for ESD simulation
+  TILT_Y_STD_DEG: 1e-5
 
   V_MIN_V: 0.0
   V_MAX_V: 5.0

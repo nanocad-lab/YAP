@@ -2,62 +2,10 @@
 from __future__ import annotations
 
 import math
-from typing import Optional, Tuple
+from typing import Tuple
 import numpy as np
 
-def _require_cfg_attr(cfg, name: str):
-    """Return cfg.name or raise a clear error if the attribute is missing."""
-    if cfg is None or not hasattr(cfg, name):
-        raise AttributeError(f"cfg must provide '{name}' for ESD simulation.")
-    return getattr(cfg, name)
-
-
-def _resolve_float_param(value: Optional[float], *, cfg, attr_name: str) -> float:
-    """Prefer an explicit argument; otherwise read the value from cfg."""
-    if value is not None:
-        return float(value)
-    return float(_require_cfg_attr(cfg, attr_name))
-
-
-def _resolve_pad_size_um(pad_size_um: Optional[float], *, cfg) -> float:
-    """Resolve pad size from an explicit argument or cfg.PAD_TOP_R_um."""
-    if pad_size_um is not None:
-        return float(pad_size_um)
-    return 2.0 * float(_require_cfg_attr(cfg, "PAD_TOP_R_um"))
-
-
-def _resolve_base_seed(base_seed: Optional[int], *, cfg) -> int:
-    """Resolve the RNG seed, preferring an explicit argument, otherwise sampling one."""
-    if base_seed is not None:
-        return int(base_seed)
-    return int(np.random.default_rng().integers(0, 2**32 - 1, dtype=np.uint32))
-
-
-def _resolve_z_top_um(z_top_um: Optional[float], *, cfg) -> float:
-    """Resolve the initial die-to-wafer separation used by the gap model."""
-    if z_top_um is not None:
-        return float(z_top_um)
-    for attr_name in ("ESD_Z_TOP_UM", "Z_TOP_UM", "z_top_um"):
-        if cfg is not None and hasattr(cfg, attr_name):
-            return float(getattr(cfg, attr_name))
-    return 100.0
-
-
-def _resolve_voltage_range(cfg) -> Tuple[float, float]:
-    """Return the charging-voltage range [V] from cfg."""
-    return (
-        float(_require_cfg_attr(cfg, "V_MIN_V")),
-        float(_require_cfg_attr(cfg, "V_MAX_V")),
-    )
-
-
-def _resolve_failure_model_params(cfg) -> Tuple[float, float, float]:
-    """Return the Weibull failure-model parameters from cfg."""
-    return (
-        float(_require_cfg_attr(cfg, "WEIBULL_K")),
-        float(_require_cfg_attr(cfg, "WEIBULL_LAMBDA")),
-        float(_require_cfg_attr(cfg, "CUTOFF_MIN_A")),
-    )
+Z_TOP_UM = 0.1
 
 
 def _z_linear_coeffs(ax_deg: float, ay_deg: float) -> Tuple[float, float, float]:
@@ -228,14 +176,14 @@ def _rotate_and_min_choice(
     tilt_y_deg: float,
     z_top_um: float,
     rng_pick: np.random.Generator,
-    pad_x_um: Optional[np.ndarray] = None,
-    pad_y_um: Optional[np.ndarray] = None,
-    half_pad_um: Optional[float] = None,
-    half_die_w_um: Optional[float] = None,
-    half_die_h_um: Optional[float] = None,
+    pad_x_um: np.ndarray,
+    pad_y_um: np.ndarray,
+    half_pad_um: float,
+    half_die_w_um: float,
+    half_die_h_um: float,
     arc_distance_um: float = 0.0,
     atol: float = 1e-12,
-) -> Tuple[Optional[int], bool, float]:
+) -> Tuple[int | None, bool, float]:
     """
     Apply tilt to the die and candidate pads and return the minimum-gap winner.
 
@@ -243,11 +191,6 @@ def _rotate_and_min_choice(
     exact analytical minimum over its four corners without explicitly storing
     those corner coordinates.
     """
-    if pad_x_um is None or pad_y_um is None or half_pad_um is None:
-        pad_x_um, pad_y_um, half_pad_um = _prepare_pad_geometry_cache(pad_coords_um, pad_size_um)
-    if half_die_w_um is None or half_die_h_um is None:
-        half_die_w_um, half_die_h_um = _prepare_die_geometry_cache(top_die_w_um, top_die_h_um)
-
     a, b, c = _z_linear_coeffs(tilt_x_deg, tilt_y_deg)
     die_gap = (
         float(z_top_um)
@@ -290,9 +233,9 @@ def _best_pad_among_all_pads(
     tilt_y_deg: float,
     z_top_um: float,
     rng_pick: np.random.Generator,
-    pad_x_um: Optional[np.ndarray] = None,
-    pad_y_um: Optional[np.ndarray] = None,
-    half_pad_um: Optional[float] = None,
+    pad_x_um: np.ndarray,
+    pad_y_um: np.ndarray,
+    half_pad_um: float,
     arc_distance_um: float = 0.0,
     atol_gap: float = 1e-12,
 ) -> Tuple[int, float]:
@@ -300,9 +243,6 @@ def _best_pad_among_all_pads(
     pad_count = pad_coords_um.shape[0]
     if pad_count <= 0:
         raise ValueError("pad_coords_um is empty; cannot choose a fallback pad.")
-
-    if pad_x_um is None or pad_y_um is None or half_pad_um is None:
-        pad_x_um, pad_y_um, half_pad_um = _prepare_pad_geometry_cache(pad_coords_um, pad_size_um)
 
     a, b, c = _z_linear_coeffs(tilt_x_deg, tilt_y_deg)
     pad_min_gaps = _square_pad_min_gap_vec(
@@ -471,28 +411,31 @@ def esd_failure_simulator(
     top_dish_nm_ext: np.ndarray,
     bot_dish_nm_ext: np.ndarray,
     dummy_pad_bitmap: np.ndarray,
-    pad_size_um: Optional[float] = None,
-    top_die_w_um: Optional[float] = None,
-    top_die_h_um: Optional[float] = None,
-    tilt_x_mean_deg: Optional[float] = None,
-    tilt_x_std_deg: Optional[float] = None,
-    tilt_y_mean_deg: Optional[float] = None,
-    tilt_y_std_deg: Optional[float] = None,
-    base_seed: Optional[int] = None,
-    z_top_um: Optional[float] = None,
-) -> Tuple[Optional[int], bool]:
+    pad_size_um: float,
+    top_die_w_um: float,
+    top_die_h_um: float,
+    tilt_x_mean_deg: float,
+    tilt_x_std_deg: float,
+    tilt_y_mean_deg: float,
+    tilt_y_std_deg: float,
+    base_seed: int,
+) -> Tuple[int | None, bool]:
     """Run a single stochastic experiment and return (first_touch_pad, survive_bool)."""
-    pad_size_um = _resolve_pad_size_um(pad_size_um, cfg=cfg)
-    top_die_w_um = _resolve_float_param(top_die_w_um, cfg=cfg, attr_name="DIE_W_um")
-    top_die_h_um = _resolve_float_param(top_die_h_um, cfg=cfg, attr_name="DIE_L_um")
-    tilt_x_mean_deg = _resolve_float_param(tilt_x_mean_deg, cfg=cfg, attr_name="TILT_X_MEAN_DEG")
-    tilt_x_std_deg = _resolve_float_param(tilt_x_std_deg, cfg=cfg, attr_name="TILT_X_STD_DEG")
-    tilt_y_mean_deg = _resolve_float_param(tilt_y_mean_deg, cfg=cfg, attr_name="TILT_Y_MEAN_DEG")
-    tilt_y_std_deg = _resolve_float_param(tilt_y_std_deg, cfg=cfg, attr_name="TILT_Y_STD_DEG")
-    base_seed = _resolve_base_seed(base_seed, cfg=cfg)
-    z_top_um = _resolve_z_top_um(z_top_um, cfg=cfg)
-    v_min_v, v_max_v = _resolve_voltage_range(cfg)
-    weibull_k, weibull_lambda, cutoff_min_a = _resolve_failure_model_params(cfg)
+    pad_size_um = float(pad_size_um)
+    top_die_w_um = float(top_die_w_um)
+    top_die_h_um = float(top_die_h_um)
+    tilt_x_mean_deg = float(tilt_x_mean_deg)
+    tilt_x_std_deg = float(tilt_x_std_deg)
+    tilt_y_mean_deg = float(tilt_y_mean_deg)
+    tilt_y_std_deg = float(tilt_y_std_deg)
+    base_seed = int(base_seed)
+
+    z_top_um = Z_TOP_UM
+    v_min_v = float(cfg.V_MIN_V)
+    v_max_v = float(cfg.V_MAX_V)
+    weibull_k = float(cfg.WEIBULL_K)
+    weibull_lambda = float(cfg.WEIBULL_LAMBDA)
+    cutoff_min_a = float(cfg.CUTOFF_MIN_A)
 
     pad_coords_um, active_ids = _active_pad_ids_from_bitmap(pad_coords_um, dummy_pad_bitmap)
     active_pad_coords_um = pad_coords_um[active_ids]

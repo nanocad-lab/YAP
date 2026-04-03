@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import math
-from typing import Optional, Tuple
+from typing import Tuple
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -11,73 +11,6 @@ from matplotlib.patches import Rectangle
 from numpy.polynomial.hermite import hermgauss
 from numpy.polynomial.legendre import leggauss
 from scipy.special import log_ndtr
-
-
-def _require_cfg_attr(cfg, name: str):
-    """Return cfg.name or raise a clear error if the attribute is missing."""
-    if cfg is None or not hasattr(cfg, name):
-        raise AttributeError(f"cfg must provide '{name}' for ESD calculation.")
-    return getattr(cfg, name)
-
-
-def _resolve_float_param(value: Optional[float], *, cfg, attr_name: str) -> float:
-    """Prefer an explicit argument; otherwise read the value from cfg."""
-    if value is not None:
-        return float(value)
-    return float(_require_cfg_attr(cfg, attr_name))
-
-
-def _resolve_int_param(value: Optional[int], *, cfg, attr_name: str) -> int:
-    """Prefer an explicit argument; otherwise read the value from cfg."""
-    if value is not None:
-        return int(value)
-    return int(_require_cfg_attr(cfg, attr_name))
-
-
-def _resolve_pad_size_um(pad_size_um: Optional[float], *, cfg) -> float:
-    """Resolve pad size from an explicit argument or cfg.PAD_TOP_R_um."""
-    if pad_size_um is not None:
-        return float(pad_size_um)
-    return 2.0 * float(_require_cfg_attr(cfg, "PAD_TOP_R_um"))
-
-
-def _resolve_pad_pitch_um(pad_pitch_um: Optional[float], *, cfg) -> float:
-    """Resolve pad pitch from an explicit argument or cfg.PITCH_r_um."""
-    if pad_pitch_um is not None:
-        return float(pad_pitch_um)
-    return float(_require_cfg_attr(cfg, "PITCH_r_um"))
-
-
-def _resolve_z_top_um(z_top_um: Optional[float], *, cfg) -> float:
-    """Resolve the initial die-to-wafer separation used by the gap model."""
-    if z_top_um is not None:
-        return float(z_top_um)
-    for attr_name in ("ESD_Z_TOP_UM", "Z_TOP_UM", "z_top_um"):
-        if cfg is not None and hasattr(cfg, attr_name):
-            return float(getattr(cfg, attr_name))
-    return 100.0
-
-
-def _resolve_voltage_range(cfg) -> Tuple[float, float]:
-    """Return the charging-voltage range [V] from cfg."""
-    return (
-        float(_require_cfg_attr(cfg, "V_MIN_V")),
-        float(_require_cfg_attr(cfg, "V_MAX_V")),
-    )
-
-
-def _resolve_failure_model_params(cfg) -> Tuple[float, float, float]:
-    """Return the Weibull failure-model parameters from cfg."""
-    return (
-        float(_require_cfg_attr(cfg, "WEIBULL_K")),
-        float(_require_cfg_attr(cfg, "WEIBULL_LAMBDA")),
-        float(_require_cfg_attr(cfg, "CUTOFF_MIN_A")),
-    )
-
-
-def _resolve_calc_param(cfg, attr_name: str, default):
-    """Return an optional numerical-control parameter from cfg or a default."""
-    return getattr(cfg, attr_name, default)
 
 
 def _z_linear_coeffs(ax_deg: float, ay_deg: float) -> Tuple[float, float, float]:
@@ -317,54 +250,54 @@ def pad_esd_yield_map_generator(
     *,
     cfg,
     pad_coords_um: np.ndarray,
-    pad_size_um: Optional[float] = None,
-    pad_pitch_um: Optional[float] = None,
-    top_die_w_um: Optional[float] = None,
-    top_die_h_um: Optional[float] = None,
-    n_tilts: Optional[int] = None,
-    n_dishes: Optional[int] = None,
-    tilt_x_mean_deg: Optional[float] = None,
-    tilt_x_std_deg: Optional[float] = None,
-    tilt_y_mean_deg: Optional[float] = None,
-    tilt_y_std_deg: Optional[float] = None,
-    top_dish_mean_nm: Optional[float] = None,
-    top_dish_std_nm: Optional[float] = None,
-    bot_dish_mean_nm: Optional[float] = None,
-    bot_dish_std_nm: Optional[float] = None,
-    z_top_um: Optional[float] = None,
-) -> Tuple[np.ndarray, Optional[plt.Figure], float]:
+    pad_size_um: float,
+    pad_pitch_um: float,
+    top_die_w_um: float,
+    top_die_h_um: float,
+    tilt_x_mean_deg: float,
+    tilt_x_std_deg: float,
+    tilt_y_mean_deg: float,
+    tilt_y_std_deg: float,
+    top_dish_mean_nm: float,
+    top_dish_std_nm: float,
+    bot_dish_mean_nm: float,
+    bot_dish_std_nm: float,
+    z_top_um=0.0,
+) -> Tuple[np.ndarray, plt.Figure | None, float]:
     """
     Return the per-pad ESD yield map using the analytical minimum-gap method.
 
     Output matches the old Monte Carlo generator:
       (valid_pad_yield_map_vec, fig, p_fail_avg)
     """
-    pad_size_um = _resolve_pad_size_um(pad_size_um, cfg=cfg)
-    pad_pitch_um = _resolve_pad_pitch_um(pad_pitch_um, cfg=cfg)
-    top_die_w_um = _resolve_float_param(top_die_w_um, cfg=cfg, attr_name="DIE_W_um")
-    top_die_h_um = _resolve_float_param(top_die_h_um, cfg=cfg, attr_name="DIE_L_um")
-    n_tilts = _resolve_int_param(n_tilts, cfg=cfg, attr_name="n_tilts_samples")
-    n_dishes = _resolve_int_param(n_dishes, cfg=cfg, attr_name="n_dishes_samples")
-    tilt_x_mean_deg = _resolve_float_param(tilt_x_mean_deg, cfg=cfg, attr_name="TILT_X_MEAN_DEG")
-    tilt_x_std_deg = _resolve_float_param(tilt_x_std_deg, cfg=cfg, attr_name="TILT_X_STD_DEG")
-    tilt_y_mean_deg = _resolve_float_param(tilt_y_mean_deg, cfg=cfg, attr_name="TILT_Y_MEAN_DEG")
-    tilt_y_std_deg = _resolve_float_param(tilt_y_std_deg, cfg=cfg, attr_name="TILT_Y_STD_DEG")
-    top_dish_mean_nm = _resolve_float_param(top_dish_mean_nm, cfg=cfg, attr_name="TOP_DISH_MEAN_nm")
-    top_dish_std_nm = _resolve_float_param(top_dish_std_nm, cfg=cfg, attr_name="TOP_DISH_STD_nm")
-    bot_dish_mean_nm = _resolve_float_param(bot_dish_mean_nm, cfg=cfg, attr_name="BOT_DISH_MEAN_nm")
-    bot_dish_std_nm = _resolve_float_param(bot_dish_std_nm, cfg=cfg, attr_name="BOT_DISH_STD_nm")
-    z_top_um = _resolve_z_top_um(z_top_um, cfg=cfg)
-    v_min_v, v_max_v = _resolve_voltage_range(cfg)
-    weibull_k, weibull_lambda, cutoff_min_a = _resolve_failure_model_params(cfg)
+    pad_size_um = float(pad_size_um)
+    pad_pitch_um = float(pad_pitch_um)
+    top_die_w_um = float(top_die_w_um)
+    top_die_h_um = float(top_die_h_um)
+    tilt_x_mean_deg = float(tilt_x_mean_deg)
+    tilt_x_std_deg = float(tilt_x_std_deg)
+    tilt_y_mean_deg = float(tilt_y_mean_deg)
+    tilt_y_std_deg = float(tilt_y_std_deg)
+    top_dish_mean_nm = float(top_dish_mean_nm)
+    top_dish_std_nm = float(top_dish_std_nm)
+    bot_dish_mean_nm = float(bot_dish_mean_nm)
+    bot_dish_std_nm = float(bot_dish_std_nm)
+    z_top_um = float(z_top_um)
 
-    quadrature_points = int(_resolve_calc_param(cfg, "ESD_ANALYTICAL_INNER_Q", 48))
-    outer_qx = int(_resolve_calc_param(cfg, "ESD_ANALYTICAL_OUTER_QX", 5))
-    outer_qy = int(_resolve_calc_param(cfg, "ESD_ANALYTICAL_OUTER_QY", 5))
-    voltage_q = int(_resolve_calc_param(cfg, "ESD_ANALYTICAL_VOLTAGE_Q", 5))
-    tail_sigma = float(_resolve_calc_param(cfg, "ESD_ANALYTICAL_TAIL_SIGMA", 8.0))
-    chunk_size = int(_resolve_calc_param(cfg, "ESD_ANALYTICAL_CHUNK_SIZE", 100000))
-    fill_residual_uniformly = bool(_resolve_calc_param(cfg, "ESD_ANALYTICAL_FILL_RESIDUAL_UNIFORMLY", True))
-    verbose = bool(_resolve_calc_param(cfg, "verbose", False))
+    v_min_v = float(cfg.V_MIN_V)
+    v_max_v = float(cfg.V_MAX_V)
+    weibull_k = float(cfg.WEIBULL_K)
+    weibull_lambda = float(cfg.WEIBULL_LAMBDA)
+    cutoff_min_a = float(cfg.CUTOFF_MIN_A)
+
+    quadrature_points = int(getattr(cfg, "ESD_ANALYTICAL_INNER_Q", 48))
+    outer_qx = int(getattr(cfg, "ESD_ANALYTICAL_OUTER_QX", 5))
+    outer_qy = int(getattr(cfg, "ESD_ANALYTICAL_OUTER_QY", 5))
+    voltage_q = int(getattr(cfg, "ESD_ANALYTICAL_VOLTAGE_Q", 5))
+    tail_sigma = float(getattr(cfg, "ESD_ANALYTICAL_TAIL_SIGMA", 8.0))
+    chunk_size = int(getattr(cfg, "ESD_ANALYTICAL_CHUNK_SIZE", 100000))
+    fill_residual_uniformly = bool(getattr(cfg, "ESD_ANALYTICAL_FILL_RESIDUAL_UNIFORMLY", True))
+    verbose = bool(getattr(cfg, "verbose", False))
 
     pad_coords_um = np.asarray(pad_coords_um, dtype=np.float64)
     if pad_coords_um.ndim != 2 or pad_coords_um.shape[1] != 2:
@@ -374,8 +307,6 @@ def pad_esd_yield_map_generator(
 
     if active_pad_count <= 0:
         raise ValueError("pad_coords_um is empty; analytical ESD yield calculation needs at least one pad.")
-    if n_tilts <= 0 or n_dishes <= 0:
-        raise ValueError("n_tilts_samples and n_dishes_samples must be positive.")
 
     mu_h_um = (float(top_dish_mean_nm) + float(bot_dish_mean_nm)) * 1e-3
     sigma_h_um = math.sqrt(max(float(top_dish_std_nm), 0.0) ** 2 + max(float(bot_dish_std_nm), 0.0) ** 2) * 1e-3
@@ -405,6 +336,7 @@ def pad_esd_yield_map_generator(
             weibull_lambda=weibull_lambda,
             cutoff_min_a=cutoff_min_a,
         )
+        # print(f"Voltage {float(v_chg):.4f} V has die-level failure probability {p_fail_v:.6e} and arc distance {arc_distance_um:.2f} um")
         p_fail_avg += (float(v_weight) / voltage_norm) * float(p_fail_v)
 
         prob_v = np.zeros((active_pad_count,), dtype=np.float64)
@@ -438,15 +370,15 @@ def pad_esd_yield_map_generator(
                 total_outer_weight += outer_coeff
                 case_id += 1
 
-                if verbose:
-                    print(
-                        f"[ESD analytical] {case_id}/{total_cases} | "
-                        f"V={float(v_chg):.4f} V | "
-                        f"theta_x={theta_x_deg:.3e} deg | "
-                        f"theta_y={theta_y_deg:.3e} deg",
-                        end="\r",
-                        flush=True,
-                    )
+                # if verbose:
+                #     print(
+                #         f"[ESD analytical] {case_id}/{total_cases} | "
+                #         f"V={float(v_chg):.4f} V | "
+                #         f"theta_x={theta_x_deg:.3e} deg | "
+                #         f"theta_y={theta_y_deg:.3e} deg",
+                #         end="\r",
+                #         flush=True,
+                #     )
 
         if total_outer_weight > 0.0:
             prob_v /= total_outer_weight

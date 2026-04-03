@@ -66,10 +66,13 @@ d2w_simulation:
   BOW_DIFFERENCE_STD_um: 0.1                 # Bow difference std (µm)
   k_mag: 0.1                           # Magnification slope coefficient
   M_0: 0                                # Magnification offset
+  WARPAGE_LIMIT_UM: 100                 # Maximum post-bonding warpage
 
   # === Defect Parameters ===
   first_contact: 'center'            # First contact location: 'center' or 'edge' or 'corner (left-top)'
   D0: 1e-9                              # Particle density (1/µm²)
+  D1: 1e-8                              # Edge peak particle density (1/µm²)
+  EDGE_REGION_WIDTH_um: 300.0           # Width of the edge region for elevated particle density (µm)
   z: 3                                  # Particle thickness distribution exponent
   t_0: 0.1                                # Minimum particle thickness (µm)
   k_r: 1.8e-4
@@ -79,6 +82,7 @@ d2w_simulation:
   k_S: 2.7
 
   # === Cu Dishing Parameters ===
+  CU_RECESS_PAD_FAIL_RATIO: 0.01        # Ratio of pads with Cu recess > threshold to consider die as failed
   TOP_DISH_MEAN_nm: -1.0                  # Top pad dish mean (nm)
   TOP_DISH_STD_nm: 0.3                     # Top pad dish std (nm)
   BOT_DISH_MEAN_nm: -1.0                  # Bottom pad dish mean (nm)
@@ -129,10 +133,17 @@ d2w_simulation:
   Effective_Contact_Area: 1.0           # Fraction of pad area effectively bearing normal load
 
   # === ESD Parameters ===
-  TILT_X_MEAN_DEG: 0.010
-  TILT_X_STD_DEG: 1e-4
+  TILT_X_MEAN_DEG: 0.000
+  TILT_X_STD_DEG: 1e-5
   TILT_Y_MEAN_DEG: 0.000
-  TILT_Y_STD_DEG: 1e-4
+  TILT_Y_STD_DEG: 1e-5
+
+  V_MIN_V: 0.0
+  V_MAX_V: 5.0
+
+  WEIBULL_K: 4.44985
+  WEIBULL_LAMBDA: 0.0621816
+  CUTOFF_MIN_A: 0.0
 
   # === Simulation Control ===
   simulation_times: 1                  # Number of simulation iterations
@@ -207,10 +218,13 @@ d2w_modeling:
   BOW_DIFFERENCE_STD_um: 0.1                 # Bow difference std (µm)
   k_mag: 0.1                           # Magnification slope coefficient
   M_0: 0                                # Magnification offset
+  WARPAGE_LIMIT_UM: 100                 # Maximum post-bonding warpage
 
   # === Defect Parameters ===
   first_contact: 'center'            # First contact location: 'center' or 'vertical-edge' or 'horizontal-edge' or 'corner' (left-bottom)
   D0: 1e-9                              # Particle density (1/µm²)
+  D1: 1e-8                              # Edge peak particle density (1/µm²)
+  EDGE_REGION_WIDTH_um: 300.0           # Width of the edge region for elevated particle density (µm)
   z: 3                                  # Thickness distribution exponent factor
   t_0: 0.1                              # Minimum particle thickness (µm)
   k_r: 1.8e-4
@@ -220,6 +234,7 @@ d2w_modeling:
   k_S: 2.7
 
   # === Cu Expansion / Dishing Parameters ===
+  CU_RECESS_PAD_FAIL_RATIO: 0.01        # Ratio of pads with Cu recess > threshold to consider die as failed
   TOP_DISH_MEAN_nm: -1                  # Top pad height mean (nm)
   TOP_DISH_STD_nm: 0.3                     # Top pad height std (nm)
   BOT_DISH_MEAN_nm: -1                  # Bottom pad height mean (nm)
@@ -274,8 +289,6 @@ d2w_modeling:
   TILT_X_STD_DEG: 1e-2
   TILT_Y_MEAN_DEG: 0.000
   TILT_Y_STD_DEG: 1e-2
-  n_tilts_samples: 1                  # Number of tilt samples for ESD simulation
-  n_dishes_samples: 10000             # Number of dish samples for ESD simulation
 
   V_MIN_V: 0.0
   V_MAX_V: 5.0
