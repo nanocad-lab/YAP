@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 from overlay_yield_simulator import die_pad_misalignment
 from Cu_gap_simulator import Cu_gap_simulator
 from debond import debond_dishing_bounds_calculator
-from esd_hybrid import esd_failure_simulator
+from esd_yield_simulator import esd_failure_simulator
 
 def total_memory_mb(obj):
     total = sys.getsizeof(obj)
@@ -348,6 +348,7 @@ def overall_yield_simulator(
                 # Assume dies in the center will be the first contact point and have higher ESD hazard
                 # Check critical pads specifically for the ESD failure mechanisms (ESD-critical pads)
                 first_contact_pad_idx, survive_bool = esd_failure_simulator(
+                                                cfg=cfg,
                                                 pad_coords_um=valid_die_pad_coords,
                                                 pad_size_um=PAD_TOP_R_um * 2,
                                                 top_wafer_radius_um=WAF_R_um,
@@ -357,6 +358,7 @@ def overall_yield_simulator(
                                                 tilt_x_std_deg=TILT_X_STD_DEG,
                                                 tilt_y_mean_deg=TILT_Y_MEAN_DEG,
                                                 tilt_y_std_deg=TILT_Y_STD_DEG,
+                                                dummy_pad_bitmap=pad_bitmap_collection['DUMMY_PAD_BITMAP'].flatten()[valid_pad_mask.flatten() == 1],
                                                 )
                 if first_contact_pad_idx is not None and survive_bool == False:
                     r_idx, c_idx = first_contact_pad_idx // PAD_ARR_COL, first_contact_pad_idx % PAD_ARR_COL

@@ -1,8 +1,17 @@
 __pycache__/
 *.pyc
+design_*/
+*.npz
+*.npy
+*.3dbv
+*.3dbx
+*.3dbf
+*.bmap
+*.log
 /D2W_correlation_experiments/
 /Repair_Analysis/
 yap_env/
 D2W/output/*/temp/
 W2W/output/*/temp/
 *.png
+.codex

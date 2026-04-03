@@ -10,8 +10,8 @@ import time
 import os
 from overlay_yield_simulator import die_pad_misalignment
 from Cu_gap_simulator import Cu_gap_simulator
-from debond import debond_dishing_bounds_calculator
-from esd_hybrid import esd_failure_simulator
+from debond import debond_dishing_intervals_from_coords #, post_bond_warpage_calculator
+from esd_yield_simulator import esd_failure_simulator
 
 def overall_yield_simulator(
     cfg,
@@ -53,7 +53,7 @@ def overall_yield_simulator(
         if not os.path.exists(cfg.OUTPUT_DIR + cfg.INTERFACE + '/temp/'):
             os.makedirs(cfg.OUTPUT_DIR + cfg.INTERFACE + '/temp/')
         # start_time = time.time()
-        valid_pad_dishing_bound_array = debond_dishing_bounds_calculator(cfg, valid_die_pad_coords) # (num_pads, 2) array: (dishing_low_nm, dishing_high_nm)
+        valid_pad_dishing_bound_array = debond_dishing_intervals_from_coords(cfg, valid_die_pad_coords) # (num_pads, 2) array: (dishing_low_nm, dishing_high_nm)
         # print("Dishing bound calculation time: {:.2f} seconds".format(time.time() - start_time))
         np.save(cfg.OUTPUT_DIR + cfg.INTERFACE + '/temp/' + cfg.INTERFACE + "_dishing_bound_array.npy", valid_pad_dishing_bound_array)
     else:
@@ -263,19 +263,21 @@ def overall_yield_simulator(
         Cu_gap_map[valid_pad_mask == 1] = Cu_gap_in_valid_pads
 
         # Calculate the safe range for single pad Cu recess
-        zeta_0 = np.full((PAD_ARR_ROW, PAD_ARR_COL), np.nan)
-        zeta_1 = np.full((PAD_ARR_ROW, PAD_ARR_COL), np.nan)
+        zeta_0 = np.full((PAD_ARR_ROW, PAD_ARR_COL), np.nan)    # lower limits to prevent Cu connection open
+        zeta_1 = np.full((PAD_ARR_ROW, PAD_ARR_COL), np.nan)    # upper limits to prevent dielectric delamination
 
         zeta_0[valid_pad_mask == 1] = - valid_pad_dishing_bound_array[:, 1] * 2 # lower limits of the sum of top and bottom Cu heights
         zeta_1[valid_pad_mask == 1] = - valid_pad_dishing_bound_array[:, 0] * 2 # upper limits of the sum of top and bottom Cu heights
 
+        # Commented on 03/18/2026
         if cfg.verbose:
             epoch_fail_map_dict['mechanical'] += ((Cu_gap_map > zeta_1) | (Cu_gap_map < zeta_0)).astype(int)
             temp_overall_fail_map |= ((Cu_gap_map > zeta_1) | (Cu_gap_map < zeta_0)).astype(int)
 
         # Check critical pad Cu gap
         critical_pad_Cu_gap = Cu_gap_map * die_critical_pad_bitmap  # shape: (PAD_ARR_ROW, PAD_ARR_COL)
-        if np.any(critical_pad_Cu_gap > zeta_1 * die_critical_pad_bitmap) or np.any(critical_pad_Cu_gap < zeta_0 * die_critical_pad_bitmap):
+        # if np.any(critical_pad_Cu_gap > zeta_1 * die_critical_pad_bitmap) or np.any(critical_pad_Cu_gap < zeta_0 * die_critical_pad_bitmap):
+        if np.any(critical_pad_Cu_gap < zeta_0 * die_critical_pad_bitmap):
             die.survival = False
             if cfg.verbose:
                 epoch_fail_vec_dict['mechanical'][die_ind] = 1
@@ -285,7 +287,7 @@ def overall_yield_simulator(
 
         # Check redundant pad Cu gap
         redundant_pad_Cu_gap = Cu_gap_map * die_redundant_pad_bitmap
-        redundant_pad_fail_map[redundant_pad_Cu_gap > zeta_1 * die_redundant_pad_bitmap] = 1
+        # redundant_pad_fail_map[redundant_pad_Cu_gap > zeta_1 * die_redundant_pad_bitmap] = 1
         redundant_pad_fail_map[redundant_pad_Cu_gap < zeta_0 * die_redundant_pad_bitmap] = 1
         for redundant_net, physical_mask in redundant_net_to_1d_physical_mask.items():
             tolerated_mechanical_failures = criticality_info[redundant_net]['tolerated_mechanical_failures']
@@ -297,6 +299,18 @@ def overall_yield_simulator(
                     epoch_fail_vec_dict['overall'][die_ind] = 1
                 if not cfg.verbose:
                     break
+
+        # Check whether there are too many pads with Cu gap out of the safe range, which will cause die failure
+        num_cu_pad_fail_limit = cfg.CU_RECESS_PAD_FAIL_RATIO * np.sum(die_critical_pad_bitmap)
+        # post_bond_warpage = post_bond_warpage_calculator(cfg)
+        post_bond_warpage = 0
+        if (np.sum(Cu_gap_map[valid_pad_mask == 1] > 0) > num_cu_pad_fail_limit) or (post_bond_warpage > cfg.WARPAGE_LIMIT_UM):
+            die.survival = False
+            if cfg.verbose:
+                epoch_fail_vec_dict['mechanical'][die_ind] = 1
+                epoch_fail_vec_dict['overall'][die_ind] = 1
+            if not cfg.verbose:
+                continue
             
         # # Get the fail bump indices
         # fail_bump_id = mapping_physical_to_bumpid[redundant_pad_fail_map == 1]
@@ -312,7 +326,9 @@ def overall_yield_simulator(
         Check the ESD failure
         '''
         # TODO: ESD failure simulation to be implemented
-        first_contact_pad_idx, survive_bool = esd_failure_simulator(pad_coords_um=valid_die_pad_coords,
+        esd_pad_idx, survive_bool = esd_failure_simulator(
+                                                cfg=cfg,
+                                                pad_coords_um=valid_die_pad_coords,
                                                 pad_size_um=PAD_TOP_R_um * 2,
                                                 top_die_w_um=die.DIE_W_um,
                                                 top_die_h_um=die.DIE_L_um,
@@ -322,9 +338,11 @@ def overall_yield_simulator(
                                                 tilt_x_std_deg=TILT_X_STD_DEG,
                                                 tilt_y_mean_deg=TILT_Y_MEAN_DEG,
                                                 tilt_y_std_deg=TILT_Y_STD_DEG,
+                                                base_seed=die_ind,
+                                                dummy_pad_bitmap=pad_bitmap_collection['DUMMY_PAD_BITMAP'].flatten()[valid_pad_mask.flatten() == 1],
                                                 )
-        if first_contact_pad_idx is not None and survive_bool == False:    # One pad will form the first contact and fail
-            r_idx, c_idx = first_contact_pad_idx // PAD_ARR_COL, first_contact_pad_idx % PAD_ARR_COL
+        if esd_pad_idx is not None and survive_bool == False:    # One pad will form the first contact and fail
+            r_idx, c_idx = esd_pad_idx // PAD_ARR_COL, esd_pad_idx % PAD_ARR_COL
             if cfg.verbose:
                 epoch_fail_map_dict['ESD'][r_idx, c_idx] += 1
                 temp_overall_fail_map[r_idx, c_idx] |= 1

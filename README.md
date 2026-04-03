@@ -32,7 +32,7 @@ pip install -r requirements.txt
 # Usage
 - Generate criticality file from bump map
   ```
-  python utils/generate_criticality.py input/design_0/bmap_files/CPU_From_interposer.bmap
+  python utils/generate_criticality.py input/design_0/CPU_From_interposer.bmap
   ```
 
 
@@ -44,13 +44,13 @@ pip install -r requirements.txt
   Example command to run the pad risk map calculator for W2W hybrid bonding
 
   ```
-  python pad_risk_map_calculator.py --config configs/design0.yaml --mode w2w_modeling --ds_dir input/design_0 --bmap input/design_0/bmap_files/CPU_From_interposer.bmap --criticality input/design_0/criticality_files/CPU_From_interposer_criticality.txt --verbose
+  python pad_risk_map_calculator.py --config configs/design_0.yaml --mode w2w_modeling --ds_dir input/design_0 --bmap input/design_0/CPU_From_interposer.bmap --criticality input/design_0/CPU_From_interposer_criticality.txt --verbose
   ```
 
   Example command to run the simulator main for W2W hybrid bonding
 
   ```
-  python simulator_main.py --config configs/design0.yaml --mode w2w_simulation --ds_dir input/design_0 --bmap input/design_0/bmap_files/CPU_From_interposer.bmap --criticality input/design_0/criticality_files/CPU_From_interposer_criticality.txt --verbose
+  python simulator_main.py --config configs/design_0.yaml --mode w2w_simulation --ds_dir input/design_0 --bmap input/design_0/CPU_From_interposer.bmap --criticality input/design_0/CPU_From_interposer_criticality.txt --verbose
   ```
 
 - Run the simulator and model for D2W hybrid bonding.
@@ -61,13 +61,13 @@ pip install -r requirements.txt
   Example command to run the pad risk map calculator for D2W hybrid bonding
 
   ```
-  python pad_risk_map_calculator.py --config configs/design0.yaml --mode d2w_modeling --ds_dir input/design_0 --bmap input/design_0/bmap_files/CPU_From_interposer.bmap --criticality input/design_0/criticality_files/CPU_From_interposer_criticality.txt --verbose
+  python pad_risk_map_calculator.py --config configs/design_0.yaml --mode d2w_modeling --ds_dir input/design_0 --bmap input/design_0/CPU_From_interposer.bmap --criticality input/design_0/CPU_From_interposer_criticality.txt --verbose
   ```
 
   Example command to run the simulator main for D2W hybrid bonding
 
   ```
-  python simulator_main.py --config configs/design0.yaml --mode d2w_simulation --ds_dir input/design_0 --bmap input/design_0/bmap_files/CPU_From_interposer.bmap --criticality input/design_0/criticality_files/CPU_From_interposer_criticality.txt --verbose
+  python simulator_main.py --config configs/design_0.yaml --mode d2w_simulation --ds_dir input/design_0 --bmap input/design_0/CPU_From_interposer.bmap --criticality input/design_0/CPU_From_interposer_criticality.txt --verbose
   ```
 
 # File Formats
@@ -127,6 +127,15 @@ pip install -r requirements.txt
    - Multiple nets listed on the same line form a redundancy group sharing the same failure tolerance
    - Each net name should appear only once in the entire file
    - See UCIe_advanced_criticality.txt for a complete example of the current format
+
+**4. 3dbv File (.3dbv):**
+
+   Input file in 3dblox format. This file contains info including the die size and the path of 3dbf file. 
+
+**5. 3dbf File (.3dbf):**
+
+   Input file in 3dblox format. This file contains info including bump pitch and bump size.
+
 
 # Output
 **1.assembly_fail_map_dict.npz**

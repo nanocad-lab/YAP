@@ -28,24 +28,28 @@ def main():
 
     # Extract the design input files directory if provided
     input_ds_dir = args.ds_dir
+    assert os.path.exists(input_ds_dir), f"Design input directory not found at {input_ds_dir}"
     # Determine .3dbv path
-    blox_3dbv_path = input_ds_dir + "/generated_chiplet_definitions.3dbv"
+    _3dbv_path = input_ds_dir + "/generated_chiplet_definitions.3dbv"
+    assert os.path.exists(_3dbv_path), f"3DBV file not found at {_3dbv_path}"
     # Determine .bmap path
-    blox_bmap_path = args.__dict__.get("bmap", None)
+    _bmap_path = args.__dict__.get("bmap", None)
+    assert _bmap_path is not None and os.path.exists(_bmap_path), f".bmap file not found at {_bmap_path}"
     # Determine criticality file path
     criticality_path = args.criticality
 
     # Load config and update with design and ADK parameters (from .3dbv and .bmap)
     cfg = load_base_config(base_config_path=args.config, 
                            input_ds_dir=input_ds_dir,
-                           blox_3dbv_path=blox_3dbv_path,
-                           blox_bmap_path=blox_bmap_path,
+                           _3dbv_path=_3dbv_path,
+                           _bmap_path=_bmap_path,
                            mode=args.mode, 
                            debug=args.debug)
 
 
     # Plotting flag
     cfg.plot_flag = args.plot
+    cfg.verbose = args.verbose
     
     # Create output directory if it doesn't exist
     if not os.path.exists(cfg.OUTPUT_DIR + cfg.INTERFACE):
@@ -54,18 +58,18 @@ def main():
 
     # Step 1: convert .bmap -> pad bitmap collection
     pad_bitmap_collection = convert_3dblox_to_pad_bitmap(cfg=cfg,
-                                                        blox_bmap_path=blox_bmap_path,
+                                                        _bmap_path=_bmap_path,
                                                         criticality_path=criticality_path,
                                                         pad_arrange_pattern=cfg.PAD_ARRANGE_PATTERN)
 
     # Step 2: generate pad-level yield map
     print("Calculating pad-level yield map...")
-    start_time = time.time()
+    start_time = time.perf_counter()
     Pad_Yield_Map_Generator(
         cfg=cfg,
         pad_bitmap_collection=pad_bitmap_collection,
     )
-    print(f"Pad yield map generation finished in {time.time() - start_time:.2f} s")
+    print(f"Pad yield map generation finished in {time.perf_counter() - start_time:.2f} s")
 
 if __name__ == "__main__":
     main()

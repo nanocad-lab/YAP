@@ -24,27 +24,76 @@ def add_config_items(cfg, keys, values):
     for key, value in zip(keys, values):
         cfg[key] = value
 
+
+def _upsample_pad_yield_map(pad_yield_map: np.ndarray,
+                            pad_map_shape,
+                            pad_yield_map_sub_factor: int) -> np.ndarray:
+    """
+    Upsample a subsampled pad yield map back to the full pad-array shape.
+
+    The sampling grid follows the same endpoint-preserving indexing used in the
+    overlay/defect calculators, so we reconstruct the dense map with 1D linear
+    interpolation along columns and then rows.
+    """
+    if pad_yield_map.shape == pad_map_shape or pad_yield_map_sub_factor <= 1:
+        return pad_yield_map
+
+    target_rows, target_cols = pad_map_shape
+    src_rows, src_cols = pad_yield_map.shape
+
+    row_coords = np.round(np.linspace(0, target_rows - 1, src_rows)).astype(np.float64)
+    col_coords = np.round(np.linspace(0, target_cols - 1, src_cols)).astype(np.float64)
+
+    # Guard against duplicate coordinates in very small arrays.
+    col_coords, unique_col_idx = np.unique(col_coords, return_index=True)
+    pad_yield_map = pad_yield_map[:, unique_col_idx]
+    row_coords, unique_row_idx = np.unique(row_coords, return_index=True)
+    pad_yield_map = pad_yield_map[unique_row_idx, :]
+
+    full_col_coords = np.arange(target_cols, dtype=np.float64)
+    full_row_coords = np.arange(target_rows, dtype=np.float64)
+
+    if pad_yield_map.shape[1] == 1:
+        col_upsampled = np.repeat(pad_yield_map, target_cols, axis=1)
+    else:
+        col_upsampled = np.vstack([
+            np.interp(full_col_coords, col_coords, row_vals)
+            for row_vals in pad_yield_map
+        ])
+
+    if col_upsampled.shape[0] == 1:
+        return np.repeat(col_upsampled, target_rows, axis=0)
+
+    full_pad_yield_map = np.vstack([
+        np.interp(full_row_coords, row_coords, col_upsampled[:, col_ind])
+        for col_ind in range(target_cols)
+    ]).T
+
+    return full_pad_yield_map
+
 def load_base_config(base_config_path: str,
                      input_ds_dir: str,
-                     blox_3dbv_path: str,
-                     blox_bmap_path: str,
+                     _3dbv_path: str,
+                     _bmap_path: str,
                      mode, 
-                     debug=False):
+                     debug=False,
+                     cfg_specify_flag=False):
     """
     Load base configuration from a YAML file and update with .3dbv and .bmap design parameters.
     args:
         base_config_path: path to base config yaml file
-        blox_3dbv_path: path to .3dbv file
-        blox_bmap_path: path to .bmap file
+        _3dbv_path: path to .3dbv file
+        _bmap_path: path to .bmap file
         mode: mode to load from config (w2w_simulation, w2w_modeling, d2w_simulation, d2w_modeling)
         debug: whether to enable debug output
     """
     full_cfg = OmegaConf.load(base_config_path)
     cfg = full_cfg[mode]
-    cfg = update_config_with_3dblox_params(cfg,
+    if not cfg_specify_flag:
+        cfg = update_config_with_3dblox_params(cfg,
                                            input_ds_dir=input_ds_dir,
-                                           blox_3dbv_path=blox_3dbv_path,
-                                           blox_bmap_path=blox_bmap_path)
+                                           _3dbv_path=_3dbv_path,
+                                           _bmap_path=_bmap_path)
 
     # Derive additional parameters based on mode
     if mode == "w2w_simulation" or mode == "w2w_modeling":
@@ -128,8 +177,8 @@ def update_config_from_bmap(cfg, blox_bmap_path, y_tol=0.1, x_tol=0.1):
 
 def update_config_with_3dblox_params(cfg, 
                                     input_ds_dir: str,
-                                    blox_3dbv_path: str,
-                                    blox_bmap_path: str):
+                                    _3dbv_path: str,
+                                    _bmap_path: str):
     """
     Update configuration with design parameters from .3dbv and .bmap files.
     args:
@@ -139,18 +188,18 @@ def update_config_with_3dblox_params(cfg,
         blox_bmap_path: path to .bmap file
     file structure:
         input_ds_dir/
-          |-  generated_chiplet_definitions.3dbv
-          |-  generated_stack_config.3dbx (not used for now)
+          |-  chiplet_definitions.3dbv
+          |-  stack_config.3dbx (not used for now)
           |-  3dbf_files/
           |-  bmap_files/
             |-  <INTERFACE>.bmap
-          |-criticality_files/
+          |-  criticality_files/
             |-  <INTERFACE>_criticality.txt
     """
     ### Update cfg with design parameters from .3dbv and .bmap files
 
     ## Extract interface name from .bmap file name
-    cfg.INTERFACE = blox_bmap_path.split('/')[-1].split('.')[0]
+    cfg.INTERFACE = _bmap_path.split('/')[-1].split('.')[0]
     if 'From' in cfg.INTERFACE:
         cfg.INTERFACE_TOP = cfg.INTERFACE.split('_From_')[0]
         cfg.INTERFACE_BOT = cfg.INTERFACE.split('_From_')[1]
@@ -162,7 +211,7 @@ def update_config_with_3dblox_params(cfg,
 
     ### Read .3dbv and .bmap files
     ## Extract design parameters from .3dbv and .3dbf file
-    blox_3dbv = OmegaConf.load(blox_3dbv_path)
+    blox_3dbv = OmegaConf.load(_3dbv_path)
     top_3dbf_path = input_ds_dir + "/" + cfg.INTERFACE_TOP + ".3dbf"
     bot_3dbf_path = input_ds_dir + "/" + cfg.INTERFACE_BOT + ".3dbf"
     top_3dbf = OmegaConf.load(top_3dbf_path)
@@ -177,7 +226,7 @@ def update_config_with_3dblox_params(cfg,
     bump_type_list = list(top_3dbf.Bump_Types.keys())   # silicon_individual_bonding, organic_individual_bonding, ...
     for bump_type in bump_type_list:
         # Check if bump_type in the bmap file
-        if bump_type in open(blox_bmap_path).readline().split()[1]: # Read the first line of the .bmap file to get the bump type
+        if bump_type in open(_bmap_path).readline().split()[1]: # Read the first line of the .bmap file to get the bump type
             selected_bump_type = bump_type
             break
     add_config_items(cfg, keys=['PAD_TOP_R_um', 'PAD_BOT_R_um'], 
@@ -190,7 +239,7 @@ def update_config_with_3dblox_params(cfg,
     
 
     ## Extract design parameters from .bmap file
-    update_config_from_bmap(cfg, blox_bmap_path, y_tol=cfg.PITCH_r_um * 0.1, x_tol=cfg.PITCH_c_um * 0.1)
+    update_config_from_bmap(cfg, _bmap_path, y_tol=cfg.PITCH_r_um * 0.1, x_tol=cfg.PITCH_c_um * 0.1)
 
     return cfg
 
@@ -324,6 +373,9 @@ def risk_map_generator(cfg,
     <pad_coords_x> <pad_coords_y> <esd_failure_probability> <overlay_failure_probability> <particle_failure_probability> <mechanical_failure_probability>
     '''
     risk_map = list()
+    output_dir = os.path.join(cfg.OUTPUT_DIR, cfg.INTERFACE)
+    os.makedirs(output_dir, exist_ok=True)
+    risk_map_path = os.path.join(output_dir, f"{cfg.INTERFACE}_risk.map")
     for pad_id in range(len(die.pad_coords)):
         pad_coords_x = die.pad_coords[pad_id, 0]
         pad_coords_y = die.pad_coords[pad_id, 1]
@@ -341,17 +393,53 @@ def risk_map_generator(cfg,
             "particle_failure_probability": 1 - pad_df_yield,
             "mechanical_failure_probability": 1 - pad_ce_yield,
         })
-    with open(cfg.OUTPUT_DIR + cfg.INTERFACE + "/" + cfg.INTERFACE + "_risk.map", 'w') as f:
+    with open(risk_map_path, 'w') as f:
         for pad_risk in risk_map:
             f.write(f"{pad_risk['pad_coords_x']} {pad_risk['pad_coords_y']} {pad_risk['esd_failure_probability']} {pad_risk['overlay_failure_probability']} {pad_risk['particle_failure_probability']} {pad_risk['mechanical_failure_probability']}\n")
-    print("Risk map file saved in ", cfg.OUTPUT_DIR + cfg.INTERFACE + "/" + cfg.INTERFACE + "_risk.map")
+    print("Risk map file saved in ", risk_map_path)
+
+    mechanism_specs = {
+        "esd": ("Y_esd", "ESD Failure Probability"),
+        "overlay": ("Y_ovl", "Overlay Failure Probability"),
+        "particle": ("Y_df", "Particle Failure Probability"),
+        "mechanical": ("Y_ce", "Mechanical Failure Probability"),
+        "overall": ("Y_bond", "Overall Failure Probability"),
+    }
+    for mechanism, (yield_key, colorbar_label) in mechanism_specs.items():
+        failure_map = 1.0 - np.asarray(die.pad_yield_map[yield_key], dtype=np.float64)
+        masked_failure_map = np.ma.masked_invalid(failure_map)
+
+        finite_vals = failure_map[np.isfinite(failure_map)]
+        vmax = float(np.max(finite_vals)) if finite_vals.size > 0 else 1.0
+        if vmax <= 0.0:
+            vmax = 1.0
+
+        fig, ax = plt.subplots(figsize=(8, 6))
+        image = ax.imshow(
+            masked_failure_map,
+            cmap='hot',
+            interpolation='nearest',
+            vmin=0.0,
+            vmax=vmax,
+        )
+        fig.colorbar(image, ax=ax, label=colorbar_label)
+        ax.set_title(f"{mechanism.title()} Risk Map")
+        ax.set_xlabel('Pad Column Index')
+        ax.set_ylabel('Pad Row Index')
+
+        save_path = os.path.join(output_dir, f"{cfg.INTERFACE}_{mechanism}_risk_map.png")
+        fig.savefig(save_path, dpi=300, bbox_inches='tight')
+        plt.close(fig)
+
+    print("Failure mechanism risk maps saved in ", output_dir)
+    
     return
 
 
 
 
 def convert_3dblox_to_pad_bitmap(cfg, 
-                                 blox_bmap_path: str,
+                                 _bmap_path: str,
                                  criticality_path: str,
                                  pad_arrange_pattern: str):
     '''
@@ -361,13 +449,13 @@ def convert_3dblox_to_pad_bitmap(cfg,
     if not os.path.exists(cfg.OUTPUT_DIR + cfg.INTERFACE):
         os.makedirs(cfg.OUTPUT_DIR + cfg.INTERFACE)
         
-    sort_pads_bmap(blox_bmap_path, blox_bmap_path)
+    sort_pads_bmap(_bmap_path, _bmap_path)
 
     # Read the bump data from the .bmap file
     bump_data = []
     # Initialize the pad array boundaries
     [pad_array_left, pad_array_right, pad_array_top, pad_array_bottom] = [float('inf'), float('-inf'), float('-inf'), float('inf')]
-    with open(blox_bmap_path, 'r') as f:
+    with open(_bmap_path, 'r') as f:
         bumpid = 0
         for line in f:
             parts = line.strip().split()
@@ -521,9 +609,9 @@ def result_wrapper(
             plt.imshow(fail_map, cmap='hot', interpolation='nearest')
             plt.colorbar(label='Failure Count')
             plt.title(f'Assembly Failure Map - {mechanism}')
-            plt.savefig(save_path + f'/failure_map_{mechanism}.png')
+            plt.savefig(save_path + f'/simulation_failure_map_{mechanism}.png')
             plt.close(figure)
-            print(f"Failure map for {mechanism} saved to {save_path + f'failure_map_{mechanism}.png'}")
+            print(f"Failure map for {mechanism} saved to {save_path + f'/simulation_failure_map_{mechanism}.png'}")
 
 
 

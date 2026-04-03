@@ -51,19 +51,50 @@ def pad_defect_yield_map_generator(
     pad_yield_flag: bool = False,
     pad_yield_map_sub_factor: int = 1,
 ):
+    def pad_dist_from_first_contact(*, cfg, die) -> np.ndarray:
+        if cfg.first_contact == 'center':
+            return np.sqrt(die.pad_coords[:, 0]**2 + die.pad_coords[:, 1]**2)  # pad to die center distance
+        elif cfg.first_contact == 'vertical-edge':
+            return np.abs(die.DIE_W_um / 2 + die.pad_coords[:, 0])  # pad to left die edge distance
+        elif cfg.first_contact == 'horizontal-edge':
+            return np.abs(die.DIE_L_um / 2 + die.pad_coords[:, 1])  # pad to bottom die edge distance
+        elif cfg.first_contact == 'corner':
+            return np.sqrt((die.DIE_W_um / 2 + die.pad_coords[:, 0])**2 + (die.DIE_L_um / 2 + die.pad_coords[:, 1])**2)  # pad to left-bottom die corner distance
+        raise ValueError(f"Unsupported first_contact mode: {cfg.first_contact}")
+
+    def particle_density_at_pad_coords(*, die, D0) -> np.ndarray:
+        D1 = float(cfg.get("D1", D0))
+        edge_region_width_um = float(cfg.get("EDGE_REGION_WIDTH_um", 300.0))
+
+        local_density = np.full(die.pad_coords.shape[0], float(D0), dtype=np.float64)
+        if D1 <= D0 or edge_region_width_um <= 0:
+            return local_density
+
+        effective_edge_width_um = min(
+            float(edge_region_width_um),
+            die.DIE_W_um / 2.0,
+            die.DIE_L_um / 2.0,
+        )
+        if effective_edge_width_um <= 0:
+            return local_density
+
+        dist_to_nearest_edge = np.minimum(
+            die.DIE_W_um / 2.0 - np.abs(die.pad_coords[:, 0]),
+            die.DIE_L_um / 2.0 - np.abs(die.pad_coords[:, 1]),
+        )
+        edge_weight = np.clip(
+            1.0 - dist_to_nearest_edge / effective_edge_width_um,
+            0.0,
+            1.0,
+        )
+        return local_density + (float(D1) - float(D0)) * edge_weight
+
     def avg_defects_fail_pad_critical(*, cfg, die, D0, PAD_TOP_R_um, k_r, k_r0, t_0, z) -> np.ndarray:
         '''
         This function calculate the average number of fatal main void defects to the pad
         To calculate the pad-level defect yield, we ignore whether the pad is redundant or not.
         '''
-        if cfg.first_contact == 'center':
-            L0 = np.sqrt(die.pad_coords[:, 0]**2 + die.pad_coords[:, 1]**2) # pad to die center distance
-        elif cfg.first_contact == 'vertical-edge':
-            L0 = np.abs(die.DIE_W_um / 2 + die.pad_coords[:, 0]) # pad to left die edge distance
-        elif cfg.first_contact == 'horizontal-edge':
-            L0 = np.abs(die.DIE_L_um / 2 + die.pad_coords[:, 1]) # pad to bottom die edge distance
-        elif cfg.first_contact == 'corner':
-            L0 = np.sqrt((die.DIE_W_um / 2 + die.pad_coords[:, 0])**2 + (die.DIE_L_um / 2 + die.pad_coords[:, 1])**2) # pad to left-bottom die corner distance
+        L0 = pad_dist_from_first_contact(cfg=cfg, die=die)
             
         # Use the formula to calculate the average number of fatal defects per pad
         term = k_r * L0 + k_r0
@@ -71,8 +102,53 @@ def pad_defect_yield_map_generator(
         part2 = ((z - 1) / (z - 2)) * (term**2) * t_0
         part3 = (4 * (z - 1) / (2 * z - 3)) * term * PAD_TOP_R_um * t_0
         return np.pi * D0 * (part1 + part2 + part3)
-  
-    avg_main_voids_per_pad = avg_defects_fail_pad_critical(cfg=cfg, die=die, D0=D0, PAD_TOP_R_um=PAD_TOP_R_um, k_r=k_r, k_r0=k_r0, t_0=t_0, z=z) if pad_yield_flag else None
+    
+    def avg_defects_fail_pad_critical_with_edge_defects(*, cfg, die, D0, PAD_TOP_R_um, k_r, k_r0, t_0, z) -> np.ndarray:
+        '''
+        This function calculate the average number of fatal main void defects to the pad
+        with edge-enhanced particle density.
+
+        We preserve the existing closed-form critical-area model and apply a local-density
+        approximation, i.e. the effective particle density is evaluated at each pad center
+        using the nearest-edge D(x, y) profile.
+        '''
+        L0 = pad_dist_from_first_contact(cfg=cfg, die=die)
+        local_particle_density = particle_density_at_pad_coords(die=die, D0=D0)
+
+        term = k_r * L0 + k_r0
+        part1 = PAD_TOP_R_um**2
+        part2 = ((z - 1) / (z - 2)) * (term**2) * t_0
+        part3 = (4 * (z - 1) / (2 * z - 3)) * term * PAD_TOP_R_um * t_0
+        critical_area = np.pi * (part1 + part2 + part3)
+        return local_particle_density * critical_area
+
+    if pad_yield_flag:
+        D1 = float(cfg.get("D1", D0))
+        edge_region_width_um = float(cfg.get("EDGE_REGION_WIDTH_um", 300.0))
+        if D1 > D0 and edge_region_width_um > 0:
+            avg_main_voids_per_pad = avg_defects_fail_pad_critical_with_edge_defects(
+                cfg=cfg,
+                die=die,
+                D0=D0,
+                PAD_TOP_R_um=PAD_TOP_R_um,
+                k_r=k_r,
+                k_r0=k_r0,
+                t_0=t_0,
+                z=z,
+            )
+        else:
+            avg_main_voids_per_pad = avg_defects_fail_pad_critical(
+                cfg=cfg,
+                die=die,
+                D0=D0,
+                PAD_TOP_R_um=PAD_TOP_R_um,
+                k_r=k_r,
+                k_r0=k_r0,
+                t_0=t_0,
+                z=z,
+            )
+    else:
+        avg_main_voids_per_pad = None
 
     if pad_yield_flag == True:
         glb_defect_pad_yield_min = 1.0
@@ -108,45 +184,5 @@ def pad_defect_yield_map_generator(
         plt.xlabel('Pad Column Index')
         plt.ylabel('Pad Row Index')
         plt.show()
-
-        
-
-        # x_min, x_max = -2500, 2500
-        # y_min, y_max = -2500, 2500
-
-        # plt.figure(figsize=(8, 6), dpi=600)
-        # im = plt.imshow(
-        #     1 - particle_defect_pad_yield_map_sub,
-        #     cmap='viridis',
-        #     vmin=1 - die.glb_pad_yield_min_max_dict['Y_df'][1],
-        #     vmax=1 - die.glb_pad_yield_min_max_dict['Y_df'][0],
-        #     interpolation='nearest',
-        #     origin='lower',
-        #     aspect='equal',
-        #     extent=[x_min, x_max, y_min, y_max]  # ← 用物理坐标范围定义 μm 标尺
-        # )
-
-        # plt.colorbar(im, label='Pad-level Defect Yield')
-        # plt.title('Pad Defect Risk')
-        # plt.xlabel('X (μm)')
-        # plt.ylabel('Y (μm)')
-
-        # ax = plt.gca()
-        # ax.tick_params(which='both', direction='in', top=True, right=True)
-        # ax.tick_params(which='major', length=6, labelsize=12)
-        # ax.tick_params(which='minor', length=3)
-
-        # # 主次刻度：μm 单位
-        # from matplotlib.ticker import MultipleLocator
-        # ax.xaxis.set_major_locator(MultipleLocator(1000))  # 主刻度 1000 μm
-        # ax.yaxis.set_major_locator(MultipleLocator(1000))
-        # ax.xaxis.set_minor_locator(MultipleLocator(500))   # 次刻度 500 μm
-        # ax.yaxis.set_minor_locator(MultipleLocator(500))
-
-        # # 网格线
-        # ax.grid(which='major', linestyle='-', linewidth=0.8, alpha=0.6)
-        # ax.grid(which='minor', linestyle='--', linewidth=0.4, alpha=0.4)
-
-        # plt.show()
 
     return particle_defect_pad_yield_map_sub

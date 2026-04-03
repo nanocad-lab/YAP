@@ -14,7 +14,7 @@ from overlay_yield_calculator import pad_overlay_yield_map_generator
 from defect_yield_calculator import pad_defect_yield_map_generator
 from Cu_expansion_yield_calculator import pad_Cu_expansion_yield_map_generator
 from utils.util import risk_map_generator
-from esd_hybrid import pad_esd_yield_map_generator
+from esd_yield_calculator import pad_esd_yield_map_generator
 
 
 
