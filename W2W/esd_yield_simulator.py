@@ -117,17 +117,17 @@ def _arc_distance_um_from_voltage(v_chg: float) -> float:
     if v_chg <= 0.0:
         return 0.0
 
-    plateau_v = 337.0
-    small_gap_slope = 97.0
-    plateau_upper_gap_um = 7.0
+    plateau_v = 337.0                          # Paschen plateau voltage [V]
+    small_gap_slope = 97.0                  # Slope of the small-gap Paschen curve [V/um]
+    plateau_upper_gap_um = 7.0              # Upper gap limit of the Paschen plateau [um]
 
     if v_chg < plateau_v:
         return v_chg / small_gap_slope
 
-    a = 2.48
-    b = 58.0
-    c = 170.0 - v_chg
-    disc = b * b - 4.0 * a * c
+    a = 2.48                                  # Coefficient of the linear term in the large-gap Paschen curve [V/um]
+    b = 58.0                                # Coefficient of the sqrt term in the large-gap Paschen curve [V/sqrt(um)]
+    c = 170.0 - v_chg                           # Constant term in the large-gap Paschen curve [V]
+    disc = b * b - 4.0 * a * c                     # Discriminant of the quadratic equation for the large-gap Paschen curve
     if disc <= 0.0:
         return plateau_upper_gap_um
 
