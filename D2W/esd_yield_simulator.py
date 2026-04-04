@@ -66,17 +66,17 @@ def _arc_distance_um_from_voltage(v_chg: float) -> float:
     if v_chg <= 0.0:
         return 0.0
 
-    plateau_v = 337.0
-    small_gap_slope = 97.0
-    plateau_upper_gap_um = 7.0
+    plateau_v = 337.0                         # Voltage plateau between 3.5 um and 7 um gap
+    small_gap_slope = 97.0                  # Slope of the small-gap linear region (V/um)
+    plateau_upper_gap_um = 7.0              # Upper gap limit of the voltage plateau (um)
 
     if v_chg < plateau_v:
         return v_chg / small_gap_slope
 
-    a = 2.48
-    b = 58.0
-    c = 170.0 - v_chg
-    disc = b * b - 4.0 * a * c
+    a = 2.48                            # Coefficient of the linear term in the large-gap region (V/um)
+    b = 58.0                           # Coefficient of the sqrt term in the large-gap region (V/sqrt(um))
+    c = 170.0 - v_chg                    # Constant term in the large-gap region (V)
+    disc = b * b - 4.0 * a * c          # Discriminant of the quadratic equation for the large-gap region
     if disc <= 0.0:
         return plateau_upper_gap_um
 

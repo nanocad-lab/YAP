@@ -136,19 +136,19 @@ w2w_simulation:
   approximate_set: 1                 # 1: disable overlay simulation approximation, 100: enable
 
   # === ESD Parameters ===
-  TILT_X_MEAN_DEG: 0.000
-  TILT_X_STD_DEG: 0.01
-  TILT_Y_MEAN_DEG: 0.000
-  TILT_Y_STD_DEG: 0.01
+  TILT_X_MEAN_DEG: 0.000           # Mean of tilt in X direction (degrees)
+  TILT_X_STD_DEG: 0.01              # Std of tilt in X direction (degrees)
+  TILT_Y_MEAN_DEG: 0.000         # Mean of tilt in Y direction (degrees)
+  TILT_Y_STD_DEG: 0.01            # Std of tilt in Y direction (degrees)
   n_tilts_samples: 1000                  # Number of tilt samples for ESD simulation
   n_dishes_samples: 1000                # Number of dish samples for ESD simulation
 
-  V_MIN_V: 0.0
-  V_MAX_V: 5.0
-
-  WEIBULL_K: 4.44985
-  WEIBULL_LAMBDA: 0.0621816
-  CUTOFF_MIN_A: 0.0
+  V_MIN_V: 0.0                      # Minimum voltage for ESD simulation
+  V_MAX_V: 5.0                     # Maximum voltage for ESD simulation
+  
+  WEIBULL_K: 4.44985                  # Weibull shape parameter for ESD failure probability
+  WEIBULL_LAMBDA: 0.0621816          # Weibull scale parameter for ESD failure probability
+  CUTOFF_MIN_A: 0.0                  # Minimum cutoff for effective contact area in ESD simulation
 
   # === Miscellaneous Parameters ===
   plot_flag: True                      # Enable plotting of results
@@ -282,19 +282,19 @@ w2w_modeling:
   Effective_Contact_Area: 1.0           # Fraction of pad area effectively bearing normal load
 
   # === ESD Parameters ===
-  TILT_X_MEAN_DEG: 0.000
-  TILT_X_STD_DEG: 0.01
-  TILT_Y_MEAN_DEG: 0.000
-  TILT_Y_STD_DEG: 0.01
+  TILT_X_MEAN_DEG: 0.000             # Mean of tilt in X direction (degrees)
+  TILT_X_STD_DEG: 0.01               # Std of tilt in X direction (degrees)
+  TILT_Y_MEAN_DEG: 0.000            # Mean of tilt in Y direction (degrees)
+  TILT_Y_STD_DEG: 0.01              # Std of tilt in Y direction (degrees)
   n_tilts_samples: 10000                  # Number of tilt samples for ESD simulation
   n_dishes_samples: 10000                # Number of dish samples for ESD simulation
 
-  V_MIN_V: 0.0
-  V_MAX_V: 5.0
+  V_MIN_V: 0.0                    # Minimum voltage for ESD simulation
+  V_MAX_V: 5.0                   # Maximum voltage for ESD simulation
 
-  WEIBULL_K: 4.44985
-  WEIBULL_LAMBDA: 0.0621816
-  CUTOFF_MIN_A: 0.0
+  WEIBULL_K: 4.44985             # Weibull shape parameter for ESD failure probability
+  WEIBULL_LAMBDA: 0.0621816       # Weibull scale parameter for ESD failure probability
+  CUTOFF_MIN_A: 0.0                    # Minimum cutoff for effective contact area in ESD simulation
 
 
   # === Miscellaneous Parameters ===

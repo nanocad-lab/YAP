@@ -132,17 +132,17 @@ d2w_simulation:
   Effective_Contact_Area: 1.0           # Fraction of pad area effectively bearing normal load
 
   # === ESD Parameters ===
-  TILT_X_MEAN_DEG: 0.010
-  TILT_X_STD_DEG: 1e-4
-  TILT_Y_MEAN_DEG: 0.000
-  TILT_Y_STD_DEG: 1e-4
+  TILT_X_MEAN_DEG: 0.010                # Tilt X mean (deg)
+  TILT_X_STD_DEG: 1e-4                   # Tilt X std (deg)
+  TILT_Y_MEAN_DEG: 0.000              # Tilt Y mean (deg)
+  TILT_Y_STD_DEG: 1e-4                 # Tilt Y std (deg)
 
-  V_MIN_V: 0.0
-  V_MAX_V: 5.0
+  V_MIN_V: 0.0                    # Minimum ESD voltage (V) 
+  V_MAX_V: 5.0                    # Maximum ESD voltage (V)
 
-  WEIBULL_K: 4.44985
-  WEIBULL_LAMBDA: 0.0621816
-  CUTOFF_MIN_A: 0.0
+  WEIBULL_K: 4.44985                # Weibull shape parameter for ESD failure probability
+  WEIBULL_LAMBDA: 0.0621816         # Weibull scale parameter for ESD failure probability
+  CUTOFF_MIN_A: 0.0                 # Minimum current threshold (A)
 
   # === Simulation Control ===
   simulation_times: 1                  # Number of simulation iterations
@@ -283,19 +283,19 @@ d2w_modeling:
   Effective_Contact_Area: 1.0           # Fraction of pad area effectively bearing normal load
 
   # === ESD Parameters ===
-  TILT_X_MEAN_DEG: 0.000
-  TILT_X_STD_DEG: 1e-2
-  TILT_Y_MEAN_DEG: 0.000
-  TILT_Y_STD_DEG: 1e-2
+  TILT_X_MEAN_DEG: 0.000               # Tilt X mean (deg)
+  TILT_X_STD_DEG: 1e-2                  # Tilt X std (deg)
+  TILT_Y_MEAN_DEG: 0.000              # Tilt Y mean (deg)
+  TILT_Y_STD_DEG: 1e-2                 # Tilt Y std (deg)
   n_tilts_samples: 1                  # Number of tilt samples for ESD simulation
   n_dishes_samples: 10000             # Number of dish samples for ESD simulation
 
-  V_MIN_V: 0.0
-  V_MAX_V: 5.0
-
-  WEIBULL_K: 4.44985
-  WEIBULL_LAMBDA: 0.0621816
-  CUTOFF_MIN_A: 0.0
+  V_MIN_V: 0.0                   # Minimum ESD voltage (V)
+  V_MAX_V: 5.0                   # Maximum ESD voltage (V)
+ 
+  WEIBULL_K: 4.44985               # Weibull shape parameter for ESD failure probability
+  WEIBULL_LAMBDA: 0.0621816        # Weibull scale parameter for ESD failure probability
+  CUTOFF_MIN_A: 0.0                # Minimum current threshold (A)
 
 
   # === Miscellaneous Parameters ===
