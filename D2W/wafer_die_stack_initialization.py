@@ -353,6 +353,7 @@ def die_stack_list_initialize(
     pad_bitmap_collection_dict: dict,
     num_stack_samples: int,
     base_pad_coords_flag: bool = False,
+    mode: str = 'simulation',
 ):
     """
     Inputs:
@@ -367,6 +368,7 @@ def die_stack_list_initialize(
         die_stack = DieStack(
             cfg_dict=cfg_dict,
             pad_bitmap_collection_dict=pad_bitmap_collection_dict,
+            mode=mode,
             base_pad_coords_flag=base_pad_coords_flag,
         )
         die_stack_list.append(die_stack)

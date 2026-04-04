@@ -10,7 +10,7 @@ from scipy.integrate import quad
 from scipy.stats import norm
 import time
 
-from wafer_die_initialization import die_initialize
+from wafer_die_stack_initialization import die_stack_list_initialize
 from overlay_yield_simulator import overlay_term_simulator
 from defect_yield_simulator import defect_yield_simulator
 from overall_yield_simulator import overall_yield_simulator
@@ -19,174 +19,132 @@ from utils.util import result_wrapper
 
 
 def Assembly_Yield_Simulator(
-    cfg,
-    mode: str,
-    pad_bitmap_collection: dict,
+    input_args: dict,
+    cfg_skeleton: object,
+    cfg_dict: dict,
+    pad_bitmap_collection_dict: dict,
 ):   
-    num_sim_epoch = cfg.NUM_DIES // cfg.SIM_BATCH_SIZE
+    NUM_DIE_STACKS = cfg_skeleton.NUM_DIE_STACKS
+    SIM_BATCH_SIZE = cfg_skeleton.SIM_BATCH_SIZE
+    num_sim_epoch = NUM_DIE_STACKS // SIM_BATCH_SIZE    
+    failure_mechanism_list = ['overlay', 'particle', 'mechanical', 'ESD', 'overall']
     epoch_yield_list = []
+    epoch_interface_yield_list_dict = {interface_name: [] for interface_name in cfg_dict}
 
-    # for k, v in cfg.items():
-    #     print(f"{k}: {v}")
-        
-    if cfg.verbose:
+    # Initialize a temporary die stack once to extract the reference pad coordinates.
+    temp_die_stack_list, base_pad_coords_dict = die_stack_list_initialize(
+        cfg_dict=cfg_dict,
+        pad_bitmap_collection_dict=pad_bitmap_collection_dict,
+        num_stack_samples=1,
+        base_pad_coords_flag=True,
+        mode='simulation',
+    )
+    del temp_die_stack_list
+
+    if input_args['verbose']:
         print("Verbose mode enabled: Tracking failure reasons for each die.")
-        fail_map_dict = {}
-        fail_map_dict['overlay']    = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL))
-        fail_map_dict['particle']   = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL))
-        fail_map_dict['mechanical'] = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL))
-        fail_map_dict['ESD']        = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL))
-        fail_map_dict['overall']    = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL))
-        fail_vec_dict = {}
-        fail_vec_dict['overlay']    = np.zeros(cfg.NUM_DIES)
-        fail_vec_dict['particle']   = np.zeros(cfg.NUM_DIES)
-        fail_vec_dict['mechanical'] = np.zeros(cfg.NUM_DIES)
-        fail_vec_dict['ESD']        = np.zeros(cfg.NUM_DIES)
-        fail_vec_dict['overall']    = np.zeros(cfg.NUM_DIES)
+        fail_map_per_interface_dict = {}
+        fail_vec_per_interface_dict = {}
+        for interface_name, cfg in cfg_dict.items():
+            fail_map_per_interface_dict[interface_name], fail_vec_per_interface_dict[interface_name] = {}, {}
+            for failure_mechanism in failure_mechanism_list:
+                fail_map_per_interface_dict[interface_name][failure_mechanism] = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL))
+                fail_vec_per_interface_dict[interface_name][failure_mechanism] = np.zeros(NUM_DIE_STACKS)
 
     for epoch in range(num_sim_epoch):
+        start_time = time.perf_counter()
         # Initialize the die list (Extract the base pad coordinates seperately for later use, so that a lot of memory can be saved)
-        die_list, base_pad_coords = die_initialize(
-            NUM_DIE_SAMPLES             =       cfg.SIM_BATCH_SIZE,
-            DIE_W_um                    =       cfg.DIE_W_um,
-            DIE_L_um                    =       cfg.DIE_L_um,
-            PAD_ARR_W_um                =       cfg.PAD_ARR_W_um,
-            PAD_ARR_L_um                =       cfg.PAD_ARR_L_um,
-            PAD_ARR_ROW                 =       cfg.PAD_ARR_ROW,
-            PAD_ARR_COL                 =       cfg.PAD_ARR_COL,
-            PITCH_r_um                  =       cfg.PITCH_r_um,
-            PITCH_c_um                  =       cfg.PITCH_c_um,
-            PAD_TOP_R_um                =       cfg.PAD_TOP_R_um,
-            PAD_BOT_R_um                =       cfg.PAD_BOT_R_um,
-            pad_bitmap_collection       =       pad_bitmap_collection,
-            pad_yield_flag              =       cfg.pad_yield_flag,
+        die_stack_list = die_stack_list_initialize(
+            cfg_dict=cfg_dict,
+            pad_bitmap_collection_dict=pad_bitmap_collection_dict,
+            num_stack_samples=SIM_BATCH_SIZE,
+            mode='simulation',
         )
-        # die_sample = die_list[0]
-        # die_sample.draw_die(fig_size=(6, 6))
 
-        # Generate overlay terms
-        system_translation_x_um, system_translation_y_um, system_rotation_rad, system_magnification_ppm, MAX_ALLOWED_MISALIGNMENT_um = overlay_term_simulator(
-            cfg                             =       cfg,
-            PAD_TOP_R_um                    =       cfg.PAD_TOP_R_um,
-            PAD_BOT_R_um                    =       cfg.PAD_BOT_R_um,
-            PITCH_r_um                      =       cfg.PITCH_r_um,
-            PITCH_c_um                      =       cfg.PITCH_c_um,
-            CONTACT_AREA_CONSTRAINT         =       cfg.CONTACT_AREA_CONSTRAINT,
-            CRITICAL_DIST_CONSTRAINT        =       cfg.CRITICAL_DIST_CONSTRAINT,
-            SYSTEM_ROTATION_MEAN_rad        =       cfg.SYSTEM_ROTATION_MEAN_rad,
-            SYSTEM_ROTATION_STD_rad         =       cfg.SYSTEM_ROTATION_STD_rad,
-            SYSTEM_TRANSLATION_X_MEAN_um    =       cfg.SYSTEM_TRANSLATION_X_MEAN_um,
-            SYSTEM_TRANSLATION_X_STD_um     =       cfg.SYSTEM_TRANSLATION_X_STD_um,
-            SYSTEM_TRANSLATION_Y_MEAN_um    =       cfg.SYSTEM_TRANSLATION_Y_MEAN_um,
-            SYSTEM_TRANSLATION_Y_STD_um     =       cfg.SYSTEM_TRANSLATION_Y_STD_um,
-            BOW_DIFFERENCE_MEAN_um          =       cfg.BOW_DIFFERENCE_MEAN_um,
-            BOW_DIFFERENCE_STD_um           =       cfg.BOW_DIFFERENCE_STD_um,
-            NUM_DIE_SAMPLES                 =       cfg.SIM_BATCH_SIZE,
-            k_mag                           =       cfg.k_mag,
-            M_0                             =       cfg.M_0,
+        # Generate overlay misalignment component samples for each bonding interface in each stack
+        overlay_term_simulator(
+            cfg_dict         =       cfg_dict,
+            die_stack_list   =       die_stack_list,
         )
         
         # Generate void defects
         defect_yield_simulator(
-            cfg             =       cfg,
-            D0              =       cfg.D0,  # Number of particles of all thicknesses per unit area (um^{-1}) on the die
-            t_0             =       cfg.t_0,
-            z               =       cfg.z,
-            k_r             =       cfg.k_r,
-            k_r0            =       cfg.k_r0,
-            k_n             =       cfg.k_n,
-            k_L             =       cfg.k_L,
-            k_S             =       cfg.k_S,
-            VOID_SHAPE      =       cfg.VOID_SHAPE,
-            DIE_W_um        =       cfg.DIE_W_um,
-            DIE_L_um        =       cfg.DIE_L_um,
-            NUM_DIE_SAMPLES =       cfg.SIM_BATCH_SIZE,
-            die_list        =       die_list,
+            cfg_dict        =       cfg_dict,
+            die_stack_list  =       die_stack_list,
         )
 
         
         
         # Calculate the overall yield
-        yield_list, epoch_fail_map_dict, epoch_fail_vec_dict = overall_yield_simulator(
-            cfg                             =       cfg,
-            die_list                        =       die_list,
-            NUM_DIE_SAMPLES                 =       cfg.SIM_BATCH_SIZE,
-            base_pad_coords                 =       base_pad_coords,
-            system_translation_x_um         =       system_translation_x_um,
-            system_translation_y_um         =       system_translation_y_um,
-            system_rotation_rad             =       system_rotation_rad,
-            system_magnification_ppm        =       system_magnification_ppm,
-            MAX_ALLOWED_MISALIGNMENT_um     =       MAX_ALLOWED_MISALIGNMENT_um,
-            PAD_ARR_W_um                    =       cfg.PAD_ARR_W_um,
-            PAD_ARR_L_um                    =       cfg.PAD_ARR_L_um, 
-            PAD_ARR_ROW                     =       cfg.PAD_ARR_ROW,
-            PAD_ARR_COL                     =       cfg.PAD_ARR_COL,
-            TOP_DISH_MEAN_nm                =       cfg.TOP_DISH_MEAN_nm,
-            TOP_DISH_STD_nm                 =       cfg.TOP_DISH_STD_nm,
-            BOT_DISH_MEAN_nm                =       cfg.BOT_DISH_MEAN_nm,
-            BOT_DISH_STD_nm                 =       cfg.BOT_DISH_STD_nm,
-            TILT_X_MEAN_DEG                 =       cfg.TILT_X_MEAN_DEG,
-            TILT_X_STD_DEG                  =       cfg.TILT_X_STD_DEG,
-            TILT_Y_MEAN_DEG                 =       cfg.TILT_Y_MEAN_DEG,
-            TILT_Y_STD_DEG                  =       cfg.TILT_Y_STD_DEG,
-            PITCH_r_um                      =       cfg.PITCH_r_um,
-            PITCH_c_um                      =       cfg.PITCH_c_um,
-            PAD_TOP_R_um                    =       cfg.PAD_TOP_R_um,
-            RANDOM_MISALIGNMENT_MEAN_um     =       cfg.RANDOM_MISALIGNMENT_MEAN_um,
-            RANDOM_MISALIGNMENT_STD_um      =       cfg.RANDOM_MISALIGNMENT_STD_um,
-            approximate_set                 =       cfg.approximate_set,
-            pad_bitmap_collection           =       pad_bitmap_collection,
+        yield_list, epoch_interface_yield_dict, epoch_fail_map_per_interface_dict, epoch_fail_vec_per_interface_dict = overall_yield_simulator(
+            input_args=input_args,
+            cfg_dict=cfg_dict,
+            die_stack_list=die_stack_list,
+            pad_bitmap_collection_dict=pad_bitmap_collection_dict,
+            base_pad_coords_dict=base_pad_coords_dict,
         )
         epoch_yield_list.append(yield_list)
-        if cfg.verbose:
-            fail_map_dict['overlay']    += epoch_fail_map_dict['overlay']
-            fail_map_dict['particle']   += epoch_fail_map_dict['particle']
-            fail_map_dict['mechanical'] += epoch_fail_map_dict['mechanical']
-            fail_map_dict['ESD']        += epoch_fail_map_dict['ESD']
-            fail_map_dict['overall']    += epoch_fail_map_dict['overall']
-            fail_vec_dict['overlay'][epoch*cfg.SIM_BATCH_SIZE:(epoch+1)*cfg.SIM_BATCH_SIZE]    = epoch_fail_vec_dict['overlay']
-            fail_vec_dict['particle'][epoch*cfg.SIM_BATCH_SIZE:(epoch+1)*cfg.SIM_BATCH_SIZE]   = epoch_fail_vec_dict['particle']
-            fail_vec_dict['mechanical'][epoch*cfg.SIM_BATCH_SIZE:(epoch+1)*cfg.SIM_BATCH_SIZE] = epoch_fail_vec_dict['mechanical']
-            fail_vec_dict['ESD'][epoch*cfg.SIM_BATCH_SIZE:(epoch+1)*cfg.SIM_BATCH_SIZE]        = epoch_fail_vec_dict['ESD']
-            fail_vec_dict['overall'][epoch*cfg.SIM_BATCH_SIZE:(epoch+1)*cfg.SIM_BATCH_SIZE]    = epoch_fail_vec_dict['overall']
+        for interface_name, interface_yield in epoch_interface_yield_dict.items():
+            epoch_interface_yield_list_dict[interface_name].append(interface_yield)
 
-        print(f"Simulation progress: {epoch+1}/{num_sim_epoch} epochs completed.", end='\r')
+        # Aggregate the fail maps/vectors
+        if input_args['verbose']:
+            for interface_name, cfg in cfg_dict.items():
+                for failure_mechanism in failure_mechanism_list:
+                    fail_map_per_interface_dict[interface_name][failure_mechanism]   \
+                        += epoch_fail_map_per_interface_dict[interface_name][failure_mechanism]
+                    fail_vec_per_interface_dict[interface_name][failure_mechanism][epoch*SIM_BATCH_SIZE:(epoch+1)*SIM_BATCH_SIZE]  \
+                        = epoch_fail_vec_per_interface_dict[interface_name][failure_mechanism]
 
-        del die_list
+        print(f"Simulation progress: {(epoch+1) * SIM_BATCH_SIZE} / {NUM_DIE_STACKS} die stacks simulated. \
+              Epoch yield: {np.mean(yield_list):.4f}. Time taken: {time.perf_counter() - start_time:.2f} seconds.", end='\r')
 
-    print("\nSimulation Completed.")
+        del die_stack_list
+
+    print("\n>>> Simulation Completed. Wrapping up results...")
     assembly_yield = np.mean(epoch_yield_list)
+    per_interface_assembly_yield_dict = {
+        interface_name: float(np.mean(interface_yield_list))
+        for interface_name, interface_yield_list in epoch_interface_yield_list_dict.items()
+    }
+
+    output_root = os.path.join(next(iter(cfg_dict.values())).OUTPUT_DIR, input_args['ds_name'])
+    per_interface_yield_path = os.path.join(output_root, 'assembly_yield_per_interface.txt')
+    with open(per_interface_yield_path, 'w') as f:
+        for interface_name, interface_yield in per_interface_assembly_yield_dict.items():
+            f.write(f"{interface_name} {interface_yield:.8f}\n")
+    print("Per-interface simulation yield saved to {}.".format(per_interface_yield_path))
+
     # Remove temporary files if any
-    for name in os.listdir(cfg.OUTPUT_DIR + cfg.INTERFACE + '/temp'):
-        file_path = os.path.join(cfg.OUTPUT_DIR + cfg.INTERFACE + '/temp', name)
-        if os.path.isfile(file_path):
-            os.remove(file_path)
-    
-    if cfg.verbose:
-        fail_map_dict['overlay']    /= (num_sim_epoch * cfg.SIM_BATCH_SIZE)
-        fail_map_dict['particle']   /= (num_sim_epoch * cfg.SIM_BATCH_SIZE)
-        fail_map_dict['mechanical'] /= (num_sim_epoch * cfg.SIM_BATCH_SIZE)
-        fail_map_dict['ESD']        /= (num_sim_epoch * cfg.SIM_BATCH_SIZE)
-        fail_map_dict['overall']    /= (num_sim_epoch * cfg.SIM_BATCH_SIZE)
-        # Report the failure reasons statistics
-        print("{} die failures due to overlay misalignment.".format(int(np.sum(fail_vec_dict['overlay']))))
-        print("{} die failures due to particle defects.".format(int(np.sum(fail_vec_dict['particle']))))
-        print("{} die failures due to mechanical issues.".format(int(np.sum(fail_vec_dict['mechanical']))))
-        print("{} die failures due to ESD issues.".format(int(np.sum(fail_vec_dict['ESD']))))
-        print("{} die failures in total.".format(int(np.sum(fail_vec_dict['overall']))))
-        # Save fail map dict
-        np.savez(cfg.OUTPUT_DIR + cfg.INTERFACE + '/assembly_fail_map_dict.npz', **fail_map_dict)
-        print("Failure heat maps saved to {}.".format(cfg.OUTPUT_DIR + cfg.INTERFACE + '/assembly_fail_map_dict.npz'))
-        # Save fail vec dict
-        np.savez(cfg.OUTPUT_DIR + cfg.INTERFACE + '/assembly_fail_vec_dict.npz', **fail_vec_dict)
-        print("Failure vectors for all die samples saved to {}.".format(cfg.OUTPUT_DIR + cfg.INTERFACE + '/assembly_fail_vec_dict.npz'))
+    for interface_name, cfg in cfg_dict.items():
+        for name in os.listdir(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp'):
+            file_path = os.path.join(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp', name)
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+        if input_args['verbose']:
+            for failure_mechanism in failure_mechanism_list:
+                fail_map_per_interface_dict[interface_name][failure_mechanism]   \
+                        /= (num_sim_epoch * SIM_BATCH_SIZE)
+            # Report the failure reasons statistics
+            print("{} die stack failures due to overlay misalignment.".format(int(np.sum(fail_vec_per_interface_dict[interface_name]['overlay']))))
+            print("{} die stack failures due to particle defects.".format(int(np.sum(fail_vec_per_interface_dict[interface_name]['particle']))))
+            print("{} die stack failures due to mechanical issues.".format(int(np.sum(fail_vec_per_interface_dict[interface_name]['mechanical']))))
+            print("{} die stack failures due to ESD issues.".format(int(np.sum(fail_vec_per_interface_dict[interface_name]['ESD']))))
+            print("{} die stack failures in total.".format(int(np.sum(fail_vec_per_interface_dict[interface_name]['overall']))))
+            # Save fail map dict
+            output_dir = os.path.join(cfg.OUTPUT_DIR, input_args['ds_name'])
+            np.savez(os.path.join(output_dir, 'assembly_fail_map_per_interface_dict.npz'), **fail_map_per_interface_dict)
+            print("Failure heat maps saved to {}.".format(os.path.join(output_dir, 'assembly_fail_map_per_interface_dict.npz')))
+            # Save fail vec dict
+            np.savez(os.path.join(output_dir, 'assembly_fail_vec_per_interface_dict.npz'), **fail_vec_per_interface_dict)
+            print("Failure vectors for all die samples saved to {}.".format(os.path.join(output_dir, 'assembly_fail_vec_per_interface_dict.npz')))
 
-        # Plot the results and save the figures
-        result_wrapper(
-            mode = mode,
-            output_dir = cfg.OUTPUT_DIR,
-            interface = cfg.INTERFACE,
-            fail_map_dict = fail_map_dict,
-        )
+            # Plot the results for this interface and save the figures
+            result_wrapper(
+                mode=input_args['mode'],
+                output_dir=os.path.join(cfg.OUTPUT_DIR, input_args['ds_name']),
+                interface=cfg.INTERFACE,
+                fail_map_dict=fail_map_per_interface_dict[interface_name],
+            )
 
-    return assembly_yield, epoch_yield_list 
+    return assembly_yield, epoch_yield_list, per_interface_assembly_yield_dict

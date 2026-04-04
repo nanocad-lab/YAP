@@ -31,6 +31,8 @@ def main():
     _3dbx_path = input_ds_dir + "/generated_stack_config.3dbx"
     # Read the config skeleton and update with design parameters
     cfg_skeleton = OmegaConf.load(args.config)[args.mode]
+
+    print(">>>>>> Starting D2W yield simulation for design: {}".format(args.ds_name))
     
     # Load config and update with design and ADK parameters (from .3dbv and .bmap)
     cfg_dict = get_config_dict(cfg_folder=args.config.rsplit('/', 1)[0],
@@ -67,19 +69,24 @@ def main():
         pad_bitmap_collection_dict[interface] = convert_3dblox_to_pad_bitmap(cfg=cfg,
                                                             _bmap_path=bmap_path_dict[interface],
                                                             criticality_path=criticality_path_dict[interface],
-                                                            pad_arrange_pattern=cfg.PAD_ARRANGE_PATTERN)
+                                                            pad_arrange_pattern=cfg.PAD_ARRANGE_PATTERN,
+                                                            input_args=vars(args),
+                                                            )
     
     # Step 2: run assembly yield simulator
-    print("Running assembly yield simulator over {} dies...".format(cfg.NUM_DIES))
+    print("Running assembly yield simulator over {} die stacks...".format(cfg_skeleton.NUM_DIE_STACKS))
     start_time = time.time()
-    stack_assembly_yield, _ = Assembly_Yield_Simulator(
+    stack_assembly_yield, _, per_interface_yield_dict = Assembly_Yield_Simulator(
         input_args=vars(args),
         cfg_skeleton=cfg_skeleton,
         cfg_dict=cfg_dict,
         pad_bitmap_collection_dict=pad_bitmap_collection_dict,                                             
     )
     
-    print(f"Yield simulation results for {args.ds_name}: {stack_assembly_yield}")
+    print(f">>> Yield simulation results for {args.ds_name}: {stack_assembly_yield}")
+    print("Per-interface simulation yield:")
+    for interface_name, interface_yield in per_interface_yield_dict.items():
+        print(f">>  {interface_name}: {interface_yield:.6f}")
     print("Total time taken: {:.2f} seconds".format(time.time() - start_time))
 
 
