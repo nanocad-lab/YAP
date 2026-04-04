@@ -111,15 +111,15 @@ def get_config_dict(cfg_folder: str,
             cfg.S_INIT_B_M = 0.0
         else:
             raise ValueError(f"Unknown mode: {mode}. Supported modes are 'w2w_simulation', 'w2w_modeling', 'd2w_simulation', and 'd2w_modeling'.")
-
+        # Save updated config file for reference
+        OmegaConf.save(cfg, cfg_folder + f"/{interface_name}.yaml")
 
     if debug:
         cfg.DEBUG = True
         print("Configuration loaded:")
         print(OmegaConf.to_yaml(cfg))
 
-    # Save updated config file for reference
-    OmegaConf.save(cfg, cfg_folder + f"/{interface_name}.yaml")
+    
     
     return cfg_dict
 
