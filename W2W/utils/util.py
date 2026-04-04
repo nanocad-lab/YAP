@@ -502,7 +502,6 @@ def convert_3dblox_to_pad_bitmap(cfg,
     bitmap_collection["REDUNDANT_PAD_BITMAP"] = REDUNDANT_PAD_BITMAP
     bitmap_collection["DUMMY_PAD_BITMAP"] = DUMMY_PAD_BITMAP
     bitmap_collection["ESD_CRITICAL_PAD_BITMAP"] = ESD_CRITICAL_PAD_BITMAP
-    bitmap_collection["is_redundant_copy_same_block"] = False
     bitmap_collection["num_critical_pads"] = num_critical_pads
     bitmap_collection["num_redundant_pads"] = num_redundant_pads
     bitmap_collection["num_dummy_pads"] = num_dummy_pads

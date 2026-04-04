@@ -153,6 +153,7 @@ def Pad_Yield_Map_Generator(
                 top_dish_std_nm       = cfg.TOP_DISH_STD_nm,
                 bot_dish_mean_nm      = cfg.BOT_DISH_MEAN_nm,
                 bot_dish_std_nm       = cfg.BOT_DISH_STD_nm,
+                z_top_um              = 100.0,
             )
             esd_pad_yield_map[valid_pad_mask == 1] = esd_valid_pad_yield_vec
         else:

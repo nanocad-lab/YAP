@@ -24,7 +24,6 @@ def add_config_items(cfg, keys, values):
     for key, value in zip(keys, values):
         cfg[key] = value
 
-
 def _upsample_pad_yield_map(pad_yield_map: np.ndarray,
                             pad_map_shape,
                             pad_yield_map_sub_factor: int) -> np.ndarray:
@@ -71,44 +70,47 @@ def _upsample_pad_yield_map(pad_yield_map: np.ndarray,
 
     return full_pad_yield_map
 
-def load_base_config(base_config_path: str,
-                     input_ds_dir: str,
-                     _3dbv_path: str,
-                     _bmap_path: str,
-                     mode, 
-                     debug=False,
-                     cfg_specify_flag=False):
+def get_config_dict(cfg_folder: str,
+                    cfg_skeleton: str,
+                    ds_name: str,
+                    input_ds_dir: str,
+                    _3dbv_path: str,
+                    _3dbx_path: str,
+                    mode: str,
+                    debug=False) -> dict:
     """
     Load base configuration from a YAML file and update with .3dbv and .bmap design parameters.
     args:
-        base_config_path: path to base config yaml file
+        cfg_folder: folder path of the config files
+        cfg_skeleton: base config yaml file
+        ds_name: design name
+        input_ds_dir: input design directory
         _3dbv_path: path to .3dbv file
-        _bmap_path: path to .bmap file
         mode: mode to load from config (w2w_simulation, w2w_modeling, d2w_simulation, d2w_modeling)
         debug: whether to enable debug output
+    returns:
+        cfg_dict: dictionary of configuration objects for each stack layer
     """
-    full_cfg = OmegaConf.load(base_config_path)
-    cfg = full_cfg[mode]
-    if not cfg_specify_flag:
-        cfg = update_config_with_3dblox_params(cfg,
-                                           input_ds_dir=input_ds_dir,
-                                           _3dbv_path=_3dbv_path,
-                                           _bmap_path=_bmap_path)
-
-    # Derive additional parameters based on mode
-    if mode == "w2w_simulation" or mode == "w2w_modeling":
-        cfg.SYSTEM_MAGNIFICATION_MEAN_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_MEAN_um + cfg.M_0) / 1e6
-        cfg.SYSTEM_MAGNIFICATION_STD_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_STD_um) ** 2 / 1e6
-        cfg.S_INIT_A_M = 10e-6 * (cfg.WAF_R_um / 150000) ** 2
-        cfg.S_INIT_B_M = 0.0
-    elif mode == "d2w_simulation" or mode == "d2w_modeling":
-        cfg.SYSTEM_MAGNIFICATION_MEAN_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_MEAN_um + cfg.M_0) / 1e6
-        cfg.SYSTEM_MAGNIFICATION_STD_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_STD_um) ** 2 / 1e6
-        cfg.eff_DIE_R = float(np.sqrt((cfg.DIE_W_um / 2) ** 2 + (cfg.DIE_L_um / 2) ** 2))  # Effective die radius (um)
-        cfg.S_INIT_A_M = 10e-6 * (cfg.eff_DIE_R / 150000) ** 2
-        cfg.S_INIT_B_M = 0.0
-    else:
-        raise ValueError(f"Unknown mode: {mode}. Supported modes are 'w2w_simulation', 'w2w_modeling', 'd2w_simulation', and 'd2w_modeling'.")
+    cfg_dict = update_config_with_3dblox_params(cfg_skeleton=cfg_skeleton,
+                                                input_ds_dir=input_ds_dir,
+                                                _3dbv_path=_3dbv_path,
+                                                _3dbx_path=_3dbx_path,)
+    for interface_name, cfg in cfg_dict.items():
+        cfg.DESIGN = ds_name
+        # Derive additional parameters based on mode
+        if mode == "w2w_simulation" or mode == "w2w_modeling":
+            cfg.SYSTEM_MAGNIFICATION_MEAN_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_MEAN_um + cfg.M_0) / 1e6
+            cfg.SYSTEM_MAGNIFICATION_STD_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_STD_um) ** 2 / 1e6
+            cfg.S_INIT_A_M = 10e-6 * (cfg.WAF_R_um / 150000) ** 2
+            cfg.S_INIT_B_M = 0.0
+        elif mode == "d2w_simulation" or mode == "d2w_modeling":
+            cfg.SYSTEM_MAGNIFICATION_MEAN_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_MEAN_um + cfg.M_0) / 1e6
+            cfg.SYSTEM_MAGNIFICATION_STD_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_STD_um) ** 2 / 1e6
+            cfg.eff_DIE_R = float(np.sqrt((cfg.DIE_W_um / 2) ** 2 + (cfg.DIE_L_um / 2) ** 2))  # Effective die radius (um)
+            cfg.S_INIT_A_M = 10e-6 * (cfg.eff_DIE_R / 150000) ** 2
+            cfg.S_INIT_B_M = 0.0
+        else:
+            raise ValueError(f"Unknown mode: {mode}. Supported modes are 'w2w_simulation', 'w2w_modeling', 'd2w_simulation', and 'd2w_modeling'.")
 
 
     if debug:
@@ -116,7 +118,10 @@ def load_base_config(base_config_path: str,
         print("Configuration loaded:")
         print(OmegaConf.to_yaml(cfg))
 
-    return cfg
+    # Save updated config file for reference
+    OmegaConf.save(cfg, cfg_folder + f"/{interface_name}.yaml")
+    
+    return cfg_dict
 
 
 
@@ -174,81 +179,94 @@ def update_config_from_bmap(cfg, blox_bmap_path, y_tol=0.1, x_tol=0.1):
                                 (num_cols - 1) * cfg.PITCH_c_um])
 
 
-
-def update_config_with_3dblox_params(cfg, 
+def update_config_with_3dblox_params(cfg_skeleton: object, 
                                     input_ds_dir: str,
                                     _3dbv_path: str,
-                                    _bmap_path: str):
+                                    _3dbx_path: str,):
     """
     Update configuration with design parameters from .3dbv and .bmap files.
     args:
-        cfg: configuration object
+        cfg_skeleton: configuration object skeleton
         input_ds_dir: path to design input files directory
-        blox_3dbv_path: path to .3dbv file
-        blox_bmap_path: path to .bmap file
+        _3dbv_path: path to .3dbv file (chiplet definitions)
+        _3dbx_path: path to .3dbx file (stack configuration)
+        _bmap_path: path to .bmap file (bump map)
     file structure:
         input_ds_dir/
-          |-  chiplet_definitions.3dbv
-          |-  stack_config.3dbx (not used for now)
-          |-  3dbf_files/
-          |-  bmap_files/
-            |-  <INTERFACE>.bmap
-          |-  criticality_files/
-            |-  <INTERFACE>_criticality.txt
+          |-  xx_chiplet_definitions.3dbv
+          |-  xx_stack_config.3dbx
+          |-  XX_From_XX.bmap
+          |-  XX.3dbf
+          |-  XX_From_XX_criticality.txt
     """
-    ### Update cfg with design parameters from .3dbv and .bmap files
+    ### Update cfg_list with design parameters from .3dbv and .bmap files
+    cfg_dict = dict()
+    stack_config_3dbx = OmegaConf.load(_3dbx_path)
 
-    ## Extract interface name from .bmap file name
-    cfg.INTERFACE = _bmap_path.split('/')[-1].split('.')[0]
-    if 'From' in cfg.INTERFACE:
-        cfg.INTERFACE_TOP = cfg.INTERFACE.split('_From_')[0]
-        cfg.INTERFACE_BOT = cfg.INTERFACE.split('_From_')[1]
-    elif 'To' in cfg.INTERFACE:
-        cfg.INTERFACE_TOP = cfg.INTERFACE.split('_To_')[1]
-        cfg.INTERFACE_BOT = cfg.INTERFACE.split('_To_')[0]
-    else:
-        raise ValueError(f"Unknown INTERFACE format: {cfg.INTERFACE}. Expected format like 'CPU_From_interposer' or 'interposer_To_CPU'.")
+    for _, connection in stack_config_3dbx.Connection.items():
+        cfg = cfg_skeleton.copy()
 
-    ### Read .3dbv and .bmap files
-    ## Extract design parameters from .3dbv and .3dbf file
-    blox_3dbv = OmegaConf.load(_3dbv_path)
-    top_3dbf_path = input_ds_dir + "/" + cfg.INTERFACE_TOP + ".3dbf"
-    bot_3dbf_path = input_ds_dir + "/" + cfg.INTERFACE_BOT + ".3dbf"
-    top_3dbf = OmegaConf.load(top_3dbf_path)
-    bot_3dbf = OmegaConf.load(bot_3dbf_path)
-    # Check unit
-    assert blox_3dbv.Header.unit == 'micron', "Only support .3dbv file with unit in microns."
-    # Read die width and length
-    add_config_items(cfg, keys=['DIE_W_um', 'DIE_L_um'], 
-                     values=[float(blox_3dbv.ChipletDef[cfg.INTERFACE_TOP].design_area[0]),
-                             float(blox_3dbv.ChipletDef[cfg.INTERFACE_TOP].design_area[1])])
-    # Read bump size, size/2 = radius
-    bump_type_list = list(top_3dbf.Bump_Types.keys())   # silicon_individual_bonding, organic_individual_bonding, ...
-    for bump_type in bump_type_list:
-        # Check if bump_type in the bmap file
-        if bump_type in open(_bmap_path).readline().split()[1]: # Read the first line of the .bmap file to get the bump type
-            selected_bump_type = bump_type
-            break
-    add_config_items(cfg, keys=['PAD_TOP_R_um', 'PAD_BOT_R_um'], 
-                        values=[float(top_3dbf.Bump_Types[selected_bump_type].bump_size) / 2,
-                                float(bot_3dbf.Bump_Types[selected_bump_type].bump_size) / 2])
-    # Read pad pitch (top chip pitch) TODO: currently assume row and col pitch are the same
-    add_config_items(cfg, keys=['PITCH_r_um', 'PITCH_c_um'], 
-                        values=[float(top_3dbf.Chiplet_Grid.pitch), 
-                                float(top_3dbf.Chiplet_Grid.pitch)])
-    
+        # Extract interface names
+        cfg.INTERFACE_TOP = str(((connection.bot).split('.')[-1]).split('To_')[-1])
+        cfg.INTERFACE_BOT = str(((connection.top).split('.')[-1]).split('From_')[-1])
+        cfg.INTERFACE = f"{cfg.INTERFACE_TOP}_From_{cfg.INTERFACE_BOT}"
 
-    ## Extract design parameters from .bmap file
-    update_config_from_bmap(cfg, _bmap_path, y_tol=cfg.PITCH_r_um * 0.1, x_tol=cfg.PITCH_c_um * 0.1)
+        ### Read .3dbv, .3dbx, and .bmap files
+        ## Extract design parameters from .3dbv and .3dbf file
+        _3dbv = OmegaConf.load(_3dbv_path)
+        _bmap_path = os.path.join(input_ds_dir, f"{cfg.INTERFACE}.bmap")
+        top_3dbf_path = os.path.join(input_ds_dir, f"{cfg.INTERFACE_TOP}.3dbf")
+        bot_3dbf_path = os.path.join(input_ds_dir, f"{cfg.INTERFACE_BOT}.3dbf")
+        top_3dbf = OmegaConf.load(top_3dbf_path)
+        bot_3dbf = OmegaConf.load(bot_3dbf_path)
 
-    return cfg
+        # Check unit
+        assert _3dbv.Header.unit == 'micron', "Only support .3dbv file with unit in microns."
+        
+        # Read die width and length
+        add_config_items(cfg, keys=['DIE_W_um', 'DIE_L_um'], 
+                        values=[float(_3dbv.ChipletDef[cfg.INTERFACE_TOP].design_area[0]),
+                                float(_3dbv.ChipletDef[cfg.INTERFACE_TOP].design_area[1])])
+        
+        # Read bump size, size/2 = radius. Find matching bum type
+        bump_type_list = list(top_3dbf.Bump_Types.keys())   # silicon_individual_bonding, organic_individual_bonding, ...
+        selected_bump_type = None
+
+        with open(_bmap_path, 'r') as f:
+            first_line = f.readline()
+            for bump_type in bump_type_list:
+                if bump_type in first_line.split()[1]:
+                    selected_bump_type = bump_type
+                    break
+
+        if selected_bump_type is None:
+            raise ValueError(f"No matching bump type found in {_bmap_path} for top chiplet {cfg.INTERFACE_TOP}.")
+        
+        add_config_items(cfg, keys=['PAD_TOP_R_um', 'PAD_BOT_R_um'], 
+                            values=[float(top_3dbf.Bump_Types[selected_bump_type].bump_size) / 2,
+                                    float(bot_3dbf.Bump_Types[selected_bump_type].bump_size) / 2])
+        
+        # Read pad pitch (top chip pitch) NOTE: currently assume row and col pitch are the same
+        add_config_items(cfg, keys=['PITCH_r_um', 'PITCH_c_um'], 
+                            values=[float(top_3dbf.Chiplet_Grid.pitch), 
+                                    float(top_3dbf.Chiplet_Grid.pitch)])
+        
+
+        ## Extract design parameters from .bmap file
+        update_config_from_bmap(cfg, _bmap_path, 
+                                y_tol=cfg.PITCH_r_um * 0.1, x_tol=cfg.PITCH_c_um * 0.1)
+
+        # Store in config dictionary
+        cfg_dict[cfg.INTERFACE] = cfg
+
+    return cfg_dict
 
 
 
 
 
 
-def draw_pad_bitmap(cfg, bitmap_collection):
+def draw_pad_bitmap(cfg, bitmap_collection, output_path):
     # Draw the critical and redundant pad bitmaps in one figure (critical light red, redundant light blue, dummy light gray)
     CRITICAL_PAD_BITMAP = bitmap_collection["CRITICAL_PAD_BITMAP"]
     REDUNDANT_PAD_BITMAP = bitmap_collection["REDUNDANT_PAD_BITMAP"]
@@ -288,7 +306,7 @@ def draw_pad_bitmap(cfg, bitmap_collection):
 
 
     # Save the pad bitmaps
-    plt.savefig(cfg.OUTPUT_DIR + cfg.INTERFACE + "/" + cfg.INTERFACE + "_pad_bitmap.png")
+    plt.savefig(os.path.join(output_path, cfg.INTERFACE + "_pad_bitmap.png"))
     # print("Pad bitmap collections info saved.")
     return
 
@@ -366,25 +384,25 @@ def criticality_generator(cfg,
 
 
 def risk_map_generator(cfg, 
-                    die: object,
-                        ):
+                    interface: object,
+                    input_args
+                    ):
     '''
     Risk map output format:
     <pad_coords_x> <pad_coords_y> <esd_failure_probability> <overlay_failure_probability> <particle_failure_probability> <mechanical_failure_probability>
     '''
     risk_map = list()
-    output_dir = os.path.join(cfg.OUTPUT_DIR, cfg.INTERFACE)
-    os.makedirs(output_dir, exist_ok=True)
+    output_dir = os.path.join(cfg.OUTPUT_DIR, input_args['ds_name'], cfg.INTERFACE)
     risk_map_path = os.path.join(output_dir, f"{cfg.INTERFACE}_risk.map")
-    for pad_id in range(len(die.pad_coords)):
-        pad_coords_x = die.pad_coords[pad_id, 0]
-        pad_coords_y = die.pad_coords[pad_id, 1]
+    for pad_id in range(len(interface.pad_coords)):
+        pad_coords_x = interface.pad_coords[pad_id, 0]
+        pad_coords_y = interface.pad_coords[pad_id, 1]
         if np.isnan(pad_coords_x) or np.isnan(pad_coords_y):
             continue
-        pad_ovl_yield = die.pad_yield_map['Y_ovl'].flatten()[pad_id]
-        pad_df_yield = die.pad_yield_map['Y_df'].flatten()[pad_id]
-        pad_ce_yield = die.pad_yield_map['Y_ce'].flatten()[pad_id]
-        pad_esd_yield = die.pad_yield_map['Y_esd'].flatten()[pad_id]
+        pad_ovl_yield = interface.pad_yield_map['Y_ovl'].flatten()[pad_id]
+        pad_df_yield = interface.pad_yield_map['Y_df'].flatten()[pad_id]
+        pad_ce_yield = interface.pad_yield_map['Y_ce'].flatten()[pad_id]
+        pad_esd_yield = interface.pad_yield_map['Y_esd'].flatten()[pad_id]
         risk_map.append({
             "pad_coords_x": pad_coords_x,
             "pad_coords_y": pad_coords_y,
@@ -406,7 +424,7 @@ def risk_map_generator(cfg,
         "overall": ("Y_bond", "Overall Failure Probability"),
     }
     for mechanism, (yield_key, colorbar_label) in mechanism_specs.items():
-        failure_map = 1.0 - np.asarray(die.pad_yield_map[yield_key], dtype=np.float64)
+        failure_map = 1.0 - np.asarray(interface.pad_yield_map[yield_key], dtype=np.float64)
         masked_failure_map = np.ma.masked_invalid(failure_map)
 
         finite_vals = failure_map[np.isfinite(failure_map)]
@@ -432,6 +450,7 @@ def risk_map_generator(cfg,
         plt.close(fig)
 
     print("Failure mechanism risk maps saved in ", output_dir)
+    print()
     
     return
 
@@ -441,13 +460,13 @@ def risk_map_generator(cfg,
 def convert_3dblox_to_pad_bitmap(cfg, 
                                  _bmap_path: str,
                                  criticality_path: str,
-                                 pad_arrange_pattern: str):
+                                 pad_arrange_pattern: str,
+                                 input_args):
     '''
     pad_arrange_pattern: 'checkerboard' for UCIe standard and HBM
     '''
     # Create output directory if not exist
-    if not os.path.exists(cfg.OUTPUT_DIR + cfg.INTERFACE):
-        os.makedirs(cfg.OUTPUT_DIR + cfg.INTERFACE)
+    output_path = os.path.join(cfg.OUTPUT_DIR, input_args['ds_name'], cfg.INTERFACE)      
         
     sort_pads_bmap(_bmap_path, _bmap_path)
 
@@ -568,7 +587,6 @@ def convert_3dblox_to_pad_bitmap(cfg,
     bitmap_collection["REDUNDANT_PAD_BITMAP"] = REDUNDANT_PAD_BITMAP
     bitmap_collection["DUMMY_PAD_BITMAP"] = DUMMY_PAD_BITMAP
     bitmap_collection["ESD_CRITICAL_PAD_BITMAP"] = ESD_CRITICAL_PAD_BITMAP
-    bitmap_collection["is_redundant_copy_same_block"] = False
     bitmap_collection["num_critical_pads"] = num_critical_pads
     bitmap_collection["num_redundant_pads"] = num_redundant_pads
     bitmap_collection["num_dummy_pads"] = num_dummy_pads
@@ -579,13 +597,11 @@ def convert_3dblox_to_pad_bitmap(cfg,
     bitmap_collection["criticality_info"] = criticality_info
     
     # Save the bitmap collection as npy file and mat file
-    if not os.path.exists(cfg.OUTPUT_DIR + cfg.INTERFACE + '/'):
-        os.makedirs(cfg.OUTPUT_DIR + cfg.INTERFACE + '/')
-    np.save(cfg.OUTPUT_DIR + cfg.INTERFACE + '/' + cfg.INTERFACE + "_bitmap_collection.npy", bitmap_collection)
+    np.save(output_path + '/' + cfg.INTERFACE + "_bitmap_collection.npy", bitmap_collection)
     # sio.savemat(cfg.OUTPUT_DIR + "bitmap_collection.mat", bitmap_collection)
 
     # # Draw the critical and redundant pad bitmaps in one figure (critical light red, redundant light blue, dummy light gray)
-    draw_pad_bitmap(cfg, bitmap_collection)
+    draw_pad_bitmap(cfg, bitmap_collection, output_path)
     # raise NotImplementedError("Stop here to avoid confusion.")
 
     return bitmap_collection

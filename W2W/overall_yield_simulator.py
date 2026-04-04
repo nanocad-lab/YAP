@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 
 from overlay_yield_simulator import die_pad_misalignment
 from Cu_gap_simulator import Cu_gap_simulator
-from debond import debond_dishing_bounds_calculator
+from debond import debond_dishing_bounds_calculator_coords
 from esd_yield_simulator import esd_failure_simulator
 
 def total_memory_mb(obj):
@@ -286,7 +286,7 @@ def overall_yield_simulator(
                 if not os.path.exists(cfg.OUTPUT_DIR + cfg.INTERFACE + '/temp/'):
                     os.makedirs(cfg.OUTPUT_DIR + cfg.INTERFACE + '/temp/')
                 # start_time = time.time()
-                valid_pad_dishing_bound_array = debond_dishing_bounds_calculator(cfg, valid_die_pad_coords) # (num_pads, 2) array: (dishing_low_nm, dishing_high_nm)
+                valid_pad_dishing_bound_array = debond_dishing_bounds_calculator_coords(cfg, valid_die_pad_coords) # (num_pads, 2) array: (dishing_low_nm, dishing_high_nm)
                 # print("Dishing bound calculation time: {:.2f} seconds".format(time.time() - start_time))
                 np.save(cfg.OUTPUT_DIR + cfg.INTERFACE + '/temp/' + cfg.INTERFACE + "_dishing_bound_array_die_{}.npy".format(die_ind), valid_pad_dishing_bound_array)
             else:
@@ -358,6 +358,8 @@ def overall_yield_simulator(
                                                 tilt_x_std_deg=TILT_X_STD_DEG,
                                                 tilt_y_mean_deg=TILT_Y_MEAN_DEG,
                                                 tilt_y_std_deg=TILT_Y_STD_DEG,
+                                                base_seed=die_ind,
+                                                z_top_um=100.0,
                                                 dummy_pad_bitmap=pad_bitmap_collection['DUMMY_PAD_BITMAP'].flatten()[valid_pad_mask.flatten() == 1],
                                                 )
                 if first_contact_pad_idx is not None and survive_bool == False:

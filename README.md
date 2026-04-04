@@ -31,29 +31,14 @@ pip install -r requirements.txt
 
 # Usage
 - Generate criticality file from bump map
-  ```
-  python utils/generate_criticality.py input/design_0/CPU_From_interposer.bmap
-  ```
-
-
-- Run the simulator and model for W2W hybrid bonding.
-  ```
-  cd W2W
-  ```
-
-  Example command to run the pad risk map calculator for W2W hybrid bonding
 
   ```
-  python pad_risk_map_calculator.py --config configs/design_0.yaml --mode w2w_modeling --ds_dir input/design_0 --bmap input/design_0/CPU_From_interposer.bmap --criticality input/design_0/CPU_From_interposer_criticality.txt --verbose
+  python D2W/utils/generate_criticality.py --force
   ```
 
-  Example command to run the simulator main for W2W hybrid bonding
-
-  ```
-  python simulator_main.py --config configs/design_0.yaml --mode w2w_simulation --ds_dir input/design_0 --bmap input/design_0/CPU_From_interposer.bmap --criticality input/design_0/CPU_From_interposer_criticality.txt --verbose
-  ```
 
 - Run the simulator and model for D2W hybrid bonding.
+
   ```
   cd D2W
   ```
@@ -61,13 +46,13 @@ pip install -r requirements.txt
   Example command to run the pad risk map calculator for D2W hybrid bonding
 
   ```
-  python pad_risk_map_calculator.py --config configs/design_0.yaml --mode d2w_modeling --ds_dir input/design_0 --bmap input/design_0/CPU_From_interposer.bmap --criticality input/design_0/CPU_From_interposer_criticality.txt --verbose
+  python pad_risk_map_calculator.py --config configs/design_1/design_1.yaml --mode d2w_modeling --ds_name design_1/Center_IO --ds_dir input/design_1/Center_IO --verbose
   ```
 
   Example command to run the simulator main for D2W hybrid bonding
 
   ```
-  python simulator_main.py --config configs/design_0.yaml --mode d2w_simulation --ds_dir input/design_0 --bmap input/design_0/CPU_From_interposer.bmap --criticality input/design_0/CPU_From_interposer_criticality.txt --verbose
+  python simulator_main.py --config configs/design_1/design_1.yaml --mode d2w_simulation --ds_dir input/design_1/Center_IO --bmap input/design_1/Center_IO/CPU_From_interposer.bmap --criticality input/design_1/Center_IO/CPU_From_interposer_criticality.txt --verbose
   ```
 
 # File Formats
