@@ -13,7 +13,7 @@ UPDATED (paper Eq.(27)–(36) pad-scale core):
   Eq.(27)–(36) replace the previous 9-parameter pad-scale model.
 
 INVERSION (FIXED WINDOW, consistent with Eq.(30) singularity):
-  - SiO2: search D in [-5, 10] nm; if no root -> return -5
+  - SiO2: search D in [-20, 10] nm; if no root -> return -20
   - Cu  : search D in [0, D_contact_max] where D_contact_max = delta_heat/2;
           if no root -> return D_contact_max
   - To avoid phi->0 divergence at the boundary D = D_contact_max, evaluate f(hi)
@@ -21,7 +21,7 @@ INVERSION (FIXED WINDOW, consistent with Eq.(30) singularity):
 
 FAST VERSION (LUT lookup, same window rules):
   - Build LUT once per __init_params(cfg): D_grid -> sigma(D)
-      * SiO2 uses Eq.(32) over D in [-5, 10] nm
+      * SiO2 uses Eq.(32) over D in [-20, 10] nm
       * Cu   uses Eq.(36) over D in [0, hi_eval] where hi_eval = nextafter(D_contact_max, 0)
   - Enforce monotonicity on LUT curves (numerical robustness)
   - Invert sigma_eff -> D by interpolation (vectorized for all points)
@@ -499,7 +499,7 @@ def _ensure_luts_ready(sio2_n: int = 2001, cu_n: int = 4001):
     """
     Build LUTs once per __init_params(cfg).
 
-    SiO2 window: D in [-5,10] nm
+    SiO2 window: D in [-20,10] nm
     Cu window:   D in [0,hi_eval], hi_eval = nextafter(D_contact_max, 0)
     """
     global _LUT_READY, _LUT_SIO2, _LUT_CU
@@ -509,7 +509,7 @@ def _ensure_luts_ready(sio2_n: int = 2001, cu_n: int = 4001):
     const = _padscale_precompute_constants()
 
     # ---------- SiO2 LUT ----------
-    D_sio2 = np.linspace(-5.0, 10.0, int(sio2_n), dtype=np.float64)
+    D_sio2 = np.linspace(-20.0, 10.0, int(sio2_n), dtype=np.float64)
     sig_sio2 = _sigma_sio2_vec_MPa(D_sio2, const)
 
     # enforce monotone non-increasing (numerical robustness)
@@ -518,7 +518,7 @@ def _ensure_luts_ready(sio2_n: int = 2001, cu_n: int = 4001):
     _LUT_SIO2 = dict(
         D_nm=D_sio2,
         sigma_MPa=sig_sio2_mono,
-        lo=-5.0,
+        lo=-20.0,
         hi=10.0,
         f_lo=float(sig_sio2_mono[0]),
         f_hi=float(sig_sio2_mono[-1]),
@@ -589,7 +589,7 @@ def _ensure_luts_ready(sio2_n: int = 2001, cu_n: int = 4001):
 def _invert_sio2_from_lut(sigma_eff_MPa: np.ndarray) -> np.ndarray:
     """
     Vectorized inversion for SiO2 using LUT.
-    Rule: window [-5,10] nm; if no root -> return -5.
+    Rule: window [-20,10] nm; if no root -> return -20.
     """
     _ensure_luts_ready()
     lut = _LUT_SIO2
@@ -686,8 +686,8 @@ def _effcrit_and_dishing_from_global_peel_MPa(p_global_MPa: np.ndarray) -> Tuple
 def invert_dishing_sio2_given_sigma_eff(sigma_eff_MPa: float) -> Tuple[float, dict]:
     """
     Fixed window inversion for SiO2 (LUT):
-      - window D in [-5,10] nm
-      - if no root -> return -5
+      - window D in [-20,10] nm
+      - if no root -> return -20
     """
     _ensure_luts_ready()
     t = float(sigma_eff_MPa)
