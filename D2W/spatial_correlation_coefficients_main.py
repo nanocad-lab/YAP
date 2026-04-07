@@ -1,76 +1,99 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import os
-import numpy as np
-from utils.util import *
-import time
 import argparse
-from spatial_correlation_coefficients_precalculate import Spatial_Correlation_Coefficients_Precalculate
+import os
+import time
+
+from omegaconf import OmegaConf
+
+from spatial_correlation_coefficients_precalculate import (
+    Spatial_Correlation_Coefficients_Precalculate,
+)
+from utils.util import convert_3dblox_to_pad_bitmap, get_config_dict
 
 
 def parse_args():
-    p = argparse.ArgumentParser(description="Simulate assembly yield for D2W hybrid bonding")
-    p.add_argument("--config", "-c", required=True, help="Path to modeling config yaml")
-    p.add_argument("--mode", "-m", default="d2w_modeling", help="Mode to load from config (default: d2w_modeling)")
-    p.add_argument("--bmap", "-b", required=True, help="Path to .bmap file (overrides default input/<INTERFACE>.bmap)")
-    p.add_argument("--criticality", "-cr", required=True, help="Path to criticality file (overrides default input/<INTERFACE>_criticality.txt)")
-    p.add_argument("--plot", "-plot", default=False, action="store_true", help="Enable plotting of the pad risk map")
-    p.add_argument("--debug", action="store_true", help="Enable debug output when loading config")
-    return p.parse_args()
+    parser = argparse.ArgumentParser(
+        description="Precalculate pad-failure spatial correlation coefficients for D2W hybrid bonding",
+    )
+    parser.add_argument("--config", "-c", required=True, help="Path to skeleton config YAML file")
+    parser.add_argument("--mode", "-m", default="d2w_simulation", help="Mode to load from config (default: d2w_simulation)")
+    parser.add_argument("--ds_name", "-d", required=True, help="Name of design (used for output directory naming)")
+    parser.add_argument("--ds_dir", required=True, help="Path to design directory")
+    parser.add_argument("--num-stack-samples", type=int, default=100, help="Total die-stack samples used to estimate correlation coefficients")
+    parser.add_argument("--sim-batch-size", type=int, default=10, help="Batch size for die-stack generation during correlation precalculation")
+    parser.add_argument("--distance-interval-um", type=float, default=5000.0, help="Distance span per KDTree processing round")
+    parser.add_argument("--bin-width-um", type=float, default=40.0, help="Distance bin width used when calculating phi")
+    parser.add_argument("--pair-query-chunk-size", type=int, default=256, help="Number of source pads per KDTree query chunk during pair precomputation")
+    parser.add_argument("--max-correlation-distance-um", type=float, default=None, help="Optional maximum pad-to-pad distance to include in the correlation statistics")
+    parser.add_argument("--plot", "-plot", action="store_true", help="Save phi-vs-distance plots")
+    parser.add_argument("--debug", action="store_true", help="Enable debug output when loading config")
+    return parser.parse_args()
+
 
 def main():
     args = parse_args()
 
-    # Load config
-    cfg = load_modeling_config(path=args.config, mode=args.mode, debug=args.debug)
+    if "simulation" not in args.mode:
+        raise ValueError("Spatial correlation precalculation expects a simulation mode, such as d2w_simulation.")
+    if args.num_stack_samples <= 0:
+        raise ValueError("--num-stack-samples must be positive.")
+    if args.sim_batch_size <= 0:
+        raise ValueError("--sim-batch-size must be positive.")
+    if args.pair_query_chunk_size <= 0:
+        raise ValueError("--pair-query-chunk-size must be positive.")
 
-    # Plotting flag
-    cfg.plot_flag = args.plot
-    
-    # Create output directory if it doesn't exist
-    if not os.path.exists(cfg.OUTPUT_DIR + cfg.INTERFACE):
-        os.makedirs(cfg.OUTPUT_DIR + cfg.INTERFACE)
+    input_ds_dir = args.ds_dir
+    _3dbv_path = os.path.join(input_ds_dir, "generated_chiplet_definitions.3dbv")
+    _3dbx_path = os.path.join(input_ds_dir, "generated_stack_config.3dbx")
+    cfg_skeleton = OmegaConf.load(args.config)[args.mode]
+    cfg_skeleton.NUM_DIE_STACKS = int(args.num_stack_samples)
+    cfg_skeleton.SIM_BATCH_SIZE = min(int(args.sim_batch_size), int(args.num_stack_samples))
 
+    print(f">>>>>> Starting spatial correlation precalculation for design: {args.ds_name}")
 
-
-    # Determine .bmap path
-    blox_bmap_path = args.bmap
-
-    # Determine criticality path
-    criticality_path = args.criticality
-
-    # Step 1: convert .bmap -> pad bitmap collection
-    pad_bitmap_collection = convert_3dblox_to_pad_bitmap(cfg=cfg,
-                                                        blox_bmap_path=blox_bmap_path,
-                                                        criticality_path=criticality_path,
-                                                        pad_arrange_pattern=cfg.PAD_ARRANGE_PATTERN)
-    
-    # Update cfg (same as before)
-    update_config_items(cfg=cfg, mode=args.mode)
-
-    # Step 2: run assembly yield simulator
-    print("Running spatial correlation coefficient precalculation...")
-    start_time = time.time()
-    if 'HBM' in cfg.INTERFACE:
-        cfg.NUM_DIES = 100  # For correlation coefficient precalculation, only 1 die is needed
-        cfg.SYSTEM_ROTATION_MEAN_rad = 7e-4
-        cfg.D0 = 1e-7
-    elif 'UCIe' in cfg.INTERFACE:
-        cfg.NUM_DIES = 1000  # For correlation coefficient precalculation, only 1 die is needed
-    else:
-        cfg.NUM_DIES = 10  # Default value
-        cfg.SYSTEM_ROTATION_MEAN_rad = 7e-2
-        cfg.D0 = 1e-6
-    cfg.TOP_DISH_MEAN_nm = -0.0 
-    cfg.TOP_DISH_STD_nm = 0.3 
-    cfg.BOT_DISH_MEAN_nm = -0.0
-    cfg.BOT_DISH_STD_nm = 0.3 
-    Spatial_Correlation_Coefficients_Precalculate(
-        cfg=cfg,
-        pad_bitmap_collection=pad_bitmap_collection,                                               
+    cfg_dict = get_config_dict(
+        cfg_folder=args.config.rsplit("/", 1)[0],
+        cfg_skeleton=cfg_skeleton,
+        ds_name=args.ds_name,
+        input_ds_dir=input_ds_dir,
+        _3dbv_path=_3dbv_path,
+        _3dbx_path=_3dbx_path,
+        mode=args.mode,
+        debug=args.debug,
     )
-    print("Total time taken for spatial correlation coefficient precalculation: {:.2f} seconds".format(time.time() - start_time))
+
+    for cfg in cfg_dict.values():
+        cfg.plot_flag = args.plot
+        output_path = os.path.join(cfg.OUTPUT_DIR, args.ds_name, cfg.INTERFACE)
+        os.makedirs(output_path, exist_ok=True)
+
+    bmap_path_dict = {}
+    criticality_path_dict = {}
+    pad_bitmap_collection_dict = {}
+    for interface_name, cfg in cfg_dict.items():
+        bmap_path_dict[interface_name] = os.path.join(input_ds_dir, f"{cfg.INTERFACE}.bmap")
+        criticality_path_dict[interface_name] = os.path.join(input_ds_dir, f"{cfg.INTERFACE}_criticality.txt")
+        pad_bitmap_collection_dict[interface_name] = convert_3dblox_to_pad_bitmap(
+            cfg=cfg,
+            _bmap_path=bmap_path_dict[interface_name],
+            criticality_path=criticality_path_dict[interface_name],
+            pad_arrange_pattern=cfg.PAD_ARRANGE_PATTERN,
+            input_args=vars(args),
+        )
+
+    start_time = time.time()
+    Spatial_Correlation_Coefficients_Precalculate(
+        input_args=vars(args),
+        cfg_skeleton=cfg_skeleton,
+        cfg_dict=cfg_dict,
+        pad_bitmap_collection_dict=pad_bitmap_collection_dict,
+    )
+    print(
+        "Total time taken for spatial correlation coefficient precalculation: "
+        f"{time.time() - start_time:.2f} seconds"
+    )
 
 
 if __name__ == "__main__":

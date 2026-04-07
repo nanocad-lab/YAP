@@ -6,26 +6,23 @@ cd "$SCRIPT_DIR"
 
 PYTHON_BIN="${PYTHON_BIN:-python}"
 MODE="d2w_modeling"
+RATIO_NAME=""
 
 usage() {
   cat <<'EOF'
 Usage:
-  ./run_design_pad_risk_maps.sh [DESIGN_ID_OR_NAME ...]
-  ./run_design_pad_risk_maps.sh [DESIGN_1,DESIGN_2,...]
+  ./run_design_pad_risk_maps.sh [--ratio RATIO_NAME] [DESIGN_ID_OR_NAME ...]
+  ./run_design_pad_risk_maps.sh [--ratio RATIO_NAME] [DESIGN_1,DESIGN_2,...]
 
 Examples:
   ./run_design_pad_risk_maps.sh
+  ./run_design_pad_risk_maps.sh --ratio c15_r10_pg_75_dm0
   ./run_design_pad_risk_maps.sh 3
   ./run_design_pad_risk_maps.sh design_17
   ./run_design_pad_risk_maps.sh design_1 design_2 design_3
   ./run_design_pad_risk_maps.sh 1,2,3
 EOF
 }
-
-if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
-  usage
-  exit 0
-fi
 
 normalize_design_name() {
   local raw_name="$1"
@@ -50,9 +47,47 @@ resolve_config_path() {
   fi
 }
 
+resolve_design_root() {
+  local design_name="$1"
+  local ratio_name="$2"
+  local legacy_root="input/${design_name}"
+  local candidate_root
+  local -a ratio_dirs=()
+
+  if [[ ! -d "$legacy_root" ]]; then
+    return 1
+  fi
+
+  if [[ -n "$ratio_name" ]]; then
+    candidate_root="${legacy_root}/${ratio_name}"
+    if [[ -d "$candidate_root" ]]; then
+      printf '%s\n%s\n' "$candidate_root" "${design_name}/${ratio_name}"
+      return 0
+    fi
+    return 1
+  fi
+
+  if [[ -d "${legacy_root}/Center_IO" ]]; then
+    printf '%s\n%s\n' "$legacy_root" "${design_name}"
+    return 0
+  fi
+
+  while IFS= read -r ratio_dir; do
+    ratio_dirs+=("$ratio_dir")
+  done < <(find "$legacy_root" -mindepth 1 -maxdepth 1 -type d -name 'c*_r*_pg_*_dm*' | sort)
+
+  if [[ ${#ratio_dirs[@]} -eq 1 ]]; then
+    candidate_root="${ratio_dirs[0]}"
+    printf '%s\n%s\n' "$candidate_root" "${design_name}/$(basename "$candidate_root")"
+    return 0
+  fi
+
+  return 1
+}
+
 run_one_design() {
   local design_name="$1"
-  local config design_root
+  local config design_root ds_prefix resolved_root_output
   local -a variants=()
   local status=0
 
@@ -61,11 +96,16 @@ run_one_design() {
     return 1
   fi
 
-  design_root="input/${design_name}"
-  if [[ ! -d "$design_root" ]]; then
-    echo "Design directory not found: ${design_root}" >&2
+  if ! resolved_root_output="$(resolve_design_root "$design_name" "$RATIO_NAME")"; then
+    if [[ -n "$RATIO_NAME" ]]; then
+      echo "Design ratio directory not found: input/${design_name}/${RATIO_NAME}" >&2
+    else
+      echo "Could not resolve design input root for ${design_name}. Use --ratio when multiple ratio folders exist." >&2
+    fi
     return 1
   fi
+  design_root="$(printf '%s\n' "$resolved_root_output" | sed -n '1p')"
+  ds_prefix="$(printf '%s\n' "$resolved_root_output" | sed -n '2p')"
 
   for variant in Center_IO Edge_IO Random_1 Random_2 Random_3; do
     if [[ -d "${design_root}/${variant}" ]]; then
@@ -80,14 +120,14 @@ run_one_design() {
 
   for variant in "${variants[@]}"; do
     echo "============================================================"
-    echo "Running pad risk map calculator for ${design_name}/${variant}"
+    echo "Running pad risk map calculator for ${ds_prefix}/${variant}"
     echo "============================================================"
     if ! "$PYTHON_BIN" pad_risk_map_calculator.py \
       --config "$config" \
       --mode "$MODE" \
-      --ds_name "${design_name}/${variant}" \
+      --ds_name "${ds_prefix}/${variant}" \
       --ds_dir "${design_root}/${variant}"; then
-      echo "Failed: ${design_name}/${variant}" >&2
+      echo "Failed: ${ds_prefix}/${variant}" >&2
       status=1
     fi
   done
@@ -98,6 +138,39 @@ run_one_design() {
 declare -a raw_design_args=()
 declare -a design_names=()
 declare -A seen_designs=()
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    --ratio)
+      if [[ $# -lt 2 ]]; then
+        echo "--ratio requires a value." >&2
+        exit 1
+      fi
+      RATIO_NAME="$2"
+      shift 2
+      ;;
+    --ratio=*)
+      RATIO_NAME="${1#*=}"
+      shift
+      ;;
+    --)
+      shift
+      break
+      ;;
+    -*)
+      echo "Unknown option: $1" >&2
+      usage >&2
+      exit 1
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
 
 if [[ $# -eq 0 ]]; then
   raw_design_args=("design_1")

@@ -26,6 +26,8 @@ def overall_yield_simulator(
     pass_interface_count_dict = {
         interface_name: 0 for interface_name in cfg_dict
     }
+    global_stack_offset = int(input_args.get('global_stack_offset', 0))
+    seed_run_base = int(input_args.get('seed_run_base', 0))
 
     epoch_fail_map_per_interface_dict = {}    # This dict stores the fail bump maps for all die samples in this epoch for each mechanism
     epoch_fail_vec_per_interface_dict = {}    # This dict stores failure reason (each mechanism) for all die samples in this epoch
@@ -68,7 +70,9 @@ def overall_yield_simulator(
 
             # Get the valid pad mask
             valid_pad_mask = (pad_bitmap_collection['CRITICAL_PAD_BITMAP'] == 1) | (pad_bitmap_collection['REDUNDANT_PAD_BITMAP'] == 1) | (pad_bitmap_collection['DUMMY_PAD_BITMAP'] == 1)
-            valid_die_pad_coords = die_interface.pad_coords[valid_pad_mask.flatten() == 1]
+            valid_pad_mask_flat = valid_pad_mask.flatten() == 1
+            valid_linear_idx = np.flatnonzero(valid_pad_mask_flat)
+            valid_die_pad_coords = die_interface.pad_coords[valid_pad_mask_flat]
             if not os.path.exists(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp/' + cfg.INTERFACE + "_dishing_bound_array.npy") or cfg.DEBUG:
                 if not os.path.exists(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp/'):
                     os.makedirs(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp/')
@@ -201,6 +205,11 @@ def overall_yield_simulator(
                         if np.any(overlap_void_pad_mask):
                             die_interface.voids_occur = True  # Will draw the die to green if it still survives
 
+                        # check_pad_y_coords grows bottom -> top, but the bitmap slices use
+                        # top-left origin. Flip the local overlap mask vertically before
+                        # combining it with any bitmap or fail-map slice.
+                        overlap_void_pad_mask_bitmap = np.flipud(overlap_void_pad_mask)
+
                         # Get the critical pad bitmap for the pads we need to consider
                         check_critical_pad_bitmap = die_critical_pad_bitmap[PAD_ARR_ROW-j_max-1:PAD_ARR_ROW-j_min, i_min:i_max+1]
                         # Get the redundant critical pad bitmap for the pads we need to consider
@@ -208,11 +217,11 @@ def overall_yield_simulator(
                         # Record the fail pads due to voids
                         if cfg.verbose:
                             sub_fail_map_particle = epoch_fail_map_per_interface_dict[interface_name]['particle'][PAD_ARR_ROW-j_max-1:PAD_ARR_ROW-j_min, i_min:i_max+1]
-                            sub_fail_map_particle[overlap_void_pad_mask] += 1
+                            sub_fail_map_particle[overlap_void_pad_mask_bitmap] += 1
                             sub_fail_map_overall = temp_overall_fail_map[PAD_ARR_ROW-j_max-1:PAD_ARR_ROW-j_min, i_min:i_max+1]
-                            sub_fail_map_overall[overlap_void_pad_mask] = 1
+                            sub_fail_map_overall[overlap_void_pad_mask_bitmap] = 1
                         # Check if any void overlaps with the critical pads
-                        overlap_critical = overlap_void_pad_mask & check_critical_pad_bitmap.astype(bool)
+                        overlap_critical = overlap_void_pad_mask_bitmap & check_critical_pad_bitmap.astype(bool)
                         if np.any(overlap_critical):
                             die_interface.survival = False
                             die_stack.survival = False
@@ -223,7 +232,7 @@ def overall_yield_simulator(
                                 break
                         else:
                             # Check if any void overlaps with the redundant critical pads
-                            overlap_redundant = overlap_void_pad_mask & check_redundant_pad_bitmap.astype(bool)
+                            overlap_redundant = overlap_void_pad_mask_bitmap & check_redundant_pad_bitmap.astype(bool)
                             redundant_pad_fail_map[PAD_ARR_ROW-j_max-1:PAD_ARR_ROW-j_min, i_min:i_max+1][overlap_redundant] = 1
                             for redundant_net, physical_mask in redundant_net_to_1d_physical_mask.items():
                                 tolerated_mechanical_failures = criticality_info[redundant_net]['tolerated_mechanical_failures']
@@ -350,11 +359,14 @@ def overall_yield_simulator(
                                                     tilt_x_std_deg=TILT_X_STD_DEG,
                                                     tilt_y_mean_deg=TILT_Y_MEAN_DEG,
                                                     tilt_y_std_deg=TILT_Y_STD_DEG,
-                                                    base_seed=interface_ind * NUM_STACKS + stack_ind,
-                                                    dummy_pad_bitmap=pad_bitmap_collection['DUMMY_PAD_BITMAP'].flatten()[valid_pad_mask.flatten() == 1],
+                                                    base_seed=seed_run_base + (global_stack_offset + stack_ind) * max(len(cfg_dict), 1) + interface_ind,
+                                                    dummy_pad_bitmap=pad_bitmap_collection['DUMMY_PAD_BITMAP'].flatten()[valid_pad_mask_flat],
                                                     )
             if esd_pad_idx is not None and survive_bool == False:    # One pad will form the first contact and fail
-                r_idx, c_idx = esd_pad_idx // PAD_ARR_COL, esd_pad_idx % PAD_ARR_COL
+                # esd_pad_idx is indexed within the compressed valid-pad list, so map
+                # it back to the full pad-array linear index before decoding row/col.
+                full_linear_idx = int(valid_linear_idx[int(esd_pad_idx)])
+                r_idx, c_idx = full_linear_idx // PAD_ARR_COL, full_linear_idx % PAD_ARR_COL
                 if cfg.verbose:
                     epoch_fail_map_per_interface_dict[interface_name]['ESD'][r_idx, c_idx] += 1
                     temp_overall_fail_map[r_idx, c_idx] = 1
@@ -366,6 +378,8 @@ def overall_yield_simulator(
                         epoch_fail_vec_per_interface_dict[interface_name]['ESD'][stack_ind] = 1
                         epoch_fail_vec_per_interface_dict[interface_name]['overall'][stack_ind] = 1
                     continue
+                if die_redundant_pad_bitmap[r_idx, c_idx] == 1:
+                    redundant_pad_fail_map[r_idx, c_idx] = 1
                 for redundant_net, physical_mask in redundant_net_to_1d_physical_mask.items():
                     tolerated_esd_failures = criticality_info[redundant_net]['tolerated_esd_failures']
                     num_fail_pad_in_net = np.sum(redundant_pad_fail_map.flatten()[physical_mask])

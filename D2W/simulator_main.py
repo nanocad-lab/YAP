@@ -6,6 +6,7 @@ import numpy as np
 from utils.util import *
 import time
 import argparse
+import secrets
 from assembly_yield_simulator import Assembly_Yield_Simulator
 
 
@@ -22,6 +23,7 @@ def parse_args():
 
 def main():
     args = parse_args()
+    args.seed_run_base = secrets.randbits(63)
 
     # Extract the design input files directory if provided
     input_ds_dir = args.ds_dir

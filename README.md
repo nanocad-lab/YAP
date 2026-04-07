@@ -58,7 +58,7 @@ pip install -r requirements.txt
   Example command to run the pad risk map calculator for D2W hybrid bonding for a single design
 
   ```
-  python pad_risk_map_calculator.py --config configs/design_1/design_1.yaml --mode d2w_modeling --ds_name design_1/Center_IO --ds_dir input/design_1/Center_IO
+  python pad_risk_map_calculator.py --config configs/design_1/design_1.yaml --mode d2w_modeling --ds_name design_1/c25_r0_pg_50_dm25/Center_IO --ds_dir input/design_1/c25_r0_pg_50_dm25/Center_IO --verbose
   ```
 
   Example command to run the pad risk map calculator for all variants of one or more designs
@@ -72,7 +72,7 @@ pip install -r requirements.txt
   Example command to run the simulator main for D2W hybrid bonding for a single design
 
   ```
-  python simulator_main.py --config configs/design_1/design_1.yaml --mode d2w_simulation --ds_name design_1/Center_IO --ds_dir input/design_1/Center_IO
+  python simulator_main.py   --config configs/design_1/design_1.yaml   --mode d2w_simulation   --ds_name design_1/c25_r0_pg_50_dm25/Center_IO   --ds_dir input/design_1/c25_r0_pg_50_dm25/Center_IO --verbose
   ```
 
   Example command to run D2W simulation for all variants of one or more designs

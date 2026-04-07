@@ -76,8 +76,11 @@ def Assembly_Yield_Simulator(
         
         
         # Calculate the overall yield
+        epoch_input_args = dict(input_args)
+        epoch_input_args['global_stack_offset'] = epoch * SIM_BATCH_SIZE
+
         yield_list, epoch_interface_yield_dict, epoch_fail_map_per_interface_dict, epoch_fail_vec_per_interface_dict = overall_yield_simulator(
-            input_args=input_args,
+            input_args=epoch_input_args,
             cfg_dict=cfg_dict,
             die_stack_list=die_stack_list,
             pad_bitmap_collection_dict=pad_bitmap_collection_dict,

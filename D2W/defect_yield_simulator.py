@@ -276,7 +276,7 @@ def defect_yield_simulator(
         VOID_SHAPE = cfg.VOID_SHAPE
 
         # num_particles calculation
-        drop_particle_range = 2 # the range of the particles to drop regarding the die size
+        drop_particle_range = 1 # the range of the particles to drop regarding the die size
         total_particles = (drop_particle_range * DIE_W_um) * (drop_particle_range * DIE_L_um) * D0 * NUM_STACKS     # Put the particles on the 2*DIE_W_um * 2*DIE_L_um area
         particles_per_interface = np.random.multinomial(
             total_particles, [1 / NUM_STACKS] * NUM_STACKS

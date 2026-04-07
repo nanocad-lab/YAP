@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
 """
-Assign port/net names to pre-ordered bump maps in place.
+Assign port/net names to existing bump maps in place.
 
-The script preserves the existing bump order in each `.bmap` file and only
-replaces the last two columns (`port`, `net`). Categories are assigned from top
-to bottom in this order:
+The script preserves the existing line order in each `.bmap` file and only
+replaces the last two columns (`port`, `net`). Category assignment order is
+driven by the folder type:
 
-1. critical bumps
-2. redundant bumps (always consecutive pairs)
-3. power/ground bumps
-4. dummy bumps
+1. `Center_IO`: center outward, ring by ring
+2. `Edge_IO`: outer edge inward, ring by ring
+3. `Random_*`: deterministic shuffled order
 
 By default it processes:
   D2W/input/design_1
@@ -35,7 +34,9 @@ Overwrite all default designs with custom ratios:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import math
+import random
 from dataclasses import dataclass
 from itertools import cycle
 from pathlib import Path
@@ -304,7 +305,65 @@ def build_critical_name(
     return extract_suffix_name(entry.instance)
 
 
+def infer_assignment_mode(path: Path) -> str:
+    for part in path.parts:
+        if part == "Center_IO":
+            return "center"
+        if part == "Edge_IO":
+            return "edge"
+        if part.startswith("Random_"):
+            return "random"
+    return "input"
+
+
+def build_assignment_order(path: Path, entries: list[BmapEntry]) -> list[int]:
+    mode = infer_assignment_mode(path)
+    if mode == "input":
+        return list(range(len(entries)))
+
+    x_values = sorted({float(entry.x) for entry in entries})
+    y_values = sorted({float(entry.y) for entry in entries}, reverse=True)
+    x_to_col = {value: idx for idx, value in enumerate(x_values)}
+    y_to_row = {value: idx for idx, value in enumerate(y_values)}
+
+    decorated: list[tuple[int, int, int]] = []
+    for idx, entry in enumerate(entries):
+        col = x_to_col[float(entry.x)]
+        row = y_to_row[float(entry.y)]
+        decorated.append((idx, row, col))
+
+    if mode == "center":
+        center_row = (len(y_values) - 1) / 2.0
+        center_col = (len(x_values) - 1) / 2.0
+        decorated.sort(
+            key=lambda item: (
+                max(abs(item[1] - center_row), abs(item[2] - center_col)),
+                item[1],
+                item[2],
+            )
+        )
+    elif mode == "edge":
+        max_row = len(y_values) - 1
+        max_col = len(x_values) - 1
+        decorated.sort(
+            key=lambda item: (
+                min(item[1], item[2], max_row - item[1], max_col - item[2]),
+                item[1],
+                item[2],
+            )
+        )
+    else:
+        seed = int.from_bytes(
+            hashlib.sha256(str(path).encode("utf-8")).digest()[:8], "big"
+        )
+        rng = random.Random(seed)
+        rng.shuffle(decorated)
+
+    return [idx for idx, _, _ in decorated]
+
+
 def assign_names(
+    path: Path,
     entries: list[BmapEntry],
     counts: CategoryCounts,
     critical_name_mode: str,
@@ -316,46 +375,51 @@ def assign_names(
     if not pg_pattern:
         raise ValueError("pg_pattern must contain at least one name.")
 
-    rewritten_lines: list[str] = []
+    ordered_indices = build_assignment_order(path, entries)
+    rewritten_lines: list[str | None] = [None] * len(entries)
     idx = 0
 
-    for critical_idx in range(1, counts.critical + 1):
-        entry = entries[idx]
-        name = build_critical_name(entry, critical_idx, critical_name_mode, critical_prefix)
-        rewritten_lines.append(
+    def rewrite_entry(entry_index: int, name: str) -> None:
+        entry = entries[entry_index]
+        rewritten_lines[entry_index] = (
             f"{entry.instance} {entry.bump_type} {entry.x} {entry.y} {name} {name}"
         )
+
+    for critical_idx in range(1, counts.critical + 1):
+        entry_index = ordered_indices[idx]
+        entry = entries[entry_index]
+        name = build_critical_name(
+            entry, critical_idx, critical_name_mode, critical_prefix
+        )
+        rewrite_entry(entry_index, name)
         idx += 1
 
     for redundant_idx in range(1, counts.redundant // 2 + 1):
         pair_name = f"{redundant_prefix}{redundant_idx}"
         for _ in range(2):
-            entry = entries[idx]
-            rewritten_lines.append(
-                f"{entry.instance} {entry.bump_type} {entry.x} {entry.y} {pair_name} {pair_name}"
-            )
+            entry_index = ordered_indices[idx]
+            rewrite_entry(entry_index, pair_name)
             idx += 1
 
     pg_name_iter = cycle(pg_pattern)
     for _ in range(counts.pg):
-        entry = entries[idx]
+        entry_index = ordered_indices[idx]
         pg_name = next(pg_name_iter)
-        rewritten_lines.append(
-            f"{entry.instance} {entry.bump_type} {entry.x} {entry.y} {pg_name} {pg_name}"
-        )
+        rewrite_entry(entry_index, pg_name)
         idx += 1
 
     for _ in range(counts.dummy):
-        entry = entries[idx]
-        rewritten_lines.append(
-            f"{entry.instance} {entry.bump_type} {entry.x} {entry.y} {dummy_name} {dummy_name}"
-        )
+        entry_index = ordered_indices[idx]
+        rewrite_entry(entry_index, dummy_name)
         idx += 1
 
     if idx != len(entries):
         raise AssertionError("Internal error: not all bump entries were assigned.")
 
-    return rewritten_lines
+    if any(line is None for line in rewritten_lines):
+        raise AssertionError("Internal error: some bump entries were not rewritten.")
+
+    return [line for line in rewritten_lines if line is not None]
 
 
 def write_lines(path: Path, lines: list[str]) -> None:
@@ -401,6 +465,7 @@ def main() -> None:
             dummy_ratio=args.dummy_ratio,
         )
         rewritten_lines = assign_names(
+            path=path,
             entries=entries,
             counts=counts,
             critical_name_mode=args.critical_name_mode,
