@@ -12,10 +12,11 @@
 │   ├── input/      # Per-design 3dblox inputs, bump maps, and criticality files
 │   │   └── design_0/
 │   │           ├── bump_map.bmap
-│   │           ├── criticality.txt
-│   │           ├── .3dbv
-│   │           ├── .3dbx
-│   │           └── .3dbf
+│   │           ├── <chiplet_A>_to_<chiplet_B>_shared_nets.txt
+│   │           ├── <chiplet_A>_to_<chiplet_B>_criticality.txt
+│   │           ├── generated_chiplet_definitions.3dbv
+│   │           ├── generated_stack_config.3dbx
+│   │           └── <chiplet_A>.3dbf
 │   └── utils/      # Helper scripts for bump map / criticality processing
 ├── W2W/      # Code for W2W hybrid bonding
 ├── LICENSE
@@ -64,9 +65,9 @@ pip install -r requirements.txt
   Example command to run the pad risk map calculator for all variants of one or more designs
 
   ```
-  ./run_design_pad_risk_maps.sh design_1
-  ./run_design_pad_risk_maps.sh design_1 design_2 design_3
-  ./run_design_pad_risk_maps.sh 1,2,3
+  ./run_design_pad_risk_maps.sh --ratio c25_r0_pg50_dm25 design_1
+  ./run_design_pad_risk_maps.sh --ratio c25_r0_pg50_dm25 design_1 design_2 design_3
+  ./run_design_pad_risk_maps.sh --ratio c25_r0_pg50_dm25 1,2,3
   ```
 
   Example command to run the simulator main for D2W hybrid bonding for a single design
@@ -78,9 +79,9 @@ pip install -r requirements.txt
   Example command to run D2W simulation for all variants of one or more designs
 
   ```
-  ./run_design_simulations.sh design_1
-  ./run_design_simulations.sh design_1 design_2 design_3
-  ./run_design_simulations.sh 1,2,3
+  ./run_design_simulations.sh --ratio c25_r0_pg50_dm25 design_1
+  ./run_design_simulations.sh --ratio c25_r0_pg50_dm25 design_1 design_2 design_3
+  ./run_design_simulations.sh --ratio c25_r0_pg50_dm25 --verbose 1,2,3
   ```
 
 # File Formats

@@ -30,6 +30,7 @@ def Assembly_Yield_Simulator(
     failure_mechanism_list = ['overlay', 'particle', 'mechanical', 'ESD', 'overall']
     epoch_yield_list = []
     epoch_interface_yield_list_dict = {interface_name: [] for interface_name in cfg_dict}
+    skip_verbose_root_artifacts = bool(input_args.get('skip_verbose_root_artifacts', False))
 
     # Initialize a temporary die stack once to extract the reference pad coordinates.
     temp_die_stack_list, base_pad_coords_dict = die_stack_list_initialize(
@@ -134,13 +135,16 @@ def Assembly_Yield_Simulator(
             print("{} die stack failures due to mechanical issues.".format(int(np.sum(fail_vec_per_interface_dict[interface_name]['mechanical']))))
             print("{} die stack failures due to ESD issues.".format(int(np.sum(fail_vec_per_interface_dict[interface_name]['ESD']))))
             print("{} die stack failures in total.".format(int(np.sum(fail_vec_per_interface_dict[interface_name]['overall']))))
-            # Save fail map dict
             output_dir = os.path.join(cfg.OUTPUT_DIR, input_args['ds_name'])
-            np.savez(os.path.join(output_dir, 'assembly_fail_map_per_interface_dict.npz'), **fail_map_per_interface_dict)
-            print("Failure heat maps saved to {}.".format(os.path.join(output_dir, 'assembly_fail_map_per_interface_dict.npz')))
-            # Save fail vec dict
-            np.savez(os.path.join(output_dir, 'assembly_fail_vec_per_interface_dict.npz'), **fail_vec_per_interface_dict)
-            print("Failure vectors for all die samples saved to {}.".format(os.path.join(output_dir, 'assembly_fail_vec_per_interface_dict.npz')))
+            if not skip_verbose_root_artifacts:
+                # Save fail map dict
+                np.savez(os.path.join(output_dir, 'assembly_fail_map_per_interface_dict.npz'), **fail_map_per_interface_dict)
+                print("Failure heat maps saved to {}.".format(os.path.join(output_dir, 'assembly_fail_map_per_interface_dict.npz')))
+                # Save fail vec dict
+                np.savez(os.path.join(output_dir, 'assembly_fail_vec_per_interface_dict.npz'), **fail_vec_per_interface_dict)
+                print("Failure vectors for all die samples saved to {}.".format(os.path.join(output_dir, 'assembly_fail_vec_per_interface_dict.npz')))
+            else:
+                print("Skipped root-level verbose NPZ artifacts because identical-interface reuse is active.")
 
             # Plot the results for this interface and save the figures
             result_wrapper(

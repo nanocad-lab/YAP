@@ -8,7 +8,7 @@ driven by the folder type:
 
 1. `Center_IO`: center outward, ring by ring
 2. `Edge_IO`: outer edge inward, ring by ring
-3. `Random_*`: deterministic shuffled order
+3. `Random_*`: deterministic shuffled order shared by the same chiplet type
 
 By default it processes:
   D2W/input/design_1
@@ -37,6 +37,7 @@ import argparse
 import hashlib
 import math
 import random
+import re
 from dataclasses import dataclass
 from itertools import cycle
 from pathlib import Path
@@ -316,6 +317,17 @@ def infer_assignment_mode(path: Path) -> str:
     return "input"
 
 
+def canonical_random_chiplet_type(path: Path) -> str:
+    """
+    Canonicalize a Random_* file stem so repeated chiplets of the same type
+    share one deterministic random assignment template.
+    """
+    stem_parts = [part for part in path.stem.split("_") if not part.isdigit()]
+    canonical_stem = "_".join(stem_parts)
+    canonical_stem = re.sub(r"_+", "_", canonical_stem).strip("_")
+    return canonical_stem
+
+
 def build_assignment_order(path: Path, entries: list[BmapEntry]) -> list[int]:
     mode = infer_assignment_mode(path)
     if mode == "input":
@@ -353,8 +365,11 @@ def build_assignment_order(path: Path, entries: list[BmapEntry]) -> list[int]:
             )
         )
     else:
+        random_group_key = (
+            f"{path.parent.as_posix()}::{canonical_random_chiplet_type(path)}"
+        )
         seed = int.from_bytes(
-            hashlib.sha256(str(path).encode("utf-8")).digest()[:8], "big"
+            hashlib.sha256(random_group_key.encode("utf-8")).digest()[:8], "big"
         )
         rng = random.Random(seed)
         rng.shuffle(decorated)

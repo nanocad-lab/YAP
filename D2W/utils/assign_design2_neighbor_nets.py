@@ -135,6 +135,12 @@ def infer_mode(path: Path) -> str:
     return "input"
 
 
+def canonical_random_chiplet_type(path: Path) -> str:
+    stem_parts = [part for part in path.stem.split("_") if not part.isdigit()]
+    canonical_stem = "_".join(stem_parts)
+    return re.sub(r"_+", "_", canonical_stem).strip("_")
+
+
 def build_assignment_order(path: Path, entries: list[list[str]]) -> list[int]:
     mode = infer_mode(path)
     if mode == "input":
@@ -170,8 +176,11 @@ def build_assignment_order(path: Path, entries: list[list[str]]) -> list[int]:
             )
         )
     else:
+        random_group_key = (
+            f"{path.parent.as_posix()}::{canonical_random_chiplet_type(path)}"
+        )
         seed = int.from_bytes(
-            hashlib.sha256(str(path).encode("utf-8")).digest()[:8], "big"
+            hashlib.sha256(random_group_key.encode("utf-8")).digest()[:8], "big"
         )
         rng = random.Random(seed)
         rng.shuffle(decorated)

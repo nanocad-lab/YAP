@@ -16,13 +16,11 @@ Usage:
   ./run_design_simulations.sh [--verbose] [--ratio RATIO_NAME] [DESIGN_1,DESIGN_2,...]
 
 Examples:
-  ./run_design_simulations.sh
-  ./run_design_simulations.sh --verbose
-  ./run_design_simulations.sh --ratio c20_r10_pg50_dm20
-  ./run_design_simulations.sh 3
-  ./run_design_simulations.sh design_17
-  ./run_design_simulations.sh design_1 design_2 design_3
-  ./run_design_simulations.sh 1,2,3
+  ./run_design_simulations.sh --ratio c25_r0_pg50_dm25 design_1
+  ./run_design_simulations.sh --ratio c20_r10_pg50_dm20 --verbose design_17
+  ./run_design_simulations.sh --ratio c25_r0_pg50_dm25 3
+  ./run_design_simulations.sh --ratio c25_r0_pg50_dm25 design_1 design_2 design_3
+  ./run_design_simulations.sh --ratio c25_r0_pg50_dm25 --verbose 1,2,3
 EOF
 }
 

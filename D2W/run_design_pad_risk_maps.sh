@@ -15,12 +15,11 @@ Usage:
   ./run_design_pad_risk_maps.sh [--ratio RATIO_NAME] [DESIGN_1,DESIGN_2,...]
 
 Examples:
-  ./run_design_pad_risk_maps.sh
-  ./run_design_pad_risk_maps.sh --ratio c20_r10_pg50_dm20
-  ./run_design_pad_risk_maps.sh 3
-  ./run_design_pad_risk_maps.sh design_17
-  ./run_design_pad_risk_maps.sh design_1 design_2 design_3
-  ./run_design_pad_risk_maps.sh 1,2,3
+  ./run_design_pad_risk_maps.sh --ratio c25_r0_pg50_dm25 design_1
+  ./run_design_pad_risk_maps.sh --ratio c20_r10_pg50_dm20 design_17
+  ./run_design_pad_risk_maps.sh --ratio c25_r0_pg50_dm25 3
+  ./run_design_pad_risk_maps.sh --ratio c25_r0_pg50_dm25 design_1 design_2 design_3
+  ./run_design_pad_risk_maps.sh --ratio c25_r0_pg50_dm25 1,2,3
 EOF
 }
 

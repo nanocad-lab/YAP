@@ -280,7 +280,7 @@ def draw_pad_bitmap(cfg, bitmap_collection, output_path):
     # Remaining zeros are non-pad areas
     PAD_BITMAP[PAD_BITMAP == 0] = 4  # non-pad (light gray)
 
-    plt.figure(figsize=(10, 10))
+    fig = plt.figure(figsize=(10, 10))
     cmap = ListedColormap([
         (1.0, 0.5, 0.5),    # 1 - critical (medium red)
         (0.4, 0.4, 0.9),    # 2 - redundant (medium blue)
@@ -307,6 +307,7 @@ def draw_pad_bitmap(cfg, bitmap_collection, output_path):
 
     # Save the pad bitmaps
     plt.savefig(os.path.join(output_path, cfg.INTERFACE + "_pad_bitmap.png"))
+    plt.close(fig)
     # print("Pad bitmap collections info saved.")
     return
 
@@ -553,6 +554,16 @@ def convert_3dblox_to_pad_bitmap(cfg,
             y = bump['y']
             row = int(round((pad_array_top - y ) / (cfg.PITCH_r_um)))   # Because in checkerboard pattern, the pitch per row is halved
             col = int(round((x - pad_array_left) / (cfg.PITCH_c_um)))   # Because in checkerboard pattern, the pitch per column is halved
+            if not (0 <= row < cfg.PAD_ARR_ROW) or not (0 <= col < cfg.PAD_ARR_COL):
+                raise IndexError(
+                    f"Pad indexing out of bounds for interface {cfg.INTERFACE}: "
+                    f"bumpid={bump['bumpid']} net={bump['net']} x={x} y={y} "
+                    f"-> row={row}, col={col}, "
+                    f"shape=({cfg.PAD_ARR_ROW}, {cfg.PAD_ARR_COL}), "
+                    f"pitch=({cfg.PITCH_r_um}, {cfg.PITCH_c_um}), "
+                    f"bbox(left={pad_array_left}, right={pad_array_right}, "
+                    f"top={pad_array_top}, bottom={pad_array_bottom})"
+                )
             mapping_physical_to_bumpid[row, col] = bump['bumpid']
             pad_coords[row * cfg.PAD_ARR_COL + col, 0] = bump['x'] - (pad_array_left + pad_array_right) / 2
             pad_coords[row * cfg.PAD_ARR_COL + col, 1] = bump['y'] - (pad_array_top + pad_array_bottom) / 2
