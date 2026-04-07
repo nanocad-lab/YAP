@@ -15,7 +15,7 @@
 │   │           ├── <chiplet_A>_to_<chiplet_B>_shared_nets.txt
 │   │           ├── <chiplet_A>_to_<chiplet_B>_criticality.txt
 │   │           ├── generated_chiplet_definitions.3dbv
-│   │           ├── generated_stack_config.3dbx
+│   │           ├── generated_stack_config.3dbx 
 │   │           └── <chiplet_A>.3dbf
 │   └── utils/      # Helper scripts for bump map / criticality processing
 ├── W2W/      # Code for W2W hybrid bonding
