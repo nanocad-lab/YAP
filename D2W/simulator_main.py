@@ -44,7 +44,7 @@ def main():
     cfg_skeleton = OmegaConf.load(args.config)[args.mode]
 
     print(">>>>>> Starting D2W yield simulation for design: {}".format(args.ds_name))
-    
+    start_time = time.perf_counter()
     # Load config and update with design and ADK parameters (from .3dbv and .bmap)
     cfg_dict = get_config_dict(cfg_folder=args.config.rsplit('/', 1)[0],
                                 cfg_skeleton=cfg_skeleton, 
@@ -54,6 +54,8 @@ def main():
                                 _3dbx_path=_3dbx_path,
                                 mode=args.mode, 
                                 debug=args.debug)
+    cfg_loading_time = time.perf_counter() - start_time
+    print(f"Config loading and processing finished in {cfg_loading_time:.2f} seconds.")
 
     # Plotting flag
     for cfg in cfg_dict.values():
@@ -117,10 +119,12 @@ def main():
                 pad_arrange_pattern=cfg.PAD_ARRANGE_PATTERN,
                 input_args=vars(args),
             )
+    convert_time = time.perf_counter() - start_time - cfg_loading_time
+    print("Pad bitmap collection generation finished in {:.2f} seconds.".format(convert_time))
 
     # Step 2: run assembly yield simulator
     print("Running assembly yield simulator over {} die stacks...".format(cfg_skeleton.NUM_DIE_STACKS))
-    start_time = time.time()
+    simulation_start_time = time.time()
     if has_reused_interfaces(grouped_interfaces):
         per_interface_yield_dict = {}
         stack_assembly_yield = 1.0
@@ -171,7 +175,9 @@ def main():
     print("Per-interface simulation yield:")
     for interface_name, interface_yield in per_interface_yield_dict.items():
         print(f">>  {interface_name}: {interface_yield:.6f}")
-    print("Total time taken: {:.2f} seconds".format(time.time() - start_time))
+    print("Simulation finished in {:.2f} seconds.".format(time.time() - simulation_start_time))
+    # Total running time
+    print(f"Total D2W assembly yield simulation finished in {time.perf_counter() - start_time:.2f} seconds.")
 
 
 if __name__ == "__main__":

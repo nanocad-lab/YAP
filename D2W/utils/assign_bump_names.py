@@ -365,6 +365,7 @@ def build_assignment_order(path: Path, entries: list[BmapEntry]) -> list[int]:
             )
         )
     else:
+        decorated.sort(key=lambda item: (item[1], item[2]))
         random_group_key = (
             f"{path.parent.as_posix()}::{canonical_random_chiplet_type(path)}"
         )

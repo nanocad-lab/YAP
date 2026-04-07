@@ -19,12 +19,14 @@ import hashlib
 import random
 import re
 from collections import Counter
+from itertools import cycle
 from pathlib import Path
 
 import bmap_grid_sync as bgs
 
 RATIO_RE = re.compile(r"^c(?P<c>\d+)_r(?P<r>\d+)_pg_?(?P<pg>\d+)_dm(?P<dm>\d+)$")
 CHIPLET_PREFIX_RE = re.compile(r"^chiplet_(?P<id>\d+)_(?P<rest>.+)$")
+PG_PATTERN = ("VDD", "VSS")
 
 
 def parse_args() -> argparse.Namespace:
@@ -170,6 +172,7 @@ def build_assignment_order(path: Path, entries: list[list[str]]) -> list[int]:
             )
         )
     else:
+        decorated.sort(key=lambda item: (item[1], item[2]))
         random_group_key = (
             f"{path.parent.as_posix()}::{canonical_random_chiplet_type(path)}"
         )
@@ -273,9 +276,9 @@ def retag_pair(
                 entries[entry_idx][4] = name
                 entries[entry_idx][5] = name
 
+        pg_name_iter = cycle(PG_PATTERN)
         for entry_idx in pg_indices:
-            base_name = strip_chiplet_prefix(entries[entry_idx][4])
-            name = f"chiplet_{chiplet_id}_{base_name}"
+            name = f"chiplet_{chiplet_id}_{next(pg_name_iter)}"
             entries[entry_idx][4] = name
             entries[entry_idx][5] = name
 

@@ -167,6 +167,8 @@ def main():
         )
     print(">>> D2W pad-level risk map calculation completed")
     print(f"Pad yield map generation finished in {time.perf_counter() - yield_map_generation_start_time:.2f} s\n")
+    # Total running time
+    print(f"Total D2W pad-level risk map calculation finished in {time.perf_counter() - start_time:.2f} seconds.")
 
 if __name__ == "__main__":
     main()
