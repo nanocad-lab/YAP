@@ -81,6 +81,7 @@ def regenerate_ratio_tree(
             dummy_ratio=dummy_ratio,
         )
         rewritten_lines = abn.assign_names(
+            path=bmap_path,
             entries=entries,
             counts=counts,
             critical_name_mode="suffix",
@@ -121,7 +122,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--source-ratio",
         type=str,
-        default="c15_r10_pg_75_dm0",
+        default="c20_r10_pg50_dm20",
         help="Existing ratio directory used as the physical-layout template.",
     )
     parser.add_argument(

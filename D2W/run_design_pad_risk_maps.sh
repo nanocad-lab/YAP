@@ -16,7 +16,7 @@ Usage:
 
 Examples:
   ./run_design_pad_risk_maps.sh
-  ./run_design_pad_risk_maps.sh --ratio c15_r10_pg_75_dm0
+  ./run_design_pad_risk_maps.sh --ratio c20_r10_pg50_dm20
   ./run_design_pad_risk_maps.sh 3
   ./run_design_pad_risk_maps.sh design_17
   ./run_design_pad_risk_maps.sh design_1 design_2 design_3
@@ -74,7 +74,7 @@ resolve_design_root() {
 
   while IFS= read -r ratio_dir; do
     ratio_dirs+=("$ratio_dir")
-  done < <(find "$legacy_root" -mindepth 1 -maxdepth 1 -type d -name 'c*_r*_pg_*_dm*' | sort)
+  done < <(find "$legacy_root" -mindepth 1 -maxdepth 1 -type d -name 'c*_r*_pg*_dm*' | sort)
 
   if [[ ${#ratio_dirs[@]} -eq 1 ]]; then
     candidate_root="${ratio_dirs[0]}"
