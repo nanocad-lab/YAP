@@ -284,7 +284,7 @@ def overall_yield_simulator(
 
             zeta_0[valid_pad_mask == 1] = - valid_pad_dishing_bound_array[:, 1] * 2 # lower limits of the sum of top and bottom Cu heights
             zeta_1[valid_pad_mask == 1] = - valid_pad_dishing_bound_array[:, 0] * 2 # upper limits of the sum of top and bottom Cu heights
-
+            
             # Commented on 03/18/2026
             if cfg.verbose:
                 epoch_fail_map_per_interface_dict[interface_name]['mechanical'] += (

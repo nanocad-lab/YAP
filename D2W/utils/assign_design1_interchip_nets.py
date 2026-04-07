@@ -19,9 +19,9 @@ import hashlib
 import random
 import re
 from collections import Counter
-from itertools import cycle
 from pathlib import Path
 
+import bmap_grid_sync as bgs
 
 RATIO_RE = re.compile(r"^c(?P<c>\d+)_r(?P<r>\d+)_pg_?(?P<pg>\d+)_dm(?P<dm>\d+)$")
 CHIPLET_PREFIX_RE = re.compile(r"^chiplet_(?P<id>\d+)_(?P<rest>.+)$")
@@ -278,11 +278,30 @@ def retag_pair(
     rewrite(compute_entries, compute_order, compute_counts, 0, shared_names)
     rewrite(memory_entries, memory_order, memory_counts, 1, shared_names)
 
+    substrate_compute_path = compute_path.with_name("Substrate_Silicon_To_Compute_Small.bmap")
+    substrate_memory_path = memory_path.with_name("Substrate_Silicon_To_Memory_DRAM.bmap")
+    substrate_compute_entries = (
+        bgs.sync_names_by_normalized_grid(compute_entries, read_entries(substrate_compute_path))
+        if substrate_compute_path.exists()
+        else None
+    )
+    substrate_memory_entries = (
+        bgs.sync_names_by_normalized_grid(memory_entries, read_entries(substrate_memory_path))
+        if substrate_memory_path.exists()
+        else None
+    )
+
     if not dry_run:
         write_entries(compute_path, compute_entries)
         write_entries(memory_path, memory_entries)
         write_criticality(compute_path)
         write_criticality(memory_path)
+        if substrate_compute_entries is not None:
+            write_entries(substrate_compute_path, substrate_compute_entries)
+            write_criticality(substrate_compute_path)
+        if substrate_memory_entries is not None:
+            write_entries(substrate_memory_path, substrate_memory_entries)
+            write_criticality(substrate_memory_path)
 
     return shared_count, compute_redundant // 2 + memory_redundant // 2
 
