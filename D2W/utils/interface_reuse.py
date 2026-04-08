@@ -58,6 +58,13 @@ def _hash_array(array):
     return hashlib.sha1(np_array.tobytes()).hexdigest()
 
 
+def _append_file_suffix(filename, file_suffix):
+    if not file_suffix:
+        return filename
+    stem, ext = os.path.splitext(filename)
+    return f"{stem}{file_suffix}{ext}"
+
+
 def _redundant_group_signature(pad_bitmap_collection):
     criticality_info = pad_bitmap_collection["criticality_info"]
     group_records = []
@@ -335,17 +342,21 @@ def copy_representative_risk_outputs(output_root, representative, duplicate):
             shutil.copy2(src_path, os.path.join(dup_dir, dst_name))
 
 
-def copy_representative_simulation_outputs(output_root, representative, duplicate):
+def copy_representative_simulation_outputs(output_root, representative, duplicate, file_suffix=""):
     rep_dir = os.path.join(output_root, representative)
     dup_dir = os.path.join(output_root, duplicate)
     os.makedirs(dup_dir, exist_ok=True)
 
-    for src_path in glob.glob(os.path.join(rep_dir, "simulation_failure_map_*.png")):
+    pattern = _append_file_suffix("simulation_failure_map_*.png", file_suffix)
+    for src_path in glob.glob(os.path.join(rep_dir, pattern)):
         shutil.copy2(src_path, os.path.join(dup_dir, os.path.basename(src_path)))
 
 
-def write_per_interface_yield_file(output_root, per_interface_yield_dict):
-    yield_path = os.path.join(output_root, "assembly_yield_per_interface.txt")
+def write_per_interface_yield_file(output_root, per_interface_yield_dict, file_suffix=""):
+    yield_path = os.path.join(
+        output_root,
+        _append_file_suffix("assembly_yield_per_interface.txt", file_suffix),
+    )
     with open(yield_path, "w") as f:
         for interface_name, interface_yield in per_interface_yield_dict.items():
             f.write(f"{interface_name} {interface_yield:.8f}\n")

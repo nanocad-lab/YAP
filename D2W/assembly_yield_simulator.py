@@ -18,6 +18,13 @@ from spatial_correlation_coefficients import get_spatial_correlation_coefficient
 from utils.util import result_wrapper
 
 
+def _append_file_suffix(filename, file_suffix):
+    if not file_suffix:
+        return filename
+    stem, ext = os.path.splitext(filename)
+    return f"{stem}{file_suffix}{ext}"
+
+
 def Assembly_Yield_Simulator(
     input_args: dict,
     cfg_skeleton: object,
@@ -31,6 +38,7 @@ def Assembly_Yield_Simulator(
     epoch_yield_list = []
     epoch_interface_yield_list_dict = {interface_name: [] for interface_name in cfg_dict}
     skip_verbose_root_artifacts = bool(input_args.get('skip_verbose_root_artifacts', False))
+    file_suffix = input_args.get('output_file_tag', '')
 
     # Initialize a temporary die stack once to extract the reference pad coordinates.
     temp_die_stack_list, base_pad_coords_dict = die_stack_list_initialize(
@@ -113,7 +121,10 @@ def Assembly_Yield_Simulator(
     }
 
     output_root = os.path.join(next(iter(cfg_dict.values())).OUTPUT_DIR, input_args['ds_name'])
-    per_interface_yield_path = os.path.join(output_root, 'assembly_yield_per_interface.txt')
+    per_interface_yield_path = os.path.join(
+        output_root,
+        _append_file_suffix('assembly_yield_per_interface.txt', file_suffix),
+    )
     with open(per_interface_yield_path, 'w') as f:
         for interface_name, interface_yield in per_interface_assembly_yield_dict.items():
             f.write(f"{interface_name} {interface_yield:.8f}\n")
@@ -138,11 +149,19 @@ def Assembly_Yield_Simulator(
             output_dir = os.path.join(cfg.OUTPUT_DIR, input_args['ds_name'])
             if not skip_verbose_root_artifacts:
                 # Save fail map dict
-                np.savez(os.path.join(output_dir, 'assembly_fail_map_per_interface_dict.npz'), **fail_map_per_interface_dict)
-                print("Failure heat maps saved to {}.".format(os.path.join(output_dir, 'assembly_fail_map_per_interface_dict.npz')))
+                fail_map_path = os.path.join(
+                    output_dir,
+                    _append_file_suffix('assembly_fail_map_per_interface_dict.npz', file_suffix),
+                )
+                np.savez(fail_map_path, **fail_map_per_interface_dict)
+                print("Failure heat maps saved to {}.".format(fail_map_path))
                 # Save fail vec dict
-                np.savez(os.path.join(output_dir, 'assembly_fail_vec_per_interface_dict.npz'), **fail_vec_per_interface_dict)
-                print("Failure vectors for all die samples saved to {}.".format(os.path.join(output_dir, 'assembly_fail_vec_per_interface_dict.npz')))
+                fail_vec_path = os.path.join(
+                    output_dir,
+                    _append_file_suffix('assembly_fail_vec_per_interface_dict.npz', file_suffix),
+                )
+                np.savez(fail_vec_path, **fail_vec_per_interface_dict)
+                print("Failure vectors for all die samples saved to {}.".format(fail_vec_path))
             else:
                 print("Skipped root-level verbose NPZ artifacts because identical-interface reuse is active.")
 
@@ -152,6 +171,7 @@ def Assembly_Yield_Simulator(
                 output_dir=os.path.join(cfg.OUTPUT_DIR, input_args['ds_name']),
                 interface=cfg.INTERFACE,
                 fail_map_dict=fail_map_per_interface_dict[interface_name],
+                file_suffix=file_suffix,
             )
 
     return assembly_yield, epoch_yield_list, per_interface_assembly_yield_dict

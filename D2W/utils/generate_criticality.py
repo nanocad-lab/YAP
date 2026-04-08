@@ -13,6 +13,10 @@ That means:
 - critical bumps with one copy become: 1 0 0
 - redundant pairs with two copies become: 2 1 1
 
+Alternative profile:
+    tolerated_esd_failures = 0
+    tolerated_mechanical_failures = group_size - 1
+
 By default, the script processes all `.bmap` files under:
   D2W/input/design_1
   D2W/input/design_2
@@ -42,10 +46,20 @@ from __future__ import annotations
 import argparse
 from collections import Counter, defaultdict
 from pathlib import Path
+import re
 from typing import Iterable
 
 
 DEFAULT_DESIGNS = ("1", "2", "3", "4", "17", "18", "19")
+DEFAULT_PROFILE = "default"
+ESD_STRICT_PROFILE = "esd_strict"
+ALL_PROFILES = (DEFAULT_PROFILE, ESD_STRICT_PROFILE)
+PROFILE_TO_SUFFIX = {
+    DEFAULT_PROFILE: "_criticality.txt",
+    ESD_STRICT_PROFILE: "_criticality_esd_strict.txt",
+}
+PG_NET_RE = re.compile(r"\b(vdd|vss|vpp|vddq|vddql|gnd|vcc)\b", re.IGNORECASE)
+REDUNDANT_NET_RE = re.compile(r"(^|_)rd(_|$)", re.IGNORECASE)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -93,6 +107,15 @@ def build_parser() -> argparse.ArgumentParser:
         "--dry-run",
         action="store_true",
         help="Print what would be generated without writing files.",
+    )
+    parser.add_argument(
+        "--profiles",
+        type=str,
+        default=DEFAULT_PROFILE,
+        help=(
+            "Comma-separated criticality profiles to generate. "
+            "Supported: default, esd_strict, both."
+        ),
     )
     return parser
 
@@ -143,18 +166,86 @@ def read_bmap_nets(filename: Path) -> dict[str, int]:
     return dict(net_counts)
 
 
-def generate_criticality_lines(net_counts: dict[str, int]) -> list[str]:
+def parse_profiles(text: str) -> list[str]:
+    requested = [item.strip() for item in text.split(",") if item.strip()]
+    if not requested:
+        raise ValueError("No criticality profile was provided.")
+
+    profiles: list[str] = []
+    for item in requested:
+        if item == "both":
+            for profile in ALL_PROFILES:
+                if profile not in profiles:
+                    profiles.append(profile)
+            continue
+        if item not in PROFILE_TO_SUFFIX:
+            raise ValueError(
+                f"Unsupported criticality profile '{item}'. Supported: "
+                f"{', '.join(list(ALL_PROFILES) + ['both'])}"
+            )
+        if item not in profiles:
+            profiles.append(item)
+    return profiles
+
+
+def is_redundant_signal_net(net: str, group_size: int) -> bool:
+    if group_size <= 1:
+        return False
+    lowered = net.lower()
+    if lowered == "dummy" or PG_NET_RE.search(lowered):
+        return False
+    return bool(REDUNDANT_NET_RE.search(lowered))
+
+
+def tolerated_failures_for_group(
+    group_size: int,
+    profile: str,
+    net: str | None = None,
+) -> tuple[int, int]:
+    if group_size <= 1:
+        return 0, 0
+    if profile == DEFAULT_PROFILE:
+        tolerated = group_size - 1
+        return tolerated, tolerated
+    if profile == ESD_STRICT_PROFILE:
+        if net is not None and is_redundant_signal_net(net, group_size):
+            return 0, group_size - 1
+        tolerated = group_size - 1
+        return tolerated, tolerated
+    raise ValueError(f"Unsupported criticality profile: {profile}")
+
+
+def generate_criticality_lines(
+    net_counts: dict[str, int],
+    profile: str = DEFAULT_PROFILE,
+) -> list[str]:
     lines: list[str] = []
     for net in sorted(net_counts.keys()):
         group_size = net_counts[net]
-        tolerated_esd = group_size - 1
-        tolerated_mech = group_size - 1
+        tolerated_esd, tolerated_mech = tolerated_failures_for_group(
+            group_size=group_size,
+            profile=profile,
+            net=net,
+        )
         lines.append(f"{net} {group_size} {tolerated_esd} {tolerated_mech}")
     return lines
 
 
-def get_output_filename(input_filename: Path) -> Path:
-    return input_filename.with_name(f"{input_filename.stem}_criticality.txt")
+def get_output_filename(
+    input_filename: Path,
+    profile: str = DEFAULT_PROFILE,
+) -> Path:
+    if profile not in PROFILE_TO_SUFFIX:
+        raise ValueError(f"Unsupported criticality profile: {profile}")
+    return input_filename.with_name(f"{input_filename.stem}{PROFILE_TO_SUFFIX[profile]}")
+
+
+def resolve_criticality_path(
+    input_dir: Path | str,
+    interface_name: str,
+    profile: str = DEFAULT_PROFILE,
+) -> Path:
+    return get_output_filename(Path(input_dir) / f"{interface_name}.bmap", profile)
 
 
 def summarize_net_counts(net_counts: dict[str, int]) -> list[str]:
@@ -187,6 +278,29 @@ def write_criticality_file(output_filename: Path, lines: list[str], force: bool)
             f.write(line + "\n")
 
 
+def write_criticality_variants(
+    input_filename: Path,
+    net_counts: dict[str, int],
+    profiles: Iterable[str],
+    force: bool,
+    dry_run: bool,
+) -> list[Path]:
+    written_paths: list[Path] = []
+    for profile in profiles:
+        output_filename = get_output_filename(input_filename, profile)
+        criticality_lines = generate_criticality_lines(net_counts, profile=profile)
+        print(f"Output file [{profile}]: {output_filename}")
+        if dry_run:
+            print(f"Dry-run: not writing output file for profile '{profile}'.")
+        else:
+            write_criticality_file(output_filename, criticality_lines, force)
+            print(
+                f"Successfully generated criticality file [{profile}]: {output_filename}"
+            )
+        written_paths.append(output_filename)
+    return written_paths
+
+
 def resolve_input_files(args: argparse.Namespace, parser: argparse.ArgumentParser) -> list[Path]:
     if args.input_bmap_file is not None and (args.file is not None or args.files):
         parser.error("Use only one of positional input_bmap_file, --file, or --files.")
@@ -208,6 +322,7 @@ def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
     files = resolve_input_files(args, parser)
+    profiles = parse_profiles(args.profiles)
 
     if not files:
         raise FileNotFoundError("No .bmap files were found to process.")
@@ -218,20 +333,18 @@ def main() -> None:
             raise FileNotFoundError(f"Input file '{input_filename}' not found")
 
         net_counts = read_bmap_nets(input_filename)
-        output_filename = get_output_filename(input_filename)
-        criticality_lines = generate_criticality_lines(net_counts)
 
         print(f"Reading bump map: {input_filename}")
-        print(f"Output file: {output_filename}")
         print(f"Total nets: {len(net_counts)}")
         for line in summarize_net_counts(net_counts):
             print(line)
-
-        if args.dry_run:
-            print("Dry-run: not writing output file.")
-        else:
-            write_criticality_file(output_filename, criticality_lines, args.force)
-            print(f"Successfully generated criticality file: {output_filename}")
+        write_criticality_variants(
+            input_filename=input_filename,
+            net_counts=net_counts,
+            profiles=profiles,
+            force=args.force,
+            dry_run=args.dry_run,
+        )
 
         print()
         processed_count += 1

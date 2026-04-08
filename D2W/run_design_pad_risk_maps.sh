@@ -16,6 +16,8 @@ Usage:
 
 Examples:
   ./run_design_pad_risk_maps.sh --ratio c25_r0_pg50_dm25 design_1
+  ./run_design_pad_risk_maps.sh --ratio c25_r0_pg50_dm25 design_1 design_2 HBM_A HBM_B
+  ./run_design_pad_risk_maps.sh HBM_A HBM_B
   ./run_design_pad_risk_maps.sh --ratio c20_r10_pg50_dm20 design_17
   ./run_design_pad_risk_maps.sh --ratio c25_r0_pg50_dm25 3
   ./run_design_pad_risk_maps.sh --ratio c25_r0_pg50_dm25 design_1 design_2 design_3
@@ -25,10 +27,12 @@ EOF
 
 normalize_design_name() {
   local raw_name="$1"
-  if [[ "$raw_name" == design_* ]]; then
+  if [[ "$raw_name" == design_* || "$raw_name" == HBM_* ]]; then
     printf '%s\n' "$raw_name"
-  else
+  elif [[ "$raw_name" =~ ^[0-9]+$ ]]; then
     printf 'design_%s\n' "$raw_name"
+  else
+    printf '%s\n' "$raw_name"
   fi
 }
 
@@ -63,10 +67,14 @@ resolve_design_root() {
       printf '%s\n%s\n' "$candidate_root" "${design_name}/${ratio_name}"
       return 0
     fi
+    if [[ -d "${legacy_root}/Center_IO" || -d "${legacy_root}/Original" ]]; then
+      printf '%s\n%s\n' "$legacy_root" "${design_name}"
+      return 0
+    fi
     return 1
   fi
 
-  if [[ -d "${legacy_root}/Center_IO" ]]; then
+  if [[ -d "${legacy_root}/Center_IO" || -d "${legacy_root}/Original" ]]; then
     printf '%s\n%s\n' "$legacy_root" "${design_name}"
     return 0
   fi
@@ -106,7 +114,7 @@ run_one_design() {
   design_root="$(printf '%s\n' "$resolved_root_output" | sed -n '1p')"
   ds_prefix="$(printf '%s\n' "$resolved_root_output" | sed -n '2p')"
 
-  for variant in Center_IO Edge_IO Random_1 Random_2 Random_3; do
+  for variant in Original Center_IO Edge_IO Random_IO; do
     if [[ -d "${design_root}/${variant}" ]]; then
       variants+=("$variant")
     fi

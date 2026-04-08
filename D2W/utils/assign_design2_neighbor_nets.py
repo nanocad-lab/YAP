@@ -25,6 +25,8 @@ from itertools import cycle
 from pathlib import Path
 
 import bmap_grid_sync as bgs
+import generate_criticality as gc
+from bump_assignment_utils import build_random_partitions
 import yaml
 
 
@@ -191,6 +193,47 @@ def build_assignment_order(path: Path, entries: list[list[str]]) -> list[int]:
     return [idx for idx, _, _ in decorated]
 
 
+def build_assignment_partitions(path: Path, entries: list[list[str]], counts: tuple[int, int, int, int]):
+    mode = infer_mode(path)
+    order = build_assignment_order(path, entries)
+    critical_count, redundant_count, pg_count, dummy_count = counts
+    if mode != "random":
+        redundant_indices = order[critical_count : critical_count + redundant_count]
+        return {
+            "critical_indices": order[:critical_count],
+            "redundant_pairs": list(zip(redundant_indices[0::2], redundant_indices[1::2])),
+            "pg_indices": order[
+                critical_count + redundant_count : critical_count + redundant_count + pg_count
+            ],
+            "dummy_indices": order[critical_count + redundant_count + pg_count :],
+        }
+
+    x_values = sorted({float(parts[2]) for parts in entries})
+    y_values = sorted({float(parts[3]) for parts in entries}, reverse=True)
+    x_to_col = {value: idx for idx, value in enumerate(x_values)}
+    y_to_row = {value: idx for idx, value in enumerate(y_values)}
+    index_to_row_col = {
+        idx: (y_to_row[float(parts[3])], x_to_col[float(parts[2])])
+        for idx, parts in enumerate(entries)
+    }
+    seed_key = f"{path.parent.as_posix()}::{canonical_random_chiplet_type(path)}"
+    partitions = build_random_partitions(
+        row_major_indices=order,
+        index_to_row_col=index_to_row_col,
+        critical_count=critical_count,
+        redundant_count=redundant_count,
+        pg_count=pg_count,
+        dummy_count=dummy_count,
+        seed_key=seed_key,
+    )
+    return {
+        "critical_indices": partitions.critical_indices,
+        "redundant_pairs": partitions.redundant_pairs,
+        "pg_indices": partitions.pg_indices,
+        "dummy_indices": partitions.dummy_indices,
+    }
+
+
 def strip_chiplet_prefix(name: str) -> str:
     match = CHIPLET_PREFIX_RE.match(name)
     if match:
@@ -206,14 +249,19 @@ def write_criticality(path: Path) -> None:
             if len(parts) == 6:
                 net_counts[parts[5]] += 1
 
-    out_path = path.with_name(f"{path.stem}_criticality.txt")
-    tmp_path = out_path.with_suffix(out_path.suffix + ".tmp")
-    with open(tmp_path, "w", encoding="utf-8") as f:
-        for net in sorted(net_counts):
-            group_size = net_counts[net]
-            tolerated = group_size - 1
-            f.write(f"{net} {group_size} {tolerated} {tolerated}\n")
-    tmp_path.replace(out_path)
+    for profile in gc.ALL_PROFILES:
+        out_path = gc.get_output_filename(path, profile=profile)
+        tmp_path = out_path.with_suffix(out_path.suffix + ".tmp")
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            for net in sorted(net_counts):
+                group_size = net_counts[net]
+                tolerated_esd, tolerated_mech = gc.tolerated_failures_for_group(
+                    group_size=group_size,
+                    profile=profile,
+                    net=net,
+                )
+                f.write(f"{net} {group_size} {tolerated_esd} {tolerated_mech}\n")
+        tmp_path.replace(out_path)
 
 
 def discover_compute_neighbor_pairs(design_root: Path) -> tuple[list[int], list[tuple[int, int]]]:
@@ -364,8 +412,8 @@ def retag_group(
         chiplet_id: realize_counts(len(entries), parse_ratio_from_path(group_paths[chiplet_id]))
         for chiplet_id, entries in entries_by_id.items()
     }
-    order_by_id = {
-        chiplet_id: build_assignment_order(group_paths[chiplet_id], entries_by_id[chiplet_id])
+    partitions_by_id = {
+        chiplet_id: build_assignment_partitions(group_paths[chiplet_id], entries_by_id[chiplet_id], counts_by_id[chiplet_id])
         for chiplet_id in group_paths
     }
 
@@ -383,17 +431,11 @@ def retag_group(
 
     for chiplet_id, path in group_paths.items():
         entries = entries_by_id[chiplet_id]
-        critical_count, redundant_count, pg_count, dummy_count = counts_by_id[chiplet_id]
-        order = order_by_id[chiplet_id]
-
-        critical_indices = order[:critical_count]
-        redundant_indices = order[critical_count : critical_count + redundant_count]
-        pg_indices = order[
-            critical_count + redundant_count : critical_count + redundant_count + pg_count
-        ]
-        dummy_indices = order[
-            critical_count + redundant_count + pg_count :
-        ]
+        partitions = partitions_by_id[chiplet_id]
+        critical_indices = partitions["critical_indices"]
+        redundant_pairs = partitions["redundant_pairs"]
+        pg_indices = partitions["pg_indices"]
+        dummy_indices = partitions["dummy_indices"]
 
         cursor = 0
         for neighbor_id in neighbor_map[chiplet_id]:
@@ -412,9 +454,7 @@ def retag_group(
             entries[entry_idx][4] = name
             entries[entry_idx][5] = name
 
-        for pair_idx, (first_idx, second_idx) in enumerate(
-            zip(redundant_indices[0::2], redundant_indices[1::2]), start=1
-        ):
+        for pair_idx, (first_idx, second_idx) in enumerate(redundant_pairs, start=1):
             name = f"chiplet_{chiplet_id}_ext_rd_{pair_idx:06d}"
             for entry_idx in (first_idx, second_idx):
                 entries[entry_idx][4] = name

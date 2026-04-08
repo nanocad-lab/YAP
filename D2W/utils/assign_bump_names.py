@@ -43,6 +43,8 @@ from itertools import cycle
 from pathlib import Path
 from typing import Iterable
 
+from bump_assignment_utils import build_random_partitions
+
 
 DEFAULT_DESIGNS = ("1", "2", "3", "4", "17", "18", "19")
 
@@ -378,6 +380,48 @@ def build_assignment_order(path: Path, entries: list[BmapEntry]) -> list[int]:
     return [idx for idx, _, _ in decorated]
 
 
+def build_assignment_partitions(path: Path, entries: list[BmapEntry], counts: CategoryCounts):
+    mode = infer_assignment_mode(path)
+    ordered_indices = build_assignment_order(path, entries)
+    if mode != "random":
+        critical_end = counts.critical
+        redundant_end = critical_end + counts.redundant
+        pg_end = redundant_end + counts.pg
+        redundant_indices = ordered_indices[critical_end:redundant_end]
+        redundant_pairs = list(zip(redundant_indices[0::2], redundant_indices[1::2]))
+        return {
+            "critical_indices": ordered_indices[:critical_end],
+            "redundant_pairs": redundant_pairs,
+            "pg_indices": ordered_indices[redundant_end:pg_end],
+            "dummy_indices": ordered_indices[pg_end:pg_end + counts.dummy],
+        }
+
+    x_values = sorted({float(entry.x) for entry in entries})
+    y_values = sorted({float(entry.y) for entry in entries}, reverse=True)
+    x_to_col = {value: idx for idx, value in enumerate(x_values)}
+    y_to_row = {value: idx for idx, value in enumerate(y_values)}
+    index_to_row_col = {
+        idx: (y_to_row[float(entry.y)], x_to_col[float(entry.x)])
+        for idx, entry in enumerate(entries)
+    }
+    seed_key = f"{path.parent.as_posix()}::{canonical_random_chiplet_type(path)}"
+    partitions = build_random_partitions(
+        row_major_indices=ordered_indices,
+        index_to_row_col=index_to_row_col,
+        critical_count=counts.critical,
+        redundant_count=counts.redundant,
+        pg_count=counts.pg,
+        dummy_count=counts.dummy,
+        seed_key=seed_key,
+    )
+    return {
+        "critical_indices": partitions.critical_indices,
+        "redundant_pairs": partitions.redundant_pairs,
+        "pg_indices": partitions.pg_indices,
+        "dummy_indices": partitions.dummy_indices,
+    }
+
+
 def assign_names(
     path: Path,
     entries: list[BmapEntry],
@@ -391,9 +435,8 @@ def assign_names(
     if not pg_pattern:
         raise ValueError("pg_pattern must contain at least one name.")
 
-    ordered_indices = build_assignment_order(path, entries)
     rewritten_lines: list[str | None] = [None] * len(entries)
-    idx = 0
+    partitions = build_assignment_partitions(path, entries, counts)
 
     def rewrite_entry(entry_index: int, name: str) -> None:
         entry = entries[entry_index]
@@ -401,35 +444,33 @@ def assign_names(
             f"{entry.instance} {entry.bump_type} {entry.x} {entry.y} {name} {name}"
         )
 
-    for critical_idx in range(1, counts.critical + 1):
-        entry_index = ordered_indices[idx]
+    for critical_idx, entry_index in enumerate(partitions["critical_indices"], start=1):
         entry = entries[entry_index]
         name = build_critical_name(
             entry, critical_idx, critical_name_mode, critical_prefix
         )
         rewrite_entry(entry_index, name)
-        idx += 1
 
-    for redundant_idx in range(1, counts.redundant // 2 + 1):
+    for redundant_idx, pair in enumerate(partitions["redundant_pairs"], start=1):
         pair_name = f"{redundant_prefix}{redundant_idx}"
-        for _ in range(2):
-            entry_index = ordered_indices[idx]
+        for entry_index in pair:
             rewrite_entry(entry_index, pair_name)
-            idx += 1
 
     pg_name_iter = cycle(pg_pattern)
-    for _ in range(counts.pg):
-        entry_index = ordered_indices[idx]
+    for entry_index in partitions["pg_indices"]:
         pg_name = next(pg_name_iter)
         rewrite_entry(entry_index, pg_name)
-        idx += 1
 
-    for _ in range(counts.dummy):
-        entry_index = ordered_indices[idx]
+    for entry_index in partitions["dummy_indices"]:
         rewrite_entry(entry_index, dummy_name)
-        idx += 1
 
-    if idx != len(entries):
+    assigned_count = (
+        len(partitions["critical_indices"])
+        + 2 * len(partitions["redundant_pairs"])
+        + len(partitions["pg_indices"])
+        + len(partitions["dummy_indices"])
+    )
+    if assigned_count != len(entries):
         raise AssertionError("Internal error: not all bump entries were assigned.")
 
     if any(line is None for line in rewritten_lines):

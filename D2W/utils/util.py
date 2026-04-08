@@ -24,6 +24,27 @@ def add_config_items(cfg, keys, values):
     for key, value in zip(keys, values):
         cfg[key] = value
 
+
+def finalize_cfg_for_mode(cfg, ds_name: str, mode: str):
+    """
+    Apply mode-derived parameters after geometry/config fields are populated.
+    """
+    cfg.DESIGN = ds_name
+    if mode == "w2w_simulation" or mode == "w2w_modeling":
+        cfg.SYSTEM_MAGNIFICATION_MEAN_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_MEAN_um + cfg.M_0) / 1e6
+        cfg.SYSTEM_MAGNIFICATION_STD_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_STD_um) ** 2 / 1e6
+        cfg.S_INIT_A_M = 10e-6 * (cfg.WAF_R_um / 150000) ** 2
+        cfg.S_INIT_B_M = 0.0
+    elif mode == "d2w_simulation" or mode == "d2w_modeling":
+        cfg.SYSTEM_MAGNIFICATION_MEAN_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_MEAN_um + cfg.M_0) / 1e6
+        cfg.SYSTEM_MAGNIFICATION_STD_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_STD_um) ** 2 / 1e6
+        cfg.eff_DIE_R = float(np.sqrt((cfg.DIE_W_um / 2) ** 2 + (cfg.DIE_L_um / 2) ** 2))  # Effective die radius (um)
+        cfg.S_INIT_A_M = 10e-6 * (cfg.eff_DIE_R / 150000) ** 2
+        cfg.S_INIT_B_M = 0.0
+    else:
+        raise ValueError(f"Unknown mode: {mode}. Supported modes are 'w2w_simulation', 'w2w_modeling', 'd2w_simulation', and 'd2w_modeling'.")
+    return cfg
+
 def _upsample_pad_yield_map(pad_yield_map: np.ndarray,
                             pad_map_shape,
                             pad_yield_map_sub_factor: int) -> np.ndarray:
@@ -96,21 +117,7 @@ def get_config_dict(cfg_folder: str,
                                                 _3dbv_path=_3dbv_path,
                                                 _3dbx_path=_3dbx_path,)
     for interface_name, cfg in cfg_dict.items():
-        cfg.DESIGN = ds_name
-        # Derive additional parameters based on mode
-        if mode == "w2w_simulation" or mode == "w2w_modeling":
-            cfg.SYSTEM_MAGNIFICATION_MEAN_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_MEAN_um + cfg.M_0) / 1e6
-            cfg.SYSTEM_MAGNIFICATION_STD_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_STD_um) ** 2 / 1e6
-            cfg.S_INIT_A_M = 10e-6 * (cfg.WAF_R_um / 150000) ** 2
-            cfg.S_INIT_B_M = 0.0
-        elif mode == "d2w_simulation" or mode == "d2w_modeling":
-            cfg.SYSTEM_MAGNIFICATION_MEAN_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_MEAN_um + cfg.M_0) / 1e6
-            cfg.SYSTEM_MAGNIFICATION_STD_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_STD_um) ** 2 / 1e6
-            cfg.eff_DIE_R = float(np.sqrt((cfg.DIE_W_um / 2) ** 2 + (cfg.DIE_L_um / 2) ** 2))  # Effective die radius (um)
-            cfg.S_INIT_A_M = 10e-6 * (cfg.eff_DIE_R / 150000) ** 2
-            cfg.S_INIT_B_M = 0.0
-        else:
-            raise ValueError(f"Unknown mode: {mode}. Supported modes are 'w2w_simulation', 'w2w_modeling', 'd2w_simulation', and 'd2w_modeling'.")
+        cfg = finalize_cfg_for_mode(cfg, ds_name=ds_name, mode=mode)
         # Save updated config file for reference
         OmegaConf.save(cfg, cfg_folder + f"/{interface_name}.yaml")
 
@@ -122,6 +129,54 @@ def get_config_dict(cfg_folder: str,
     
     
     return cfg_dict
+
+
+def get_single_interface_config_dict(cfg_folder: str,
+                                     cfg_skeleton: object,
+                                     ds_name: str,
+                                     input_ds_dir: str,
+                                     mode: str,
+                                     debug=False) -> dict:
+    """
+    Legacy single-interface mode for designs that provide one .bmap directly
+    from the config without 3dblox wrapper files.
+    """
+    cfg = cfg_skeleton.copy()
+    if not getattr(cfg, "INTERFACE", None):
+        raise ValueError(
+            "Single-interface mode requires INTERFACE to be set in the config."
+        )
+
+    bmap_path = os.path.join(input_ds_dir, f"{cfg.INTERFACE}.bmap")
+    if not os.path.exists(bmap_path):
+        raise FileNotFoundError(f"Bump map not found at {bmap_path}")
+
+    if getattr(cfg, "PAD_ARR_ROW", None) in (None, "None") or getattr(cfg, "PAD_ARR_COL", None) in (None, "None"):
+        update_config_from_bmap(
+            cfg,
+            bmap_path,
+            y_tol=cfg.PITCH_r_um * 0.1,
+            x_tol=cfg.PITCH_c_um * 0.1,
+        )
+    if getattr(cfg, "PAD_ARR_L_um", None) in (None, "None") or getattr(cfg, "PAD_ARR_W_um", None) in (None, "None"):
+        add_config_items(
+            cfg,
+            keys=["PAD_ARR_L_um", "PAD_ARR_W_um"],
+            values=[
+                (cfg.PAD_ARR_ROW - 1) * cfg.PITCH_r_um,
+                (cfg.PAD_ARR_COL - 1) * cfg.PITCH_c_um,
+            ],
+        )
+
+    cfg = finalize_cfg_for_mode(cfg, ds_name=ds_name, mode=mode)
+    OmegaConf.save(cfg, cfg_folder + f"/{cfg.INTERFACE}.yaml")
+
+    if debug:
+        cfg.DEBUG = True
+        print("Configuration loaded:")
+        print(OmegaConf.to_yaml(cfg))
+
+    return {cfg.INTERFACE: cfg}
 
 
 
@@ -154,24 +209,35 @@ def update_config_from_bmap(cfg, blox_bmap_path, y_tol=0.1, x_tol=0.1):
 
     coords = np.array(coords)
 
-    # Rank by y descending
+    # Rank by y descending for stable clustering statistics.
     coords = coords[np.argsort(-coords[:, 1])]
 
-    # Cluster to get unique rows
+    # Cluster occupied rows/columns as a sanity signal, but derive the logical
+    # array size from the geometric bounding box and pitch. This is more robust
+    # for sparse checkerboard footprints such as HBM, where the first row may
+    # not contain every logical column.
     y_vals = []
     for y in coords[:, 1]:
         if not y_vals or abs(y - y_vals[-1]) > y_tol:
             y_vals.append(y)
-    num_rows = len(y_vals)
+    clustered_rows = len(y_vals)
 
-    # Cluster to get unique columns
-    first_row_y = y_vals[0]
-    first_row = coords[np.abs(coords[:, 1] - first_row_y) < y_tol]
     x_vals = []
-    for x in sorted(first_row[:, 0]):
+    for x in np.sort(coords[:, 0]):
         if not x_vals or abs(x - x_vals[-1]) > x_tol:
             x_vals.append(x)
-    num_cols = len(x_vals)
+    clustered_cols = len(x_vals)
+
+    y_min = float(np.min(coords[:, 1]))
+    y_max = float(np.max(coords[:, 1]))
+    x_min = float(np.min(coords[:, 0]))
+    x_max = float(np.max(coords[:, 0]))
+
+    bbox_rows = int(round((y_max - y_min) / cfg.PITCH_r_um)) + 1
+    bbox_cols = int(round((x_max - x_min) / cfg.PITCH_c_um)) + 1
+
+    num_rows = max(clustered_rows, bbox_rows)
+    num_cols = max(clustered_cols, bbox_cols)
     
     add_config_items(cfg, keys=['PAD_ARR_ROW', 'PAD_ARR_COL'], values=[num_rows, num_cols])
     add_config_items(cfg, keys=['PAD_ARR_L_um', 'PAD_ARR_W_um'],
@@ -246,10 +312,23 @@ def update_config_with_3dblox_params(cfg_skeleton: object,
                             values=[float(top_3dbf.Bump_Types[selected_bump_type].bump_size) / 2,
                                     float(bot_3dbf.Bump_Types[selected_bump_type].bump_size) / 2])
         
-        # Read pad pitch (top chip pitch) NOTE: currently assume row and col pitch are the same
+        # Read pad pitch. Prefer explicit row/column pitches when available;
+        # otherwise fall back to the legacy scalar pitch field.
+        chiplet_grid = top_3dbf.Chiplet_Grid
+        if 'pitch_r' in chiplet_grid and 'pitch_c' in chiplet_grid:
+            pitch_r = float(chiplet_grid.pitch_r)
+            pitch_c = float(chiplet_grid.pitch_c)
+        elif 'pitch' in chiplet_grid:
+            pitch_r = float(chiplet_grid.pitch)
+            pitch_c = float(chiplet_grid.pitch)
+        else:
+            raise ValueError(
+                f"{top_3dbf_path} must define Chiplet_Grid.pitch or both "
+                "Chiplet_Grid.pitch_r and Chiplet_Grid.pitch_c."
+            )
+
         add_config_items(cfg, keys=['PITCH_r_um', 'PITCH_c_um'], 
-                            values=[float(top_3dbf.Chiplet_Grid.pitch), 
-                                    float(top_3dbf.Chiplet_Grid.pitch)])
+                            values=[pitch_r, pitch_c])
         
 
         ## Extract design parameters from .bmap file
@@ -624,6 +703,7 @@ def result_wrapper(
         output_dir: str,
         interface: str,
         fail_map_dict = None,
+        file_suffix: str = "",
 ):
     """
     Wrap up the results, plot them and save the figures.
@@ -636,9 +716,10 @@ def result_wrapper(
             plt.imshow(fail_map, cmap='hot', interpolation='nearest')
             plt.colorbar(label='Failure Count')
             plt.title(f'Assembly Failure Map - {mechanism}')
-            plt.savefig(save_path + f'/simulation_failure_map_{mechanism}.png')
+            filename = f"simulation_failure_map_{mechanism}{file_suffix}.png"
+            plt.savefig(save_path + f'/{filename}')
             plt.close(figure)
-            print(f"Failure map for {mechanism} saved to {save_path + f'/simulation_failure_map_{mechanism}.png'}")
+            print(f"Failure map for {mechanism} saved to {save_path + f'/{filename}'}")
 
 
 

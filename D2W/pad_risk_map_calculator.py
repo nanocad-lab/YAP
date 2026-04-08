@@ -7,6 +7,7 @@ from utils.util import *
 import time
 import argparse
 from assembly_yield_calculator import Pad_Yield_Map_Generator
+from utils.generate_criticality import DEFAULT_PROFILE, resolve_criticality_path
 from utils.interface_reuse import (
     copy_representative_bitmap_outputs,
     copy_representative_risk_outputs,
@@ -27,6 +28,16 @@ def parse_args():
     p.add_argument("--plot", "-plot", default=False, action="store_true", help="Enable plotting of the pad risk map")
     p.add_argument("--verbose", "-v", action="store_true", help="Enable verbose output during simulation")
     p.add_argument("--debug", action="store_true", help="Enable debug output when loading config")
+    p.add_argument(
+        "--criticality-profile",
+        default=DEFAULT_PROFILE,
+        choices=("default", "esd_strict"),
+        help=(
+            "Which criticality-file profile to use: "
+            "'default' tolerates R-1 ESD + mechanical failures for replicated nets; "
+            "'esd_strict' tolerates R-1 mechanical failures but 0 ESD failures."
+        ),
+    )
     return p.parse_args()
 
 
@@ -39,10 +50,8 @@ def main():
     assert os.path.exists(input_ds_dir), f"Design input directory not found at {input_ds_dir}"
     # Determine .3dbv path (chiplet definition file)
     _3dbv_path = input_ds_dir + "/generated_chiplet_definitions.3dbv"
-    assert os.path.exists(_3dbv_path), f"3DBV file not found at {_3dbv_path}"
     # Determine .3dbx path (stack configuration file)
     _3dbx_path = input_ds_dir + "/generated_stack_config.3dbx"
-    assert os.path.exists(_3dbx_path), f"3DBX file not found at {_3dbx_path}"
     # Read the config skeleton and update with design parameters
     cfg_skeleton = OmegaConf.load(args.config)[args.mode]
 
@@ -50,14 +59,25 @@ def main():
 
     start_time = time.perf_counter()
     # Load config and update with design and ADK parameters (from .3dbv and .bmap)
-    cfg_dict = get_config_dict(cfg_folder=args.config.rsplit('/', 1)[0],
-                                cfg_skeleton=cfg_skeleton, 
-                                ds_name=args.ds_name,
-                                input_ds_dir=input_ds_dir,
-                                _3dbv_path=_3dbv_path,
-                                _3dbx_path=_3dbx_path,
-                                mode=args.mode, 
-                                debug=args.debug)
+    if os.path.exists(_3dbv_path) and os.path.exists(_3dbx_path):
+        cfg_dict = get_config_dict(cfg_folder=args.config.rsplit('/', 1)[0],
+                                    cfg_skeleton=cfg_skeleton, 
+                                    ds_name=args.ds_name,
+                                    input_ds_dir=input_ds_dir,
+                                    _3dbv_path=_3dbv_path,
+                                    _3dbx_path=_3dbx_path,
+                                    mode=args.mode, 
+                                    debug=args.debug)
+    else:
+        print("Using legacy single-interface input mode (no generated_stack_config.3dbx / generated_chiplet_definitions.3dbv).")
+        cfg_dict = get_single_interface_config_dict(
+            cfg_folder=args.config.rsplit('/', 1)[0],
+            cfg_skeleton=cfg_skeleton,
+            ds_name=args.ds_name,
+            input_ds_dir=input_ds_dir,
+            mode=args.mode,
+            debug=args.debug,
+        )
     cfg_loading_time = time.perf_counter() - start_time
     print(f"Config loading and processing finished in {cfg_loading_time:.2f} seconds.")
 
@@ -76,7 +96,17 @@ def main():
     # Precompute the file paths once so we can collapse identical interfaces
     for interface, cfg in cfg_dict.items():
         bmap_path_dict[interface] = os.path.join(input_ds_dir, f"{cfg.INTERFACE}.bmap")
-        criticality_path_dict[interface] = os.path.join(input_ds_dir, f"{cfg.INTERFACE}_criticality.txt")
+        criticality_path_dict[interface] = str(
+            resolve_criticality_path(
+                input_dir=input_ds_dir,
+                interface_name=cfg.INTERFACE,
+                profile=args.criticality_profile,
+            )
+        )
+        assert os.path.exists(criticality_path_dict[interface]), (
+            f"Criticality file not found for profile '{args.criticality_profile}': "
+            f"{criticality_path_dict[interface]}"
+        )
 
     grouped_interfaces = group_raw_identical_interfaces(
         cfg_dict=cfg_dict,

@@ -355,7 +355,7 @@ d2w_simulation:
   INTERFACE: "<INTERFACE_NAME>"                      # Design name  
   # === Die Settings ===
   NUM_DIES: 10000                            # Number of Dies used in simulation
-  SIM_BATCH_SIZE: 100                            # Number of Dies samples simulated in one batch (a way to 
+  SIM_BATCH_SIZE: 10                            # Number of Dies samples simulated in one batch (a way to 
   PITCH_r_um: <ROW_PITCH_Y>                            # Row pad pitch (µm) (In checkerboard layout, this is sqrt(2)/2 times of the real pitch)
   PITCH_c_um: <COLUMN_PITCH_X>                            # Column pad pitch (µm)  (In checkerboard layout, this is sqrt(2)/2 times of the real pitch)
   DIE_W_um: <DIE_WIDTH_X>                          # Die width (µm)
@@ -381,7 +381,7 @@ d2w_simulation:
   B_Sub_Sio2_V: 0.00                    # Efficient substrate layer Sio2 volume density
   B_Sub_Si_V: 0.90                      # Efficient substrate layer si volume density
   B_Sub_T: 775e-6                       # Efficient substrate layer thickness (m)
-  S_INIT_A_M: 100e-9                     # Pre-anneal warpages (m)
+  S_INIT_A_M: 300e-9                     # Pre-anneal warpages (m)
   # === Top Wafer Settings ===
   T_Chip_Cu_V: 0.30                     # Efficient chip layer Cu volume density
   T_Chip_Sio2_V: 0.70                   # Efficient chip layer Sio2 volume density
@@ -409,14 +409,14 @@ d2w_simulation:
   CRITICAL_DIST_CONSTRAINT: 0.75        # Minimum distance constraint for critical pads
 
   # === Misalignment Parameters ===
-  RANDOM_MISALIGNMENT_MEAN_um: 5e-3        # Random misalignment mean (µm)
-  RANDOM_MISALIGNMENT_STD_um: 1e-2         # Random misalignment standard deviation (µm)
-  SYSTEM_TRANSLATION_X_MEAN_um: 5e-3       # Systematic X translation mean (µm)
-  SYSTEM_TRANSLATION_X_STD_um: 1e-2        # Systematic X translation std (µm)
-  SYSTEM_TRANSLATION_Y_MEAN_um: 5e-3       # Systematic Y translation mean (µm)
-  SYSTEM_TRANSLATION_Y_STD_um: 1e-2        # Systematic Y translation std (µm)
-  SYSTEM_ROTATION_MEAN_rad: 2e-6            # Systematic rotation mean (rad)
-  SYSTEM_ROTATION_STD_rad: 1e-6             # Systematic rotation std (rad)
+  RANDOM_MISALIGNMENT_MEAN_um: 0        # Random misalignment mean (µm)
+  RANDOM_MISALIGNMENT_STD_um: 2e-2         # Random misalignment standard deviation (µm)
+  SYSTEM_TRANSLATION_X_MEAN_um: 0       # Systematic X translation mean (µm)
+  SYSTEM_TRANSLATION_X_STD_um: 2e-2        # Systematic X translation std (µm)
+  SYSTEM_TRANSLATION_Y_MEAN_um: 0       # Systematic Y translation mean (µm)
+  SYSTEM_TRANSLATION_Y_STD_um: 2e-2        # Systematic Y translation std (µm)
+  SYSTEM_ROTATION_MEAN_rad: 6e-5            # Systematic rotation mean (rad)
+  SYSTEM_ROTATION_STD_rad: 1e-5             # Systematic rotation std (rad)
 
   # === Bowing and Magnification ===
   BOW_DIFFERENCE_MEAN_um: 0.5               # Bow difference mean (µm)
@@ -436,10 +436,10 @@ d2w_simulation:
   k_S: 2.7
 
   # === Cu Dishing Parameters ===
-  TOP_DISH_MEAN_nm: -2.0                  # Top pad dish mean (nm)
-  TOP_DISH_STD_nm: 0.3                     # Top pad dish std (nm)
-  BOT_DISH_MEAN_nm: -2.0                  # Bottom pad dish mean (nm)
-  BOT_DISH_STD_nm: 0.3                     # Bottom pad dish std (nm)
+  TOP_DISH_MEAN_nm: -1.0                  # Top pad dish mean (nm)
+  TOP_DISH_STD_nm: 0.5                     # Top pad dish std (nm)
+  BOT_DISH_MEAN_nm: -1.0                  # Bottom pad dish mean (nm)
+  BOT_DISH_STD_nm: 0.5                     # Bottom pad dish std (nm)
   k_et: 0.053                           # Top Cu expansion coefficient (nm/K)
   k_eb: 0.053                           # Bottom Cu expansion coefficient (nm/K)
   T_R: 25                               # Room temperature (°C)
@@ -511,9 +511,9 @@ d2w_simulation:
 
   # === ESD Parameters ===
   TILT_X_MEAN_DEG: 0.000
-  TILT_X_STD_DEG: 0.01
+  TILT_X_STD_DEG: 1e-5
   TILT_Y_MEAN_DEG: 0.000
-  TILT_Y_STD_DEG: 0.01
+  TILT_Y_STD_DEG: 1e-5
 
   # === Simulation Control ===
   simulation_times: 1                  # Number of simulation iterations
@@ -594,8 +594,8 @@ d2w_modeling:
   SYSTEM_TRANSLATION_X_STD_um: 2e-2        # Std of systematic X translation (µm)
   SYSTEM_TRANSLATION_Y_MEAN_um: 0       # Mean of systematic Y translation (µm)
   SYSTEM_TRANSLATION_Y_STD_um: 2e-2        # Std of systematic Y translation (µm)
-  SYSTEM_ROTATION_MEAN_rad: 2e-6            # Mean of systematic rotation (rad)
-  SYSTEM_ROTATION_STD_rad: 5e-7             # Std of systematic rotation (rad)
+  SYSTEM_ROTATION_MEAN_rad: 6e-5            # Mean of systematic rotation (rad)
+  SYSTEM_ROTATION_STD_rad: 1e-5             # Std of systematic rotation (rad)
   BOW_DIFFERENCE_MEAN_um: 0.5               # Bow difference mean (µm)
   BOW_DIFFERENCE_STD_um: 0.1                 # Bow difference std (µm)
   k_mag: 0.1                           # Magnification slope coefficient
@@ -613,10 +613,10 @@ d2w_modeling:
   k_S: 2.7
 
   # === Cu Expansion / Dishing Parameters ===
-  TOP_DISH_MEAN_nm: -1.0                  # Top pad height mean (nm)
-  TOP_DISH_STD_nm: 0.6                     # Top pad height std (nm)
-  BOT_DISH_MEAN_nm: -1.0                  # Bottom pad height mean (nm)
-  BOT_DISH_STD_nm: 0.6                     # Bottom pad height std (nm)
+  TOP_DISH_MEAN_nm: -1                  # Top pad height mean (nm)
+  TOP_DISH_STD_nm: 0.5                     # Top pad height std (nm)
+  BOT_DISH_MEAN_nm: -1                  # Bottom pad height mean (nm)
+  BOT_DISH_STD_nm: 0.5                     # Bottom pad height std (nm)
   k_et: 0.053                           # Top Cu expansion coef (nm/K)
   k_eb: 0.053                           # Bottom Cu expansion coef (nm/K)
   T_R: 25                               # Room temperature (°C)
@@ -688,8 +688,8 @@ d2w_modeling:
 
   # === ESD Parameters ===
   TILT_X_MEAN_DEG: 0.000
-  TILT_X_STD_DEG: 0.01
+  TILT_X_STD_DEG: 1e-5
   TILT_Y_MEAN_DEG: 0.000
-  TILT_Y_STD_DEG: 0.01
+  TILT_Y_STD_DEG: 1e-5
   n_tilts_samples: 1                  # Number of tilt samples for ESD simulation
   n_dishes_samples: 1                # Number of dish samples for ESD simulation

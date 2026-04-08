@@ -10,6 +10,7 @@ from omegaconf import OmegaConf
 from spatial_correlation_coefficients_precalculate import (
     Spatial_Correlation_Coefficients_Precalculate,
 )
+from utils.generate_criticality import DEFAULT_PROFILE, resolve_criticality_path
 from utils.util import convert_3dblox_to_pad_bitmap, get_config_dict
 
 
@@ -29,6 +30,16 @@ def parse_args():
     parser.add_argument("--max-correlation-distance-um", type=float, default=None, help="Optional maximum pad-to-pad distance to include in the correlation statistics")
     parser.add_argument("--plot", "-plot", action="store_true", help="Save phi-vs-distance plots")
     parser.add_argument("--debug", action="store_true", help="Enable debug output when loading config")
+    parser.add_argument(
+        "--criticality-profile",
+        default=DEFAULT_PROFILE,
+        choices=("default", "esd_strict"),
+        help=(
+            "Which criticality-file profile to use: "
+            "'default' tolerates R-1 ESD + mechanical failures for replicated nets; "
+            "'esd_strict' tolerates R-1 mechanical failures but 0 ESD failures."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -74,7 +85,18 @@ def main():
     pad_bitmap_collection_dict = {}
     for interface_name, cfg in cfg_dict.items():
         bmap_path_dict[interface_name] = os.path.join(input_ds_dir, f"{cfg.INTERFACE}.bmap")
-        criticality_path_dict[interface_name] = os.path.join(input_ds_dir, f"{cfg.INTERFACE}_criticality.txt")
+        criticality_path_dict[interface_name] = str(
+            resolve_criticality_path(
+                input_dir=input_ds_dir,
+                interface_name=cfg.INTERFACE,
+                profile=args.criticality_profile,
+            )
+        )
+        if not os.path.exists(criticality_path_dict[interface_name]):
+            raise FileNotFoundError(
+                f"Criticality file not found for profile '{args.criticality_profile}': "
+                f"{criticality_path_dict[interface_name]}"
+            )
         pad_bitmap_collection_dict[interface_name] = convert_3dblox_to_pad_bitmap(
             cfg=cfg,
             _bmap_path=bmap_path_dict[interface_name],
