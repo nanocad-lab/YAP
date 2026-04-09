@@ -325,7 +325,7 @@ def overall_yield_simulator(
                         break
 
             # Check whether there are too many pads with Cu gap out of the safe range, which will cause die failure
-            num_cu_pad_fail_limit = cfg.CU_RECESS_PAD_FAIL_RATIO * np.sum(die_critical_pad_bitmap)
+            num_cu_pad_fail_limit = cfg.CU_RECESS_PAD_FAIL_RATIO * die_interface.num_pads
             # post_bond_warpage = post_bond_warpage_calculator(cfg)
             post_bond_warpage = 0
             if (np.sum(Cu_gap_map[valid_pad_mask == 1] > 0) > num_cu_pad_fail_limit) or (post_bond_warpage > cfg.WARPAGE_LIMIT_UM):
