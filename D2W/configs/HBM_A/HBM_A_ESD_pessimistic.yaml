@@ -80,10 +80,10 @@ d2w_simulation:
 
   # === Cu Dishing Parameters ===
   CU_RECESS_PAD_FAIL_RATIO: 0.1        # Ratio of pads with Cu recess > threshold to consider die as failed
-  TOP_DISH_MEAN_nm: -1.0                  # Top pad dish mean (nm)
-  TOP_DISH_STD_nm: 0.5                     # Top pad dish std (nm)
-  BOT_DISH_MEAN_nm: -1.0                  # Bottom pad dish mean (nm)
-  BOT_DISH_STD_nm: 0.5                     # Bottom pad dish std (nm)
+  TOP_DISH_MEAN_nm: -1                  # Top pad dish mean (nm)
+  TOP_DISH_STD_nm: 0.3                     # Top pad dish std (nm)
+  BOT_DISH_MEAN_nm: -1                  # Bottom pad dish mean (nm)
+  BOT_DISH_STD_nm: 0.3                     # Bottom pad dish std (nm)
   k_et: 0.053                           # Top Cu expansion coefficient (nm/K)
   k_eb: 0.053                           # Bottom Cu expansion coefficient (nm/K)
   T_R: 25                               # Room temperature (°C)
@@ -266,9 +266,9 @@ d2w_modeling:
   # === Cu Expansion / Dishing Parameters ===
   CU_RECESS_PAD_FAIL_RATIO: 0.1        # Ratio of pads with Cu recess > threshold to consider die as failed
   TOP_DISH_MEAN_nm: -1                  # Top pad height mean (nm)
-  TOP_DISH_STD_nm: 0.5                     # Top pad height std (nm)
+  TOP_DISH_STD_nm: 0.3                     # Top pad height std (nm)
   BOT_DISH_MEAN_nm: -1                  # Bottom pad height mean (nm)
-  BOT_DISH_STD_nm: 0.5                     # Bottom pad height std (nm)
+  BOT_DISH_STD_nm: 0.3                     # Bottom pad height std (nm)
   k_et: 0.053                           # Top Cu expansion coef (nm/K)
   k_eb: 0.053                           # Bottom Cu expansion coef (nm/K)
   T_R: 25                               # Room temperature (°C)

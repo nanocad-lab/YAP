@@ -141,6 +141,22 @@ pip install -r requirements.txt
   ./run_design_simulations.sh HBM_A HBM_B
   ```
 
+  Example command to run all simulation experiments in parallel
+
+  ```
+  ./run_all_simulations_parallel.sh --jobs 16
+  ./run_all_simulations_parallel.sh --jobs 16 --skip-existing
+  ./run_all_simulations_parallel.sh --dry-run --jobs 4
+  ```
+
+  Notes for the parallel simulation launcher:
+  - Each experiment is forced to single-threaded execution.
+  - Jobs sharing the same `ds_dir` are serialized; only different `ds_dir` values run in parallel.
+  - `.bmap` inputs are no longer sorted in place during runtime. A sorted copy is created under `output/<ds_name>/temp/`.
+  - Mechanical dishing caches are isolated by `ds_name + config + criticality_profile`, so different configs can run on the same `ds_dir` without sharing temp files.
+  - Runtime temp files are cleaned automatically after each experiment finishes.
+  - Per-experiment logs are written to `output/<ds_name>/parallel_simulation__<config_stem>__<criticality_profile>.log`.
+
 # File Formats
 **1. Bump Map (.bmap):**
 

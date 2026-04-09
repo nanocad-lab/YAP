@@ -14,6 +14,7 @@ from Cu_gap_simulator import Cu_gap_simulator
 from debond import debond_dishing_intervals_from_coords
 from esd_yield_simulator import esd_failure_simulator
 from overlay_yield_simulator import die_pad_misalignment
+from utils.util import atomic_save_npy, get_dishing_bound_cache_path
 
 
 FAILURE_MECHANISMS = ("overlay", "particle", "mechanical", "esd", "overall")
@@ -37,18 +38,22 @@ def _get_min_pair_distance_um(cfg) -> float:
     return min(cfg.PITCH_c_um, cfg.PITCH_r_um)
 
 
-def _get_valid_pad_dishing_bound_array(cfg, valid_die_pad_coords: np.ndarray) -> np.ndarray:
-    temp_dir = os.path.join(cfg.OUTPUT_DIR, cfg.DESIGN, "temp")
-    os.makedirs(temp_dir, exist_ok=True)
-    save_path = os.path.join(temp_dir, f"{cfg.INTERFACE}_dishing_bound_array.npy")
+def _get_valid_pad_dishing_bound_array(cfg, valid_die_pad_coords: np.ndarray, input_args: dict | None) -> np.ndarray:
+    save_path = get_dishing_bound_cache_path(cfg, input_args)
     if not os.path.exists(save_path) or cfg.DEBUG:
         valid_pad_dishing_bound_array = debond_dishing_intervals_from_coords(
             cfg,
             valid_die_pad_coords,
         )
-        np.save(save_path, valid_pad_dishing_bound_array)
+        atomic_save_npy(save_path, valid_pad_dishing_bound_array)
     else:
         valid_pad_dishing_bound_array = np.load(save_path)
+        if valid_pad_dishing_bound_array.shape[0] != valid_die_pad_coords.shape[0]:
+            valid_pad_dishing_bound_array = debond_dishing_intervals_from_coords(
+                cfg,
+                valid_die_pad_coords,
+            )
+            atomic_save_npy(save_path, valid_pad_dishing_bound_array)
     return valid_pad_dishing_bound_array
 
 
@@ -207,6 +212,7 @@ def _build_interface_pair_parts(
 
 def initialize_spatial_correlation_state(
     *,
+    input_args: dict | None,
     cfg_dict: dict,
     pad_bitmap_collection_dict: dict,
     base_pad_coords_dict: dict,
@@ -229,6 +235,7 @@ def initialize_spatial_correlation_state(
         valid_pad_dishing_bound_array = _get_valid_pad_dishing_bound_array(
             cfg,
             valid_pad_coords,
+            input_args,
         )
         pair_parts = _build_interface_pair_parts(
             cfg,

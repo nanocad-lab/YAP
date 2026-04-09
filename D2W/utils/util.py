@@ -8,6 +8,7 @@ import matplotlib.patches as patches
 from matplotlib.colors import ListedColormap, BoundaryNorm
 import scipy.io as sio
 import os
+import hashlib
 
 def add_config_items(cfg, keys, values):
     """
@@ -44,6 +45,92 @@ def finalize_cfg_for_mode(cfg, ds_name: str, mode: str):
     else:
         raise ValueError(f"Unknown mode: {mode}. Supported modes are 'w2w_simulation', 'w2w_modeling', 'd2w_simulation', and 'd2w_modeling'.")
     return cfg
+
+
+def _sanitize_runtime_tag(value: str) -> str:
+    safe = []
+    for ch in str(value):
+        if ch.isalnum() or ch in ("-", "_"):
+            safe.append(ch)
+        else:
+            safe.append("_")
+    return "".join(safe).strip("_")
+
+
+def build_runtime_cache_tag(input_args: dict | None) -> str:
+    input_args = input_args or {}
+    ds_name = str(input_args.get("ds_name", ""))
+    config_path = str(input_args.get("config", ""))
+    config_stem = os.path.splitext(os.path.basename(config_path))[0] if config_path else "config"
+    criticality_profile = str(input_args.get("criticality_profile", "default"))
+
+    raw = f"{ds_name}__{config_stem}__{criticality_profile}"
+    digest = hashlib.sha1(raw.encode("utf-8")).hexdigest()[:12]
+
+    ds_token = _sanitize_runtime_tag(ds_name)[:80]
+    config_token = _sanitize_runtime_tag(config_stem)[:80]
+    profile_token = _sanitize_runtime_tag(criticality_profile)[:40]
+
+    parts = [part for part in (ds_token, config_token, profile_token, digest) if part]
+    return "__".join(parts) if parts else digest
+
+
+def get_runtime_temp_dir(cfg, input_args: dict | None) -> str:
+    input_args = input_args or {}
+    ds_name = str(input_args.get("ds_name", getattr(cfg, "DESIGN", cfg.INTERFACE)))
+    temp_dir = os.path.join(cfg.OUTPUT_DIR, ds_name, "temp")
+    os.makedirs(temp_dir, exist_ok=True)
+    return temp_dir
+
+
+def get_sorted_bmap_copy_path(cfg, input_args: dict | None, bmap_path: str) -> str:
+    temp_dir = get_runtime_temp_dir(cfg, input_args)
+    bmap_stem = os.path.splitext(os.path.basename(bmap_path))[0]
+    run_tag = build_runtime_cache_tag(input_args)
+    return os.path.join(temp_dir, f"{bmap_stem}__sorted__{run_tag}.bmap")
+
+
+def get_dishing_bound_cache_path(cfg, input_args: dict | None) -> str:
+    temp_dir = get_runtime_temp_dir(cfg, input_args)
+    run_tag = build_runtime_cache_tag(input_args)
+    return os.path.join(temp_dir, f"{cfg.INTERFACE}_dishing_bound_array__{run_tag}.npy")
+
+
+def atomic_save_npy(path: str, array) -> None:
+    temp_path = f"{path}.tmp.{os.getpid()}.npy"
+    np.save(temp_path, array)
+    os.replace(temp_path, path)
+
+
+def cleanup_runtime_temp_files(cfg_dict: dict, input_args: dict | None) -> list[str]:
+    input_args = input_args or {}
+    if not cfg_dict:
+        return []
+
+    run_tag = build_runtime_cache_tag(input_args)
+    removed_paths = []
+    seen_temp_dirs = set()
+
+    for cfg in cfg_dict.values():
+        temp_dir = get_runtime_temp_dir(cfg, input_args)
+        if temp_dir in seen_temp_dirs:
+            continue
+        seen_temp_dirs.add(temp_dir)
+        if not os.path.isdir(temp_dir):
+            continue
+
+        for name in os.listdir(temp_dir):
+            if run_tag not in name:
+                continue
+            file_path = os.path.join(temp_dir, name)
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+                removed_paths.append(file_path)
+
+        if not os.listdir(temp_dir):
+            os.rmdir(temp_dir)
+
+    return removed_paths
 
 def _upsample_pad_yield_map(pad_yield_map: np.ndarray,
                             pad_map_shape,
@@ -413,6 +500,9 @@ def sort_pads_bmap(input_path, output_path):
             except ValueError:
                 continue  # 跳过无法解析的行
 
+    if not pads:
+        raise ValueError(f"No valid bump records found in {input_path}")
+
     # Transform to numpy array for sorting
     data = np.array(pads, dtype=object)
 
@@ -420,9 +510,11 @@ def sort_pads_bmap(input_path, output_path):
     idx = np.lexsort((data[:,0].astype(float), - data[:,1].astype(float)))
     sorted_data = data[idx]
 
-    with open(output_path, 'w') as f:
+    temp_output_path = f"{output_path}.tmp.{os.getpid()}"
+    with open(temp_output_path, 'w') as f:
         for _, _, line in sorted_data:
             f.write(line + '\n')
+    os.replace(temp_output_path, output_path)
 
     # print(f"Sorted the order as from top-left to right-bottom and saved in {output_path}")
 
@@ -541,20 +633,24 @@ def convert_3dblox_to_pad_bitmap(cfg,
                                  _bmap_path: str,
                                  criticality_path: str,
                                  pad_arrange_pattern: str,
-                                 input_args):
+                                 input_args=None):
     '''
     pad_arrange_pattern: 'checkerboard' for UCIe standard and HBM
     '''
     # Create output directory if not exist
-    output_path = os.path.join(cfg.OUTPUT_DIR, input_args['ds_name'], cfg.INTERFACE)      
-        
-    sort_pads_bmap(_bmap_path, _bmap_path)
+    input_args = input_args or {}
+    ds_name = str(input_args.get('ds_name', getattr(cfg, 'DESIGN', cfg.INTERFACE)))
+    output_path = os.path.join(cfg.OUTPUT_DIR, ds_name, cfg.INTERFACE)
+    os.makedirs(output_path, exist_ok=True)
+
+    sorted_bmap_path = get_sorted_bmap_copy_path(cfg, input_args, _bmap_path)
+    sort_pads_bmap(_bmap_path, sorted_bmap_path)
 
     # Read the bump data from the .bmap file
     bump_data = []
     # Initialize the pad array boundaries
     [pad_array_left, pad_array_right, pad_array_top, pad_array_bottom] = [float('inf'), float('-inf'), float('-inf'), float('inf')]
-    with open(_bmap_path, 'r') as f:
+    with open(sorted_bmap_path, 'r') as f:
         bumpid = 0
         for line in f:
             parts = line.strip().split()

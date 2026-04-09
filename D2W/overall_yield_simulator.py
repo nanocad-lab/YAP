@@ -12,6 +12,7 @@ from overlay_yield_simulator import die_pad_misalignment
 from Cu_gap_simulator import Cu_gap_simulator
 from debond import debond_dishing_intervals_from_coords #, post_bond_warpage_calculator
 from esd_yield_simulator import esd_failure_simulator
+from utils.util import atomic_save_npy, get_dishing_bound_cache_path
 
 def overall_yield_simulator(
     input_args: dict,
@@ -73,15 +74,19 @@ def overall_yield_simulator(
             valid_pad_mask_flat = valid_pad_mask.flatten() == 1
             valid_linear_idx = np.flatnonzero(valid_pad_mask_flat)
             valid_die_pad_coords = die_interface.pad_coords[valid_pad_mask_flat]
-            if not os.path.exists(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp/' + cfg.INTERFACE + "_dishing_bound_array.npy") or cfg.DEBUG:
-                if not os.path.exists(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp/'):
-                    os.makedirs(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp/')
-                # start_time = time.time()
-                valid_pad_dishing_bound_array = debond_dishing_intervals_from_coords(cfg, valid_die_pad_coords) # (num_pads, 2) array: (dishing_low_nm, dishing_high_nm)
-                # print("Dishing bound calculation time: {:.2f} seconds".format(time.time() - start_time))
-                np.save(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp/' + cfg.INTERFACE + "_dishing_bound_array.npy", valid_pad_dishing_bound_array)
-            else:
-                valid_pad_dishing_bound_array = np.load(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp/' + cfg.INTERFACE + "_dishing_bound_array.npy")
+            dishing_cache_path = get_dishing_bound_cache_path(cfg, input_args)
+            recompute_dishing_bounds = bool(cfg.DEBUG) or not os.path.exists(dishing_cache_path)
+            if not recompute_dishing_bounds:
+                valid_pad_dishing_bound_array = np.load(dishing_cache_path)
+                if valid_pad_dishing_bound_array.shape[0] != valid_die_pad_coords.shape[0]:
+                    recompute_dishing_bounds = True
+
+            if recompute_dishing_bounds:
+                valid_pad_dishing_bound_array = debond_dishing_intervals_from_coords(
+                    cfg,
+                    valid_die_pad_coords,
+                )  # (num_pads, 2) array: (dishing_low_nm, dishing_high_nm)
+                atomic_save_npy(dishing_cache_path, valid_pad_dishing_bound_array)
 
             # Read the critical pad bitmap
             die_critical_pad_bitmap = pad_bitmap_collection["CRITICAL_PAD_BITMAP"]

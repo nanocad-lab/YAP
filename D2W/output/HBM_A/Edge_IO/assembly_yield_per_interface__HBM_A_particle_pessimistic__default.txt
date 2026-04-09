@@ -1,1 +1,1 @@
-HBM_footprint_A 0.85900000
+HBM_footprint_A 0.88120000

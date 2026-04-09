@@ -64,10 +64,10 @@ d2w_simulation:
   k_n: 9.0e-05
   k_S: 2.7
   CU_RECESS_PAD_FAIL_RATIO: 0.1
-  TOP_DISH_MEAN_nm: -1.0
-  TOP_DISH_STD_nm: 0.5
-  BOT_DISH_MEAN_nm: -1.0
-  BOT_DISH_STD_nm: 0.5
+  TOP_DISH_MEAN_nm: -1
+  TOP_DISH_STD_nm: 0.3
+  BOT_DISH_MEAN_nm: -1
+  BOT_DISH_STD_nm: 0.3
   k_et: 0.053
   k_eb: 0.053
   T_R: 25
@@ -198,9 +198,9 @@ d2w_modeling:
   k_S: 2.7
   CU_RECESS_PAD_FAIL_RATIO: 0.1
   TOP_DISH_MEAN_nm: -1
-  TOP_DISH_STD_nm: 0.5
+  TOP_DISH_STD_nm: 0.3
   BOT_DISH_MEAN_nm: -1
-  BOT_DISH_STD_nm: 0.5
+  BOT_DISH_STD_nm: 0.3
   k_et: 0.053
   k_eb: 0.053
   T_R: 25

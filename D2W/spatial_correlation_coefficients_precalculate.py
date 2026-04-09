@@ -42,6 +42,7 @@ def Spatial_Correlation_Coefficients_Precalculate(
     del temp_die_stack_list
 
     correlation_state_dict = initialize_spatial_correlation_state(
+        input_args=input_args,
         cfg_dict=cfg_dict,
         pad_bitmap_collection_dict=pad_bitmap_collection_dict,
         base_pad_coords_dict=base_pad_coords_dict,

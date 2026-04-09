@@ -154,6 +154,7 @@ def main():
     args = parse_args()
     args.seed_run_base = secrets.randbits(63)
     args.output_file_tag = _build_output_file_tag(args.config, args.criticality_profile)
+    cfg_dict = None
 
     # Extract the design input files directory if provided
     input_ds_dir = args.ds_dir
@@ -166,190 +167,196 @@ def main():
 
     print(">>>>>> Starting D2W yield simulation for design: {}".format(args.ds_name))
     start_time = time.perf_counter()
-    # Load config and update with design and ADK parameters (from .3dbv and .bmap)
-    if os.path.exists(_3dbv_path) and os.path.exists(_3dbx_path):
-        cfg_dict = get_config_dict(cfg_folder=args.config.rsplit('/', 1)[0],
-                                    cfg_skeleton=cfg_skeleton, 
-                                    ds_name=args.ds_name,
-                                    input_ds_dir=input_ds_dir,
-                                    _3dbv_path=_3dbv_path,
-                                    _3dbx_path=_3dbx_path,
-                                    mode=args.mode, 
-                                    debug=args.debug)
-    else:
-        print("Using legacy single-interface input mode (no generated_stack_config.3dbx / generated_chiplet_definitions.3dbv).")
-        cfg_dict = get_single_interface_config_dict(
-            cfg_folder=args.config.rsplit('/', 1)[0],
-            cfg_skeleton=cfg_skeleton,
-            ds_name=args.ds_name,
-            input_ds_dir=input_ds_dir,
-            mode=args.mode,
-            debug=args.debug,
-        )
-    cfg_loading_time = time.perf_counter() - start_time
-    print(f"Config loading and processing finished in {cfg_loading_time:.2f} seconds.")
-
-    # Plotting flag
-    for cfg in cfg_dict.values():
-        cfg.plot_flag = args.plot
-    
-    # Create output directory if it doesn't exist
-    for cfg in cfg_dict.values():
-        output_path = os.path.join(cfg.OUTPUT_DIR, args.ds_name, cfg.INTERFACE)
-        os.makedirs(output_path, exist_ok=True)
-
-    # Verbose flag
-    for cfg in cfg_dict.values():
-        cfg.verbose = args.verbose
-
-    # Run assembly yield simulation for each interface
-    assembly_yield_dict = {}
-    bmap_path_dict = {}
-    criticality_path_dict = {}
-    pad_bitmap_collection_dict = {}
-    for interface, cfg in cfg_dict.items():
-        bmap_path_dict[interface] = os.path.join(input_ds_dir, f"{cfg.INTERFACE}.bmap")
-        criticality_path_dict[interface] = str(
-            resolve_criticality_path(
-                input_dir=input_ds_dir,
-                interface_name=cfg.INTERFACE,
-                profile=args.criticality_profile,
-            )
-        )
-        assert os.path.exists(criticality_path_dict[interface]), (
-            f"Criticality file not found for profile '{args.criticality_profile}': "
-            f"{criticality_path_dict[interface]}"
-        )
-
-    grouped_interfaces = group_raw_identical_interfaces(
-        cfg_dict=cfg_dict,
-        bmap_path_dict=bmap_path_dict,
-        criticality_path_dict=criticality_path_dict,
-    )
-    output_root = os.path.join(next(iter(cfg_dict.values())).OUTPUT_DIR, args.ds_name)
-    if has_reused_interfaces(grouped_interfaces):
-        print("Reusing identical interfaces for bitmap generation and simulation:")
-        print(format_group_summary(grouped_interfaces))
-        metadata_path = write_group_metadata(
-            output_root,
-            grouped_interfaces,
-            filename=f"collapsed_interface_groups{args.output_file_tag}.txt",
-        )
-        print(f"Collapsed interface groups saved to {metadata_path}.")
-
-    # Step 1: convert .bmap -> pad bitmap collection
-    if has_reused_interfaces(grouped_interfaces):
-        for representative, members in grouped_interfaces.items():
-            rep_cfg = cfg_dict[representative]
-            rep_bitmap_collection = convert_3dblox_to_pad_bitmap(
-                cfg=rep_cfg,
-                _bmap_path=bmap_path_dict[representative],
-                criticality_path=criticality_path_dict[representative],
-                pad_arrange_pattern=rep_cfg.PAD_ARRANGE_PATTERN,
-                input_args=vars(args),
-            )
-            for interface_name in members:
-                pad_bitmap_collection_dict[interface_name] = rep_bitmap_collection
-            for duplicate in members[1:]:
-                copy_representative_bitmap_outputs(
-                    output_root=output_root,
-                    representative=representative,
-                    duplicate=duplicate,
-                )
-    else:
-        for interface, cfg in cfg_dict.items():
-            pad_bitmap_collection_dict[interface] = convert_3dblox_to_pad_bitmap(
-                cfg=cfg,
-                _bmap_path=bmap_path_dict[interface],
-                criticality_path=criticality_path_dict[interface],
-                pad_arrange_pattern=cfg.PAD_ARRANGE_PATTERN,
-                input_args=vars(args),
-            )
-    convert_time = time.perf_counter() - start_time - cfg_loading_time
-    print("Pad bitmap collection generation finished in {:.2f} seconds.".format(convert_time))
-
-    # Step 2: run assembly yield simulator
-    print("Running assembly yield simulator over {} die stacks...".format(cfg_skeleton.NUM_DIE_STACKS))
-    simulation_start_time = time.time()
-    if has_reused_interfaces(grouped_interfaces):
-        per_interface_yield_dict = {}
-        stack_assembly_yield = 1.0
-        for representative, members in grouped_interfaces.items():
-            print(
-                f">>> Simulating representative interface {representative} (x{len(members)})"
-            )
-            rep_args = dict(vars(args))
-            rep_args["skip_verbose_root_artifacts"] = True
-            _, _, rep_yield_dict = Assembly_Yield_Simulator(
-                input_args=rep_args,
+    try:
+        # Load config and update with design and ADK parameters (from .3dbv and .bmap)
+        if os.path.exists(_3dbv_path) and os.path.exists(_3dbx_path):
+            cfg_dict = get_config_dict(cfg_folder=args.config.rsplit('/', 1)[0],
+                                        cfg_skeleton=cfg_skeleton, 
+                                        ds_name=args.ds_name,
+                                        input_ds_dir=input_ds_dir,
+                                        _3dbv_path=_3dbv_path,
+                                        _3dbx_path=_3dbx_path,
+                                        mode=args.mode, 
+                                        debug=args.debug)
+        else:
+            print("Using legacy single-interface input mode (no generated_stack_config.3dbx / generated_chiplet_definitions.3dbv).")
+            cfg_dict = get_single_interface_config_dict(
+                cfg_folder=args.config.rsplit('/', 1)[0],
                 cfg_skeleton=cfg_skeleton,
-                cfg_dict={representative: cfg_dict[representative]},
-                pad_bitmap_collection_dict={representative: pad_bitmap_collection_dict[representative]},
+                ds_name=args.ds_name,
+                input_ds_dir=input_ds_dir,
+                mode=args.mode,
+                debug=args.debug,
             )
-            representative_yield = rep_yield_dict[representative]
-            stack_assembly_yield *= representative_yield ** len(members)
-            for interface_name in members:
-                per_interface_yield_dict[interface_name] = representative_yield
-            for duplicate in members[1:]:
-                copy_representative_simulation_outputs(
-                    output_root=output_root,
-                    representative=representative,
-                    duplicate=duplicate,
-                    file_suffix=args.output_file_tag,
-                )
+        cfg_loading_time = time.perf_counter() - start_time
+        print(f"Config loading and processing finished in {cfg_loading_time:.2f} seconds.")
 
-        yield_path = write_per_interface_yield_file(
-            output_root,
-            per_interface_yield_dict,
-            file_suffix=args.output_file_tag,
-        )
-        print(f"Per-interface simulation yield saved to {yield_path}.")
-        if args.verbose:
-            note_path = os.path.join(
-                output_root,
-                f"collapsed_interface_simulation_note{args.output_file_tag}.txt",
-            )
-            with open(note_path, "w") as f:
-                f.write(
-                    "Identical-interface reuse was active.\n"
-                    "Per-interface yield and average failure-map PNGs were expanded from representative interfaces.\n"
-                    "Root-level per-sample failure-vector NPZ artifacts were skipped because they cannot be "
-                    "expanded to duplicates without inventing sample-wise correlations.\n"
+        # Plotting flag
+        for cfg in cfg_dict.values():
+            cfg.plot_flag = args.plot
+        
+        # Create output directory if it doesn't exist
+        for cfg in cfg_dict.values():
+            output_path = os.path.join(cfg.OUTPUT_DIR, args.ds_name, cfg.INTERFACE)
+            os.makedirs(output_path, exist_ok=True)
+
+        # Verbose flag
+        for cfg in cfg_dict.values():
+            cfg.verbose = args.verbose
+
+        # Run assembly yield simulation for each interface
+        assembly_yield_dict = {}
+        bmap_path_dict = {}
+        criticality_path_dict = {}
+        pad_bitmap_collection_dict = {}
+        for interface, cfg in cfg_dict.items():
+            bmap_path_dict[interface] = os.path.join(input_ds_dir, f"{cfg.INTERFACE}.bmap")
+            criticality_path_dict[interface] = str(
+                resolve_criticality_path(
+                    input_dir=input_ds_dir,
+                    interface_name=cfg.INTERFACE,
+                    profile=args.criticality_profile,
                 )
-            print(f"Collapsed simulation note saved to {note_path}.")
-    else:
-        stack_assembly_yield, _, per_interface_yield_dict = Assembly_Yield_Simulator(
+            )
+            assert os.path.exists(criticality_path_dict[interface]), (
+                f"Criticality file not found for profile '{args.criticality_profile}': "
+                f"{criticality_path_dict[interface]}"
+            )
+
+        grouped_interfaces = group_raw_identical_interfaces(
+            cfg_dict=cfg_dict,
+            bmap_path_dict=bmap_path_dict,
+            criticality_path_dict=criticality_path_dict,
+        )
+        output_root = os.path.join(next(iter(cfg_dict.values())).OUTPUT_DIR, args.ds_name)
+        if has_reused_interfaces(grouped_interfaces):
+            print("Reusing identical interfaces for bitmap generation and simulation:")
+            print(format_group_summary(grouped_interfaces))
+            metadata_path = write_group_metadata(
+                output_root,
+                grouped_interfaces,
+                filename=f"collapsed_interface_groups{args.output_file_tag}.txt",
+            )
+            print(f"Collapsed interface groups saved to {metadata_path}.")
+
+        # Step 1: convert .bmap -> pad bitmap collection
+        if has_reused_interfaces(grouped_interfaces):
+            for representative, members in grouped_interfaces.items():
+                rep_cfg = cfg_dict[representative]
+                rep_bitmap_collection = convert_3dblox_to_pad_bitmap(
+                    cfg=rep_cfg,
+                    _bmap_path=bmap_path_dict[representative],
+                    criticality_path=criticality_path_dict[representative],
+                    pad_arrange_pattern=rep_cfg.PAD_ARRANGE_PATTERN,
+                    input_args=vars(args),
+                )
+                for interface_name in members:
+                    pad_bitmap_collection_dict[interface_name] = rep_bitmap_collection
+                for duplicate in members[1:]:
+                    copy_representative_bitmap_outputs(
+                        output_root=output_root,
+                        representative=representative,
+                        duplicate=duplicate,
+                    )
+        else:
+            for interface, cfg in cfg_dict.items():
+                pad_bitmap_collection_dict[interface] = convert_3dblox_to_pad_bitmap(
+                    cfg=cfg,
+                    _bmap_path=bmap_path_dict[interface],
+                    criticality_path=criticality_path_dict[interface],
+                    pad_arrange_pattern=cfg.PAD_ARRANGE_PATTERN,
+                    input_args=vars(args),
+                )
+        convert_time = time.perf_counter() - start_time - cfg_loading_time
+        print("Pad bitmap collection generation finished in {:.2f} seconds.".format(convert_time))
+
+        # Step 2: run assembly yield simulator
+        print("Running assembly yield simulator over {} die stacks...".format(cfg_skeleton.NUM_DIE_STACKS))
+        simulation_start_time = time.time()
+        if has_reused_interfaces(grouped_interfaces):
+            per_interface_yield_dict = {}
+            stack_assembly_yield = 1.0
+            for representative, members in grouped_interfaces.items():
+                print(
+                    f">>> Simulating representative interface {representative} (x{len(members)})"
+                )
+                rep_args = dict(vars(args))
+                rep_args["skip_verbose_root_artifacts"] = True
+                _, _, rep_yield_dict = Assembly_Yield_Simulator(
+                    input_args=rep_args,
+                    cfg_skeleton=cfg_skeleton,
+                    cfg_dict={representative: cfg_dict[representative]},
+                    pad_bitmap_collection_dict={representative: pad_bitmap_collection_dict[representative]},
+                )
+                representative_yield = rep_yield_dict[representative]
+                stack_assembly_yield *= representative_yield ** len(members)
+                for interface_name in members:
+                    per_interface_yield_dict[interface_name] = representative_yield
+                for duplicate in members[1:]:
+                    copy_representative_simulation_outputs(
+                        output_root=output_root,
+                        representative=representative,
+                        duplicate=duplicate,
+                        file_suffix=args.output_file_tag,
+                    )
+
+            yield_path = write_per_interface_yield_file(
+                output_root,
+                per_interface_yield_dict,
+                file_suffix=args.output_file_tag,
+            )
+            print(f"Per-interface simulation yield saved to {yield_path}.")
+            if args.verbose:
+                note_path = os.path.join(
+                    output_root,
+                    f"collapsed_interface_simulation_note{args.output_file_tag}.txt",
+                )
+                with open(note_path, "w") as f:
+                    f.write(
+                        "Identical-interface reuse was active.\n"
+                        "Per-interface yield and average failure-map PNGs were expanded from representative interfaces.\n"
+                        "Root-level per-sample failure-vector NPZ artifacts were skipped because they cannot be "
+                        "expanded to duplicates without inventing sample-wise correlations.\n"
+                    )
+                print(f"Collapsed simulation note saved to {note_path}.")
+        else:
+            stack_assembly_yield, _, per_interface_yield_dict = Assembly_Yield_Simulator(
+                input_args=vars(args),
+                cfg_skeleton=cfg_skeleton,
+                cfg_dict=cfg_dict,
+                pad_bitmap_collection_dict=pad_bitmap_collection_dict,
+            )
+
+        simulation_elapsed = time.time() - simulation_start_time
+        total_runtime = time.perf_counter() - start_time
+
+        summary_path = write_simulation_summary(
+            output_root=output_root,
             input_args=vars(args),
             cfg_skeleton=cfg_skeleton,
             cfg_dict=cfg_dict,
-            pad_bitmap_collection_dict=pad_bitmap_collection_dict,
+            stack_assembly_yield=stack_assembly_yield,
+            per_interface_yield_dict=per_interface_yield_dict,
+            cfg_loading_time_s=cfg_loading_time,
+            bitmap_generation_time_s=convert_time,
+            simulation_time_s=simulation_elapsed,
+            total_time_s=total_runtime,
+            grouped_interfaces=grouped_interfaces,
         )
 
-    simulation_elapsed = time.time() - simulation_start_time
-    total_runtime = time.perf_counter() - start_time
-
-    summary_path = write_simulation_summary(
-        output_root=output_root,
-        input_args=vars(args),
-        cfg_skeleton=cfg_skeleton,
-        cfg_dict=cfg_dict,
-        stack_assembly_yield=stack_assembly_yield,
-        per_interface_yield_dict=per_interface_yield_dict,
-        cfg_loading_time_s=cfg_loading_time,
-        bitmap_generation_time_s=convert_time,
-        simulation_time_s=simulation_elapsed,
-        total_time_s=total_runtime,
-        grouped_interfaces=grouped_interfaces,
-    )
-
-    print(f">>> Yield simulation results for {args.ds_name}: {stack_assembly_yield}")
-    print("Per-interface simulation yield:")
-    for interface_name, interface_yield in per_interface_yield_dict.items():
-        print(f">>  {interface_name}: {interface_yield:.6f}")
-    print(f"Assembly yield summary saved to {summary_path}.")
-    print("Simulation finished in {:.2f} seconds.".format(simulation_elapsed))
-    # Total running time
-    print(f"Total D2W assembly yield simulation finished in {total_runtime:.2f} seconds.")
+        print(f">>> Yield simulation results for {args.ds_name}: {stack_assembly_yield}")
+        print("Per-interface simulation yield:")
+        for interface_name, interface_yield in per_interface_yield_dict.items():
+            print(f">>  {interface_name}: {interface_yield:.6f}")
+        print(f"Assembly yield summary saved to {summary_path}.")
+        print("Simulation finished in {:.2f} seconds.".format(simulation_elapsed))
+        # Total running time
+        print(f"Total D2W assembly yield simulation finished in {total_runtime:.2f} seconds.")
+    finally:
+        if cfg_dict:
+            removed_temp_paths = cleanup_runtime_temp_files(cfg_dict, vars(args))
+            if removed_temp_paths:
+                print(f"Cleaned {len(removed_temp_paths)} runtime temp files.")
 
 
 if __name__ == "__main__":

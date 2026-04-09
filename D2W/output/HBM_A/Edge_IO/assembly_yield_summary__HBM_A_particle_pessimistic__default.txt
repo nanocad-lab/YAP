@@ -10,8 +10,8 @@ ds_dir: input/HBM_A/Edge_IO
 criticality_profile: default
 verbose: True
 plot: False
-seed_run_base: 3154970960644915767
-NUM_DIE_STACKS: 1000
+seed_run_base: 75319951293268019
+NUM_DIE_STACKS: 10000
 SIM_BATCH_SIZE: 10
 num_interfaces: 1
 reused_interface_groups_active: False
@@ -19,20 +19,20 @@ reused_interface_groups_active: False
 Runtimes (seconds)
 ------------------
 config_loading: 0.01
-bitmap_generation: 1.73
-simulation: 9.79
-total: 11.54
+bitmap_generation: 2.28
+simulation: 108.03
+total: 110.32
 
 Yield Results
 -------------
-stack_assembly_yield: 0.85900000
-HBM_footprint_A: 0.85900000
+stack_assembly_yield: 0.88120000
+HBM_footprint_A: 0.88120000
 
 Common Simulation Parameters
 ----------------------------
 MODE: D2W_Hybrid_Bonding_Simulation
 DEBUG: False
-NUM_DIE_STACKS: 1000
+NUM_DIE_STACKS: 10000
 SIM_BATCH_SIZE: 10
 dice_width: 100
 pad_yield_flag: True
@@ -82,10 +82,10 @@ k_L: 0.062
 k_n: 9e-05
 k_S: 2.7
 CU_RECESS_PAD_FAIL_RATIO: 0.1
-TOP_DISH_MEAN_nm: -1.0
-TOP_DISH_STD_nm: 0.5
-BOT_DISH_MEAN_nm: -1.0
-BOT_DISH_STD_nm: 0.5
+TOP_DISH_MEAN_nm: -1
+TOP_DISH_STD_nm: 0.3
+BOT_DISH_MEAN_nm: -1
+BOT_DISH_STD_nm: 0.3
 k_et: 0.053
 k_eb: 0.053
 T_R: 25

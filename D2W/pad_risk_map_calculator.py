@@ -44,6 +44,7 @@ def parse_args():
 
 def main():
     args = parse_args()
+    cfg_dict = None
 
     # Extract the design input files directory if provided
     input_ds_dir = args.ds_dir
@@ -58,147 +59,153 @@ def main():
     print(">>>>>> Starting D2W pad-level risk map calculation for design: {}".format(args.ds_name))
 
     start_time = time.perf_counter()
-    # Load config and update with design and ADK parameters (from .3dbv and .bmap)
-    if os.path.exists(_3dbv_path) and os.path.exists(_3dbx_path):
-        cfg_dict = get_config_dict(cfg_folder=args.config.rsplit('/', 1)[0],
-                                    cfg_skeleton=cfg_skeleton, 
-                                    ds_name=args.ds_name,
-                                    input_ds_dir=input_ds_dir,
-                                    _3dbv_path=_3dbv_path,
-                                    _3dbx_path=_3dbx_path,
-                                    mode=args.mode, 
-                                    debug=args.debug)
-    else:
-        print("Using legacy single-interface input mode (no generated_stack_config.3dbx / generated_chiplet_definitions.3dbv).")
-        cfg_dict = get_single_interface_config_dict(
-            cfg_folder=args.config.rsplit('/', 1)[0],
-            cfg_skeleton=cfg_skeleton,
-            ds_name=args.ds_name,
-            input_ds_dir=input_ds_dir,
-            mode=args.mode,
-            debug=args.debug,
-        )
-    cfg_loading_time = time.perf_counter() - start_time
-    print(f"Config loading and processing finished in {cfg_loading_time:.2f} seconds.")
-
-    # Plotting flag
-    for cfg in cfg_dict.values():
-        cfg.plot_flag = args.plot
-    
-    # Create output directory if it doesn't exist
-    for cfg in cfg_dict.values():
-        output_path = os.path.join(cfg.OUTPUT_DIR, args.ds_name, cfg.INTERFACE)
-        os.makedirs(output_path, exist_ok=True)
-
-    bmap_path_dict = {}
-    criticality_path_dict = {}
-    pad_bitmap_collection_dict = {}
-    # Precompute the file paths once so we can collapse identical interfaces
-    for interface, cfg in cfg_dict.items():
-        bmap_path_dict[interface] = os.path.join(input_ds_dir, f"{cfg.INTERFACE}.bmap")
-        criticality_path_dict[interface] = str(
-            resolve_criticality_path(
-                input_dir=input_ds_dir,
-                interface_name=cfg.INTERFACE,
-                profile=args.criticality_profile,
+    try:
+        # Load config and update with design and ADK parameters (from .3dbv and .bmap)
+        if os.path.exists(_3dbv_path) and os.path.exists(_3dbx_path):
+            cfg_dict = get_config_dict(cfg_folder=args.config.rsplit('/', 1)[0],
+                                        cfg_skeleton=cfg_skeleton, 
+                                        ds_name=args.ds_name,
+                                        input_ds_dir=input_ds_dir,
+                                        _3dbv_path=_3dbv_path,
+                                        _3dbx_path=_3dbx_path,
+                                        mode=args.mode, 
+                                        debug=args.debug)
+        else:
+            print("Using legacy single-interface input mode (no generated_stack_config.3dbx / generated_chiplet_definitions.3dbv).")
+            cfg_dict = get_single_interface_config_dict(
+                cfg_folder=args.config.rsplit('/', 1)[0],
+                cfg_skeleton=cfg_skeleton,
+                ds_name=args.ds_name,
+                input_ds_dir=input_ds_dir,
+                mode=args.mode,
+                debug=args.debug,
             )
-        )
-        assert os.path.exists(criticality_path_dict[interface]), (
-            f"Criticality file not found for profile '{args.criticality_profile}': "
-            f"{criticality_path_dict[interface]}"
-        )
+        cfg_loading_time = time.perf_counter() - start_time
+        print(f"Config loading and processing finished in {cfg_loading_time:.2f} seconds.")
 
-    grouped_interfaces = group_raw_identical_interfaces(
-        cfg_dict=cfg_dict,
-        bmap_path_dict=bmap_path_dict,
-        criticality_path_dict=criticality_path_dict,
-    )
-    output_root = os.path.join(next(iter(cfg_dict.values())).OUTPUT_DIR, args.ds_name)
-    if has_reused_interfaces(grouped_interfaces):
-        print("Reusing identical interfaces for bitmap generation and pad risk map calculation:")
-        print(format_group_summary(grouped_interfaces))
-        metadata_path = write_group_metadata(
-            output_root,
-            grouped_interfaces,
-            filename="collapsed_bitmap_interface_groups.txt",
-        )
-        print(f"Collapsed interface groups saved to {metadata_path}.")
+        # Plotting flag
+        for cfg in cfg_dict.values():
+            cfg.plot_flag = args.plot
+        
+        # Create output directory if it doesn't exist
+        for cfg in cfg_dict.values():
+            output_path = os.path.join(cfg.OUTPUT_DIR, args.ds_name, cfg.INTERFACE)
+            os.makedirs(output_path, exist_ok=True)
 
-    # Step 1: convert .bmap -> pad bitmap collection
-    if has_reused_interfaces(grouped_interfaces):
-        for representative, members in grouped_interfaces.items():
-            rep_cfg = cfg_dict[representative]
-            rep_bitmap_collection = convert_3dblox_to_pad_bitmap(
-                cfg=rep_cfg,
-                _bmap_path=bmap_path_dict[representative],
-                criticality_path=criticality_path_dict[representative],
-                pad_arrange_pattern=rep_cfg.PAD_ARRANGE_PATTERN,
-                input_args=vars(args),
-            )
-            for interface_name in members:
-                pad_bitmap_collection_dict[interface_name] = rep_bitmap_collection
-            for duplicate in members[1:]:
-                copy_representative_bitmap_outputs(
-                    output_root=output_root,
-                    representative=representative,
-                    duplicate=duplicate,
-                )
-    else:
+        bmap_path_dict = {}
+        criticality_path_dict = {}
+        pad_bitmap_collection_dict = {}
+        # Precompute the file paths once so we can collapse identical interfaces
         for interface, cfg in cfg_dict.items():
-            pad_bitmap_collection_dict[interface] = convert_3dblox_to_pad_bitmap(
-                cfg=cfg,
-                _bmap_path=bmap_path_dict[interface],
-                criticality_path=criticality_path_dict[interface],
-                pad_arrange_pattern=cfg.PAD_ARRANGE_PATTERN,
-                input_args=vars(args),
-            )
-    convert_time = time.perf_counter() - start_time - cfg_loading_time
-    print("Pad bitmap collection generation finished in {:.2f} seconds.".format(convert_time))
-
-    risk_equivalent_groups = group_risk_equivalent_interfaces(
-        cfg_dict=cfg_dict,
-        pad_bitmap_collection_dict=pad_bitmap_collection_dict,
-    )
-    if has_reused_interfaces(risk_equivalent_groups):
-        print("Reusing geometry-equivalent interfaces for pad risk map calculation:")
-        print(format_group_summary(risk_equivalent_groups))
-        risk_metadata_path = write_group_metadata(
-            output_root,
-            risk_equivalent_groups,
-            filename="collapsed_risk_interface_groups.txt",
-        )
-        print(f"Risk-map-equivalent interface groups saved to {risk_metadata_path}.")
-
-    # Step 2: generate pad-level yield map
-    print("Calculating pad-level yield map...\n")
-    yield_map_generation_start_time = time.perf_counter()
-    if has_reused_interfaces(risk_equivalent_groups):
-        for representative, members in risk_equivalent_groups.items():
-            print(
-                f">>> Calculating pad-level yield maps for representative interface {representative} "
-                f"(x{len(members)})"
-            )
-            Pad_Yield_Map_Generator(
-                input_args=vars(args),
-                cfg_dict={representative: cfg_dict[representative]},
-                pad_bitmap_collection_dict={representative: pad_bitmap_collection_dict[representative]},
-            )
-            for duplicate in members[1:]:
-                copy_representative_risk_outputs(
-                    output_root=output_root,
-                    representative=representative,
-                    duplicate=duplicate,
+            bmap_path_dict[interface] = os.path.join(input_ds_dir, f"{cfg.INTERFACE}.bmap")
+            criticality_path_dict[interface] = str(
+                resolve_criticality_path(
+                    input_dir=input_ds_dir,
+                    interface_name=cfg.INTERFACE,
+                    profile=args.criticality_profile,
                 )
-    else:
-        Pad_Yield_Map_Generator(
-            input_args=vars(args),
+            )
+            assert os.path.exists(criticality_path_dict[interface]), (
+                f"Criticality file not found for profile '{args.criticality_profile}': "
+                f"{criticality_path_dict[interface]}"
+            )
+
+        grouped_interfaces = group_raw_identical_interfaces(
+            cfg_dict=cfg_dict,
+            bmap_path_dict=bmap_path_dict,
+            criticality_path_dict=criticality_path_dict,
+        )
+        output_root = os.path.join(next(iter(cfg_dict.values())).OUTPUT_DIR, args.ds_name)
+        if has_reused_interfaces(grouped_interfaces):
+            print("Reusing identical interfaces for bitmap generation and pad risk map calculation:")
+            print(format_group_summary(grouped_interfaces))
+            metadata_path = write_group_metadata(
+                output_root,
+                grouped_interfaces,
+                filename="collapsed_bitmap_interface_groups.txt",
+            )
+            print(f"Collapsed interface groups saved to {metadata_path}.")
+
+        # Step 1: convert .bmap -> pad bitmap collection
+        if has_reused_interfaces(grouped_interfaces):
+            for representative, members in grouped_interfaces.items():
+                rep_cfg = cfg_dict[representative]
+                rep_bitmap_collection = convert_3dblox_to_pad_bitmap(
+                    cfg=rep_cfg,
+                    _bmap_path=bmap_path_dict[representative],
+                    criticality_path=criticality_path_dict[representative],
+                    pad_arrange_pattern=rep_cfg.PAD_ARRANGE_PATTERN,
+                    input_args=vars(args),
+                )
+                for interface_name in members:
+                    pad_bitmap_collection_dict[interface_name] = rep_bitmap_collection
+                for duplicate in members[1:]:
+                    copy_representative_bitmap_outputs(
+                        output_root=output_root,
+                        representative=representative,
+                        duplicate=duplicate,
+                    )
+        else:
+            for interface, cfg in cfg_dict.items():
+                pad_bitmap_collection_dict[interface] = convert_3dblox_to_pad_bitmap(
+                    cfg=cfg,
+                    _bmap_path=bmap_path_dict[interface],
+                    criticality_path=criticality_path_dict[interface],
+                    pad_arrange_pattern=cfg.PAD_ARRANGE_PATTERN,
+                    input_args=vars(args),
+                )
+        convert_time = time.perf_counter() - start_time - cfg_loading_time
+        print("Pad bitmap collection generation finished in {:.2f} seconds.".format(convert_time))
+
+        risk_equivalent_groups = group_risk_equivalent_interfaces(
             cfg_dict=cfg_dict,
             pad_bitmap_collection_dict=pad_bitmap_collection_dict,
         )
-    print(">>> D2W pad-level risk map calculation completed")
-    print(f"Pad yield map generation finished in {time.perf_counter() - yield_map_generation_start_time:.2f} s\n")
-    # Total running time
-    print(f"Total D2W pad-level risk map calculation finished in {time.perf_counter() - start_time:.2f} seconds.")
+        if has_reused_interfaces(risk_equivalent_groups):
+            print("Reusing geometry-equivalent interfaces for pad risk map calculation:")
+            print(format_group_summary(risk_equivalent_groups))
+            risk_metadata_path = write_group_metadata(
+                output_root,
+                risk_equivalent_groups,
+                filename="collapsed_risk_interface_groups.txt",
+            )
+            print(f"Risk-map-equivalent interface groups saved to {risk_metadata_path}.")
+
+        # Step 2: generate pad-level yield map
+        print("Calculating pad-level yield map...\n")
+        yield_map_generation_start_time = time.perf_counter()
+        if has_reused_interfaces(risk_equivalent_groups):
+            for representative, members in risk_equivalent_groups.items():
+                print(
+                    f">>> Calculating pad-level yield maps for representative interface {representative} "
+                    f"(x{len(members)})"
+                )
+                Pad_Yield_Map_Generator(
+                    input_args=vars(args),
+                    cfg_dict={representative: cfg_dict[representative]},
+                    pad_bitmap_collection_dict={representative: pad_bitmap_collection_dict[representative]},
+                )
+                for duplicate in members[1:]:
+                    copy_representative_risk_outputs(
+                        output_root=output_root,
+                        representative=representative,
+                        duplicate=duplicate,
+                    )
+        else:
+            Pad_Yield_Map_Generator(
+                input_args=vars(args),
+                cfg_dict=cfg_dict,
+                pad_bitmap_collection_dict=pad_bitmap_collection_dict,
+            )
+        print(">>> D2W pad-level risk map calculation completed")
+        print(f"Pad yield map generation finished in {time.perf_counter() - yield_map_generation_start_time:.2f} s\n")
+        # Total running time
+        print(f"Total D2W pad-level risk map calculation finished in {time.perf_counter() - start_time:.2f} seconds.")
+    finally:
+        if cfg_dict:
+            removed_temp_paths = cleanup_runtime_temp_files(cfg_dict, vars(args))
+            if removed_temp_paths:
+                print(f"Cleaned {len(removed_temp_paths)} runtime temp files.")
 
 if __name__ == "__main__":
     main()
