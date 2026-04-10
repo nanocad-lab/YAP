@@ -11,6 +11,8 @@
 │   │   │   ├── design_1.yaml
 │   │   │   └── design_1_<mechanism>_pessimistic.yaml
 │   │   ├── design_2/
+│   │   ├── design_5/
+│   │   ├── design_6/
 │   │   ├── HBM_A/
 │   │   └── HBM_B/
 │   ├── input/      # Per-design 3dblox inputs, bump maps, and criticality files
@@ -21,6 +23,8 @@
 │   │   │       ├── Random_IO/
 │   │   │       └── <chiplet_A>_to_<chiplet_B>_shared_nets.txt
 │   │   ├── design_2/
+│   │   ├── design_5/
+│   │   ├── design_6/
 │   │   ├── HBM_A/
 │   │   │   ├── Original/
 │   │   │   ├── Center_IO/
@@ -86,6 +90,8 @@ pip install -r requirements.txt
 
   ```
   python pad_risk_map_calculator.py --config configs/design_1/design_1.yaml --mode d2w_modeling --ds_name design_1/c25_r0_pg50_dm25/Center_IO --ds_dir input/design_1/c25_r0_pg50_dm25/Center_IO --verbose
+
+  python pad_risk_map_calculator.py --config configs/design_5/design_5.yaml --mode d2w_modeling --ds_name design_5/c25_r0_pg50_dm25/Center_IO --ds_dir input/design_5/c25_r0_pg50_dm25/Center_IO --verbose
   ```
 
   Notes for large-pad-count analytical ESD maps:
@@ -117,18 +123,20 @@ pip install -r requirements.txt
 
   ```
   ./run_design_pad_risk_maps.sh --ratio c25_r0_pg50_dm25 design_1
-  ./run_design_pad_risk_maps.sh --ratio c25_r0_pg50_dm25 design_1 design_2 HBM_A HBM_B
+  ./run_design_pad_risk_maps.sh --ratio c25_r0_pg50_dm25 design_1 design_2 design_5 design_6 HBM_A HBM_B
   ./run_design_pad_risk_maps.sh HBM_A HBM_B
   ```
 
   Notes:
-  - Ratio-based designs such as `design_1` and `design_2` should be run with `--ratio`.
+  - Ratio-based designs such as `design_1`, `design_2`, `design_5`, and `design_6` should be run with `--ratio`.
   - `HBM_A` and `HBM_B` use direct variant folders and do not require a ratio.
 
   Example command to run the simulator main for D2W hybrid bonding for a single design
 
   ```
   python simulator_main.py   --config configs/design_1/design_1.yaml   --mode d2w_simulation   --ds_name design_1/c25_r0_pg50_dm25/Center_IO   --ds_dir input/design_1/c25_r0_pg50_dm25/Center_IO --verbose
+
+  python simulator_main.py --config configs/design_5/design_5.yaml --mode d2w_simulation --ds_name design_5/c25_r0_pg50_dm25/Center_IO --ds_dir input/design_5/c25_r0_pg50_dm25/Center_IO --criticality-profile default --verbose
   ```
 
   Example command to run the simulator with the strict-ESD criticality profile
@@ -143,13 +151,15 @@ pip install -r requirements.txt
   python simulator_main.py --config configs/HBM_A/HBM_A.yaml --mode d2w_simulation --ds_name HBM_A/Original --ds_dir input/HBM_A/Original --criticality-profile default --verbose
 
   python simulator_main.py --config configs/HBM_A/HBM_A_particle_pessimistic.yaml --mode d2w_simulation --ds_name HBM_A/Center_IO --ds_dir input/HBM_A/Center_IO --criticality-profile default --verbose
+
+  python simulator_main.py --config configs/design_5/design_5.yaml --mode d2w_simulation --ds_name design_5/c25_r0_pg50_dm25/Center_IO --ds_dir input/design_5/c25_r0_pg50_dm25/Center_IO --criticality-profile default --save-failure-maps --verbose
   ```
 
   Example command to run D2W simulation for all variants of one or more designs
 
   ```
   ./run_design_simulations.sh --ratio c25_r0_pg50_dm25 design_1
-  ./run_design_simulations.sh --ratio c25_r0_pg50_dm25 --verbose design_1 design_2 HBM_A HBM_B
+  ./run_design_simulations.sh --ratio c25_r0_pg50_dm25 --verbose design_1 design_2 design_5 design_6 HBM_A HBM_B
   ./run_design_simulations.sh HBM_A HBM_B
   ```
 
@@ -161,6 +171,13 @@ pip install -r requirements.txt
   ./run_all_simulations_parallel.sh --dry-run --jobs 4
   ```
 
+  Example command to run the full `design_5 / design_6 / HBM_A / HBM_B` sweep used for result tables
+
+  ```
+  ./run_design_5_6_hbm_parallel.sh --jobs 16
+  ./run_design_5_6_hbm_parallel.sh --dry-run --jobs 4
+  ```
+
   Notes for the parallel simulation launcher:
   - Each experiment is forced to single-threaded execution.
   - Jobs sharing the same `ds_dir` are serialized; only different `ds_dir` values run in parallel.
@@ -168,6 +185,10 @@ pip install -r requirements.txt
   - Mechanical dishing caches are isolated by `ds_name + config + criticality_profile`, so different configs can run on the same `ds_dir` without sharing temp files.
   - Runtime temp files are cleaned automatically after each experiment finishes.
   - Per-experiment logs are written to `output/<ds_name>/parallel_simulation__<config_stem>__<criticality_profile>.log`.
+  - `run_design_5_6_hbm_parallel.sh` defaults to:
+  - `design_5`: all ratios, `Center_IO / Edge_IO / Random_IO`
+  - `design_6`: all ratios, `Center_IO / Edge_IO / Random_IO`
+  - `HBM_A` and `HBM_B`: `Original / Center_IO / Edge_IO / Random_IO`
 
 # File Formats
 **1. Bump Map (.bmap):**
@@ -268,11 +289,13 @@ pip install -r requirements.txt
 
 **4.assembly_fail_map_per_interface_dict__<config_stem>__<criticality_profile>.npz**
 
-  The average failure count (across all simulation samples) of each pad in a pad map format for all failure mechanisms. The visualization will be generated by the simulation.
+  The average failure count (across all simulation samples) of each pad in a pad map format for all failure mechanisms.
+  This file is only written when both `--verbose` and `--save-failure-maps` are enabled.
 
 **5.assembly_fail_vec_per_interface_dict__<config_stem>__<criticality_profile>.npz**
 
-  The failure vector of the survival scenario of each die samples for all failure mechanisms. 
+  The failure vector of the survival scenario of each die samples for all failure mechanisms.
+  This file is written in verbose simulation mode even when failure-map PNG/NPZ saving is disabled.
   
   Example: die A, B, C, D, and E are simulated. A, B and D pass, and C and E fail. The failure vector of this failure mechanism is : `0, 0, 1, 0, 1`.
 
@@ -284,6 +307,8 @@ pip install -r requirements.txt
   - `mechanical`
   - `ESD`
   - `overall`
+  
+  These PNGs are only written when `--save-failure-maps` is enabled for `simulator_main.py`.
 
 # Generator Utilities
 Four helper scripts are provided to quickly generate starter files for testing:
