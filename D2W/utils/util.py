@@ -9,6 +9,7 @@ from matplotlib.colors import ListedColormap, BoundaryNorm
 import scipy.io as sio
 import os
 import hashlib
+import json
 
 def add_config_items(cfg, keys, values):
     """
@@ -96,6 +97,59 @@ def get_dishing_bound_cache_path(cfg, input_args: dict | None) -> str:
     return os.path.join(temp_dir, f"{cfg.INTERFACE}_dishing_bound_array__{run_tag}.npy")
 
 
+def is_cache_fresh(cache_path: str, source_paths: list[str]) -> bool:
+    if not os.path.exists(cache_path):
+        return False
+
+    cache_mtime = os.path.getmtime(cache_path)
+    for source_path in source_paths:
+        if not source_path or not os.path.exists(source_path):
+            continue
+        if os.path.getmtime(source_path) > cache_mtime:
+            return False
+    return True
+
+
+def _normalize_cache_value(value):
+    if isinstance(value, dict):
+        return {
+            str(key): _normalize_cache_value(sub_value)
+            for key, sub_value in sorted(value.items(), key=lambda item: str(item[0]))
+        }
+    if isinstance(value, (list, tuple)):
+        return [_normalize_cache_value(item) for item in value]
+    if isinstance(value, np.generic):
+        return value.item()
+    if isinstance(value, float):
+        return round(value, 12)
+    return value
+
+
+def _bitmap_collection_cache_signature(
+    cfg,
+    bmap_path: str,
+    criticality_path: str,
+    pad_arrange_pattern: str,
+) -> str:
+    cfg_container = OmegaConf.to_container(cfg, resolve=True)
+    signature_payload = {
+        "cfg": _normalize_cache_value(cfg_container),
+        "bmap_path": os.path.abspath(bmap_path),
+        "bmap_mtime_ns": os.stat(bmap_path).st_mtime_ns,
+        "bmap_size": os.stat(bmap_path).st_size,
+        "criticality_path": os.path.abspath(criticality_path),
+        "criticality_mtime_ns": os.stat(criticality_path).st_mtime_ns,
+        "criticality_size": os.stat(criticality_path).st_size,
+        "pad_arrange_pattern": str(pad_arrange_pattern),
+    }
+    payload_json = json.dumps(
+        signature_payload,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha1(payload_json.encode("utf-8")).hexdigest()
+
+
 def atomic_save_npy(path: str, array) -> None:
     temp_path = f"{path}.tmp.{os.getpid()}.npy"
     np.save(temp_path, array)
@@ -122,6 +176,8 @@ def cleanup_runtime_temp_files(cfg_dict: dict, input_args: dict | None) -> list[
         for name in os.listdir(temp_dir):
             if run_tag not in name:
                 continue
+            if ".tmp." not in name:
+                continue
             file_path = os.path.join(temp_dir, name)
             if os.path.isfile(file_path):
                 os.remove(file_path)
@@ -131,6 +187,49 @@ def cleanup_runtime_temp_files(cfg_dict: dict, input_args: dict | None) -> list[
             os.rmdir(temp_dir)
 
     return removed_paths
+
+
+def _ensure_bitmap_collection_group_arrays(bitmap_collection: dict) -> tuple[dict, bool]:
+    required_keys = (
+        "redundant_group_id_per_pad",
+        "redundant_tolerated_esd_failures",
+        "redundant_tolerated_mechanical_failures",
+    )
+    if all(key in bitmap_collection for key in required_keys):
+        return bitmap_collection, False
+
+    pad_coords = np.asarray(bitmap_collection["pad_coords"])
+    total_pad_count = int(pad_coords.shape[0])
+    redundant_group_id_per_pad = np.full(total_pad_count, -1, dtype=np.int32)
+
+    redundant_net_to_1d_physical_mask = bitmap_collection["redundant_net_to_1d_physical_mask"]
+    criticality_info = bitmap_collection["criticality_info"]
+    group_names = list(redundant_net_to_1d_physical_mask.keys())
+
+    tolerated_esd_failures = np.zeros(len(group_names), dtype=np.int32)
+    tolerated_mechanical_failures = np.zeros(len(group_names), dtype=np.int32)
+
+    for group_id, net in enumerate(group_names):
+        physical_mask = np.asarray(
+            redundant_net_to_1d_physical_mask[net],
+            dtype=np.int64,
+        ).reshape(-1)
+        physical_mask = physical_mask[physical_mask >= 0]
+        if physical_mask.size > 0:
+            redundant_group_id_per_pad[physical_mask] = group_id
+
+        net_info = criticality_info[net]
+        tolerated_esd_failures[group_id] = int(net_info["tolerated_esd_failures"])
+        tolerated_mechanical_failures[group_id] = int(
+            net_info["tolerated_mechanical_failures"]
+        )
+
+    bitmap_collection["redundant_group_id_per_pad"] = redundant_group_id_per_pad
+    bitmap_collection["redundant_tolerated_esd_failures"] = tolerated_esd_failures
+    bitmap_collection["redundant_tolerated_mechanical_failures"] = (
+        tolerated_mechanical_failures
+    )
+    return bitmap_collection, True
 
 def _upsample_pad_yield_map(pad_yield_map: np.ndarray,
                             pad_map_shape,
@@ -486,6 +585,8 @@ def sort_pads_bmap(input_path, output_path):
     - x is the 3rd column (index 2)
     - y is the 4th column (index 3)
     """
+    if is_cache_fresh(output_path, [input_path]):
+        return
 
     pads = []
     with open(input_path, 'r') as f:
@@ -642,6 +743,31 @@ def convert_3dblox_to_pad_bitmap(cfg,
     ds_name = str(input_args.get('ds_name', getattr(cfg, 'DESIGN', cfg.INTERFACE)))
     output_path = os.path.join(cfg.OUTPUT_DIR, ds_name, cfg.INTERFACE)
     os.makedirs(output_path, exist_ok=True)
+    bitmap_collection_path = os.path.join(
+        output_path,
+        f"{cfg.INTERFACE}_bitmap_collection.npy",
+    )
+    cache_signature = _bitmap_collection_cache_signature(
+        cfg=cfg,
+        bmap_path=_bmap_path,
+        criticality_path=criticality_path,
+        pad_arrange_pattern=pad_arrange_pattern,
+    )
+
+    if is_cache_fresh(bitmap_collection_path, [_bmap_path, criticality_path]):
+        bitmap_collection = np.load(bitmap_collection_path, allow_pickle=True).item()
+        if bitmap_collection.get("_cache_signature") == cache_signature:
+            bitmap_collection, cache_updated = _ensure_bitmap_collection_group_arrays(
+                bitmap_collection
+            )
+            if cache_updated:
+                bitmap_collection["_cache_signature"] = cache_signature
+                np.save(bitmap_collection_path, bitmap_collection)
+
+            pad_bitmap_path = os.path.join(output_path, f"{cfg.INTERFACE}_pad_bitmap.png")
+            if not os.path.exists(pad_bitmap_path):
+                draw_pad_bitmap(cfg, bitmap_collection, output_path)
+            return bitmap_collection
 
     sorted_bmap_path = get_sorted_bmap_copy_path(cfg, input_args, _bmap_path)
     sort_pads_bmap(_bmap_path, sorted_bmap_path)
@@ -682,7 +808,7 @@ def convert_3dblox_to_pad_bitmap(cfg,
     for bump in bump_data:
         if bump['net'] not in redundant_net_to_bumpids:
             redundant_net_to_bumpids[bump['net']] = set()
-            redundant_net_to_1d_physical_mask[bump['net']] = np.array([], dtype=int)
+            redundant_net_to_1d_physical_mask[bump['net']] = []
         redundant_net_to_bumpids[bump['net']].add(bump['bumpid'])
 
     # Generate the criticality map
@@ -756,11 +882,17 @@ def convert_3dblox_to_pad_bitmap(cfg,
             elif num_copies > 1: 
                 REDUNDANT_PAD_BITMAP[row, col] = 1
                 ESD_CRITICAL_PAD_BITMAP[row, col] = 1 if criticality_info[current_bump_net]['tolerated_esd_failures'] == 0 else 0
-                redundant_net_to_1d_physical_mask[bump['net']] = np.append(redundant_net_to_1d_physical_mask[bump['net']], row * cfg.PAD_ARR_COL + col)
+                redundant_net_to_1d_physical_mask[bump['net']].append(
+                    row * cfg.PAD_ARR_COL + col
+                )
                 continue
     else:
         raise NotImplementedError("Currently only support checkerboard pad arrangement pattern.")
 
+    redundant_net_to_1d_physical_mask = {
+        net: np.asarray(physical_mask, dtype=np.int32)
+        for net, physical_mask in redundant_net_to_1d_physical_mask.items()
+    }
 
     # Count the number of pads
     num_critical_pads = np.sum(CRITICAL_PAD_BITMAP)
@@ -781,9 +913,11 @@ def convert_3dblox_to_pad_bitmap(cfg,
     bitmap_collection["pad_coords"] = pad_coords
     bitmap_collection["mapping_physical_to_bumpid"] = mapping_physical_to_bumpid
     bitmap_collection["criticality_info"] = criticality_info
+    bitmap_collection, _ = _ensure_bitmap_collection_group_arrays(bitmap_collection)
+    bitmap_collection["_cache_signature"] = cache_signature
     
     # Save the bitmap collection as npy file and mat file
-    np.save(output_path + '/' + cfg.INTERFACE + "_bitmap_collection.npy", bitmap_collection)
+    np.save(bitmap_collection_path, bitmap_collection)
     # sio.savemat(cfg.OUTPUT_DIR + "bitmap_collection.mat", bitmap_collection)
 
     # # Draw the critical and redundant pad bitmaps in one figure (critical light red, redundant light blue, dummy light gray)

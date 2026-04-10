@@ -5,10 +5,11 @@ Retag design_2 Compute_Large bump-map names for neighbor-chiplet traffic.
 Rules
 -----
 - Keep the existing bump-kind placement and ratios unchanged.
-- For each compute die, 50% of critical bumps become internal links.
-- The internal-link half is split across the two neighboring compute dies.
+- For non-c0 ratios, 50% of critical bumps become internal links.
+- For c0_r50_pg50_dm0, 25% of redundant nets become internal links.
+- Each compute die splits its internal-link share across its two neighboring compute dies.
 - Remaining critical bumps become chiplet-local external critical signals.
-- Redundant bumps stay chiplet-local external redundant signals.
+- Remaining redundant bumps stay chiplet-local external redundant signals.
 - PG and dummy bumps are prefixed with the owning chiplet id.
 - Regenerate per-file criticality and one shared-net summary per ratio folder.
 """
@@ -405,6 +406,7 @@ def write_shared_summary(
 def retag_group(
     group_paths: dict[int, Path],
     pair_counts: dict[tuple[int, int], int],
+    use_redundant_shared: bool,
     dry_run: bool,
 ) -> None:
     entries_by_id = {chiplet_id: read_entries(path) for chiplet_id, path in group_paths.items()}
@@ -438,23 +440,40 @@ def retag_group(
         dummy_indices = partitions["dummy_indices"]
 
         cursor = 0
-        for neighbor_id in neighbor_map[chiplet_id]:
-            pair = tuple(sorted((chiplet_id, neighbor_id)))
-            names = shared_names_by_pair[pair]
-            chunk_size = len(names)
-            for entry_idx, shared_name in zip(
-                critical_indices[cursor : cursor + chunk_size], names
-            ):
-                entries[entry_idx][4] = shared_name
-                entries[entry_idx][5] = shared_name
-            cursor += chunk_size
+        if use_redundant_shared:
+            for neighbor_id in neighbor_map[chiplet_id]:
+                pair = tuple(sorted((chiplet_id, neighbor_id)))
+                names = shared_names_by_pair[pair]
+                chunk_size = len(names)
+                for (first_idx, second_idx), shared_name in zip(
+                    redundant_pairs[cursor : cursor + chunk_size], names
+                ):
+                    for entry_idx in (first_idx, second_idx):
+                        entries[entry_idx][4] = shared_name
+                        entries[entry_idx][5] = shared_name
+                cursor += chunk_size
+            external_critical_indices = critical_indices
+            external_redundant_pairs = redundant_pairs[cursor:]
+        else:
+            for neighbor_id in neighbor_map[chiplet_id]:
+                pair = tuple(sorted((chiplet_id, neighbor_id)))
+                names = shared_names_by_pair[pair]
+                chunk_size = len(names)
+                for entry_idx, shared_name in zip(
+                    critical_indices[cursor : cursor + chunk_size], names
+                ):
+                    entries[entry_idx][4] = shared_name
+                    entries[entry_idx][5] = shared_name
+                cursor += chunk_size
+            external_critical_indices = critical_indices[cursor:]
+            external_redundant_pairs = redundant_pairs
 
-        for external_idx, entry_idx in enumerate(critical_indices[cursor:], start=1):
+        for external_idx, entry_idx in enumerate(external_critical_indices, start=1):
             name = f"chiplet_{chiplet_id}_ext_crit_{external_idx:06d}"
             entries[entry_idx][4] = name
             entries[entry_idx][5] = name
 
-        for pair_idx, (first_idx, second_idx) in enumerate(redundant_pairs, start=1):
+        for pair_idx, (first_idx, second_idx) in enumerate(external_redundant_pairs, start=1):
             name = f"chiplet_{chiplet_id}_ext_rd_{pair_idx:06d}"
             for entry_idx in (first_idx, second_idx):
                 entries[entry_idx][4] = name
@@ -504,9 +523,13 @@ def main() -> None:
             parse_ratio_from_path(group_paths[sample_id]),
         )
         critical_count = sample_counts[0]
-        shared_per_die = critical_count // 2
+        redundant_net_count = sample_counts[1] // 2
+        use_redundant_shared = critical_count == 0
+        shared_per_die = (
+            redundant_net_count // 4 if use_redundant_shared else critical_count // 2
+        )
         pair_counts = compute_pair_shared_counts(chiplet_ids, pairs, shared_per_die)
-        retag_group(group_paths, pair_counts, args.dry_run)
+        retag_group(group_paths, pair_counts, use_redundant_shared, args.dry_run)
 
         ratio_to_shared_names.setdefault(
             ratio_name,

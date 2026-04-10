@@ -201,6 +201,44 @@ def _fixed_tilt_probability_map_with_arcing(
     return prob
 
 
+def _select_candidate_pad_indices(
+    *,
+    contact_limit_um: np.ndarray,
+    sigma_h_um: float,
+    candidate_sigma_window: float,
+    candidate_min_pads: int,
+    candidate_disable_fraction: float,
+) -> np.ndarray:
+    """
+    Return the candidate-pad indices to evaluate for a fixed tilt case.
+
+    The first-touch pad must lie near the minimum deterministic contact limit.
+    We keep pads within a small sigma-based window of the minimum limit, with a
+    floor on the candidate count. If that window captures most pads, we disable
+    pruning and evaluate the full set to avoid approximation artifacts.
+    """
+    contact_limit_um = np.asarray(contact_limit_um, dtype=np.float64).reshape(-1)
+    pad_count = contact_limit_um.size
+    if pad_count <= 0:
+        return np.zeros((0,), dtype=np.int64)
+
+    if candidate_sigma_window <= 0.0 or sigma_h_um <= 0.0:
+        return np.arange(pad_count, dtype=np.int64)
+
+    min_limit = float(np.min(contact_limit_um))
+    threshold = min_limit + float(candidate_sigma_window) * float(sigma_h_um)
+    candidate_idx = np.flatnonzero(contact_limit_um <= threshold)
+
+    min_pads = max(1, min(int(candidate_min_pads), pad_count))
+    if candidate_idx.size < min_pads:
+        candidate_idx = np.argpartition(contact_limit_um, min_pads - 1)[:min_pads]
+
+    if candidate_idx.size / float(pad_count) >= float(candidate_disable_fraction):
+        return np.arange(pad_count, dtype=np.int64)
+
+    return np.sort(candidate_idx.astype(np.int64, copy=False))
+
+
 def _plot_probability_over_pads_with_pitch(
     pad_coords_um: np.ndarray,
     prob_vec: np.ndarray,
@@ -297,6 +335,11 @@ def pad_esd_yield_map_generator(
     tail_sigma = float(getattr(cfg, "ESD_ANALYTICAL_TAIL_SIGMA", 8.0))
     chunk_size = int(getattr(cfg, "ESD_ANALYTICAL_CHUNK_SIZE", 100000))
     fill_residual_uniformly = bool(getattr(cfg, "ESD_ANALYTICAL_FILL_RESIDUAL_UNIFORMLY", True))
+    candidate_sigma_window = float(getattr(cfg, "ESD_ANALYTICAL_CANDIDATE_SIGMA_WINDOW", 8.0))
+    candidate_min_pads = int(getattr(cfg, "ESD_ANALYTICAL_CANDIDATE_MIN_PADS", 4096))
+    candidate_disable_fraction = float(
+        getattr(cfg, "ESD_ANALYTICAL_CANDIDATE_DISABLE_FRACTION", 0.8)
+    )
     verbose = bool(getattr(cfg, "verbose", False))
 
     pad_coords_um = np.asarray(pad_coords_um, dtype=np.float64)
@@ -356,8 +399,15 @@ def pad_esd_yield_map_generator(
                     tilt_y_deg=theta_y_deg,
                     z_top_um=z_top_um,
                 )
-                prob_case = _fixed_tilt_probability_map_with_arcing(
+                candidate_idx = _select_candidate_pad_indices(
                     contact_limit_um=contact_limit_um,
+                    sigma_h_um=sigma_h_um,
+                    candidate_sigma_window=candidate_sigma_window,
+                    candidate_min_pads=candidate_min_pads,
+                    candidate_disable_fraction=candidate_disable_fraction,
+                )
+                prob_case_local = _fixed_tilt_probability_map_with_arcing(
+                    contact_limit_um=contact_limit_um[candidate_idx],
                     mu_h_um=mu_h_um,
                     sigma_h_um=sigma_h_um,
                     arc_distance_um=arc_distance_um,
@@ -366,19 +416,21 @@ def pad_esd_yield_map_generator(
                     chunk_size=chunk_size,
                     fill_residual_uniformly=fill_residual_uniformly,
                 )
+                prob_case = np.zeros((active_pad_count,), dtype=np.float64)
+                prob_case[candidate_idx] = prob_case_local
                 prob_v += outer_coeff * prob_case
                 total_outer_weight += outer_coeff
                 case_id += 1
 
-                # if verbose:
-                #     print(
-                #         f"[ESD analytical] {case_id}/{total_cases} | "
-                #         f"V={float(v_chg):.4f} V | "
-                #         f"theta_x={theta_x_deg:.3e} deg | "
-                #         f"theta_y={theta_y_deg:.3e} deg",
-                #         end="\r",
-                #         flush=True,
-                #     )
+                if verbose:
+                    print(
+                        f"[ESD analytical] {case_id}/{total_cases} | "
+                        f"V={float(v_chg):.4f} V | "
+                        f"theta_x={theta_x_deg:.3e} deg | "
+                        f"theta_y={theta_y_deg:.3e} deg",
+                        end="\r",
+                        flush=True,
+                    )
 
         if total_outer_weight > 0.0:
             prob_v /= total_outer_weight

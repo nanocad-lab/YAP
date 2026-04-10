@@ -5,9 +5,10 @@ Retag design_1 Compute_Small / Memory_DRAM bump-map names for inter-chiplet traf
 Rules
 -----
 - Keep the existing bump-kind placement and ratios unchanged.
-- Use 50% of the smaller die's critical bumps as shared internal links.
+- For non-c0 ratios, use 50% of the smaller die's critical bumps as shared links.
+- For c0_r50_pg50_dm0, use 25% of the smaller die's redundant nets as shared links.
 - Use the same shared net/port names on both dies for those internal links.
-- Rename the remaining signal bumps as chiplet-local external signals.
+- Rename remaining signal bumps as chiplet-local external signals.
 - Prefix PG and dummy names with the owning chiplet id.
 - Regenerate per-file criticality and write one shared-net list per ratio folder.
 """
@@ -274,11 +275,24 @@ def retag_pair(
     compute_critical, compute_redundant, compute_pg, compute_dummy = compute_counts
     memory_critical, memory_redundant, memory_pg, memory_dummy = memory_counts
 
-    shared_count = compute_critical // 2
-    if memory_critical < shared_count:
-        raise ValueError(
-            f"{memory_path} has only {memory_critical} critical bumps; need {shared_count}."
-        )
+    compute_partitions = build_assignment_partitions(compute_path, compute_entries, compute_counts)
+    memory_partitions = build_assignment_partitions(memory_path, memory_entries, memory_counts)
+
+    use_redundant_shared = compute_critical == 0
+    if use_redundant_shared:
+        compute_redundant_nets = len(compute_partitions["redundant_pairs"])
+        memory_redundant_nets = len(memory_partitions["redundant_pairs"])
+        shared_count = compute_redundant_nets // 4
+        if memory_redundant_nets < shared_count:
+            raise ValueError(
+                f"{memory_path} has only {memory_redundant_nets} redundant nets; need {shared_count}."
+            )
+    else:
+        shared_count = compute_critical // 2
+        if memory_critical < shared_count:
+            raise ValueError(
+                f"{memory_path} has only {memory_critical} critical bumps; need {shared_count}."
+            )
 
     shared_names = [
         f"chiplet_0_chiplet_1_link_{idx:06d}" for idx in range(1, shared_count + 1)
@@ -296,19 +310,32 @@ def retag_pair(
         pg_indices = partitions["pg_indices"]
         dummy_indices = partitions["dummy_indices"]
 
-        for entry_idx, shared_name in zip(critical_indices[: len(shared_names_for_file)], shared_names_for_file):
-            entries[entry_idx][4] = shared_name
-            entries[entry_idx][5] = shared_name
+        if use_redundant_shared:
+            for (first_idx, second_idx), shared_name in zip(
+                redundant_pairs[: len(shared_names_for_file)],
+                shared_names_for_file,
+            ):
+                for entry_idx in (first_idx, second_idx):
+                    entries[entry_idx][4] = shared_name
+                    entries[entry_idx][5] = shared_name
+            external_critical_indices = critical_indices
+            external_redundant_pairs = redundant_pairs[len(shared_names_for_file) :]
+        else:
+            for entry_idx, shared_name in zip(
+                critical_indices[: len(shared_names_for_file)],
+                shared_names_for_file,
+            ):
+                entries[entry_idx][4] = shared_name
+                entries[entry_idx][5] = shared_name
+            external_critical_indices = critical_indices[len(shared_names_for_file) :]
+            external_redundant_pairs = redundant_pairs
 
-        external_critical_start = len(shared_names_for_file)
-        for external_idx, entry_idx in enumerate(
-            critical_indices[external_critical_start:], start=1
-        ):
+        for external_idx, entry_idx in enumerate(external_critical_indices, start=1):
             name = f"chiplet_{chiplet_id}_ext_crit_{external_idx:06d}"
             entries[entry_idx][4] = name
             entries[entry_idx][5] = name
 
-        for pair_idx, (first_idx, second_idx) in enumerate(redundant_pairs, start=1):
+        for pair_idx, (first_idx, second_idx) in enumerate(external_redundant_pairs, start=1):
             name = f"chiplet_{chiplet_id}_ext_rd_{pair_idx:06d}"
             for entry_idx in (first_idx, second_idx):
                 entries[entry_idx][4] = name
@@ -327,14 +354,14 @@ def retag_pair(
 
     rewrite(
         compute_entries,
-        build_assignment_partitions(compute_path, compute_entries, compute_counts),
+        compute_partitions,
         compute_counts,
         0,
         shared_names,
     )
     rewrite(
         memory_entries,
-        build_assignment_partitions(memory_path, memory_entries, memory_counts),
+        memory_partitions,
         memory_counts,
         1,
         shared_names,
@@ -365,7 +392,14 @@ def retag_pair(
             write_entries(substrate_memory_path, substrate_memory_entries)
             write_criticality(substrate_memory_path)
 
-    return shared_count, compute_redundant // 2 + memory_redundant // 2
+    remaining_compute_redundant_nets = len(compute_partitions["redundant_pairs"]) - (
+        shared_count if use_redundant_shared else 0
+    )
+    remaining_memory_redundant_nets = len(memory_partitions["redundant_pairs"]) - (
+        shared_count if use_redundant_shared else 0
+    )
+
+    return shared_count, remaining_compute_redundant_nets + remaining_memory_redundant_nets
 
 
 def discover_pairs(design_root: Path) -> list[tuple[Path, Path]]:

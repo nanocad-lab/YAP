@@ -88,6 +88,17 @@ pip install -r requirements.txt
   python pad_risk_map_calculator.py --config configs/design_1/design_1.yaml --mode d2w_modeling --ds_name design_1/c25_r0_pg50_dm25/Center_IO --ds_dir input/design_1/c25_r0_pg50_dm25/Center_IO --verbose
   ```
 
+  Notes for large-pad-count analytical ESD maps:
+  - ESD pad risk map generation now applies two automatic accelerations by default.
+  - A coarse-grid ESD evaluation is computed and then interpolated back to the full pad map.
+  - Candidate-pad pruning evaluates only pads near the deterministic first-touch edge when that pruning is safe.
+  - You can override the coarse-grid factor with `ESD_PAD_MAP_SUB_FACTOR` in the YAML.
+  - If `ESD_PAD_MAP_SUB_FACTOR` is unset or `0`, a factor is chosen automatically from the active pad count.
+  - Optional candidate-pruning knobs:
+  - `ESD_ANALYTICAL_CANDIDATE_SIGMA_WINDOW`
+  - `ESD_ANALYTICAL_CANDIDATE_MIN_PADS`
+  - `ESD_ANALYTICAL_CANDIDATE_DISABLE_FRACTION`
+
   Example command to run the pad risk map calculator with the strict-ESD criticality profile
 
   ```

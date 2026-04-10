@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import shutil
+import tempfile
 from collections import OrderedDict
 
 import numpy as np
@@ -167,7 +168,48 @@ def _load_criticality_signature(criticality_path):
     return entries
 
 
+def _raw_interface_signature_cache_path(cfg, bmap_path, criticality_path):
+    cache_key = json.dumps(
+        {
+            "cfg": _cfg_signature_dict(cfg),
+            "bmap_path": os.path.abspath(bmap_path),
+            "criticality_path": os.path.abspath(criticality_path),
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    digest = hashlib.sha1(cache_key.encode("utf-8")).hexdigest()
+    return os.path.join(
+        tempfile.gettempdir(),
+        f"d2w_raw_interface_signature__{digest}.json",
+    )
+
+
+def _file_stat_signature(path):
+    stat = os.stat(path)
+    return {
+        "mtime_ns": int(stat.st_mtime_ns),
+        "size": int(stat.st_size),
+    }
+
+
 def build_raw_interface_signature(cfg, bmap_path, criticality_path):
+    cache_path = _raw_interface_signature_cache_path(cfg, bmap_path, criticality_path)
+    current_sources = {
+        "bmap": _file_stat_signature(bmap_path),
+        "criticality": _file_stat_signature(criticality_path),
+    }
+    if os.path.exists(cache_path):
+        try:
+            with open(cache_path, "r") as f:
+                cache_payload = json.load(f)
+            if cache_payload.get("sources") == current_sources:
+                cached_signature = cache_payload.get("signature")
+                if cached_signature:
+                    return cached_signature
+        except (OSError, json.JSONDecodeError):
+            pass
+
     criticality_signature = _load_criticality_signature(criticality_path)
 
     bump_rows = []
@@ -259,7 +301,19 @@ def build_raw_interface_signature(cfg, bmap_path, criticality_path):
         ),
     }
     payload_json = json.dumps(signature_payload, sort_keys=True, separators=(",", ":"))
-    return hashlib.sha1(payload_json.encode("utf-8")).hexdigest()
+    signature = hashlib.sha1(payload_json.encode("utf-8")).hexdigest()
+
+    cache_payload = {
+        "sources": current_sources,
+        "signature": signature,
+    }
+    try:
+        with open(cache_path, "w") as f:
+            json.dump(cache_payload, f, sort_keys=True, separators=(",", ":"))
+    except OSError:
+        pass
+
+    return signature
 
 
 def group_raw_identical_interfaces(cfg_dict, bmap_path_dict, criticality_path_dict):
