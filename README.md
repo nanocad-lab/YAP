@@ -92,6 +92,7 @@ pip install -r requirements.txt
   - ESD pad risk map generation now applies two automatic accelerations by default.
   - A coarse-grid ESD evaluation is computed and then interpolated back to the full pad map.
   - Candidate-pad pruning evaluates only pads near the deterministic first-touch edge when that pruning is safe.
+  - Risk-map saving is also optimized: text `.risk.map` output is written with a vectorized writer, and the large per-mechanism PNGs are only saved when `--plot` is enabled.
   - You can override the coarse-grid factor with `ESD_PAD_MAP_SUB_FACTOR` in the YAML.
   - If `ESD_PAD_MAP_SUB_FACTOR` is unset or `0`, a factor is chosen automatically from the active pad count.
   - Optional candidate-pruning knobs:
@@ -248,6 +249,10 @@ pip install -r requirements.txt
 **1.<design>_risk.map**
 
   The risk map of the design in a text format. Each line corresponds to a pad and contains the x and y coordinates of the pad, followed by the failure probabilities of different failure mechanisms.
+
+**1a.<design>_<mechanism>_risk_map.png**
+
+  Per-mechanism pad risk maps are only written when `--plot` is enabled for `pad_risk_map_calculator.py`.
 
 **2.assembly_yield_summary__<config_stem>__<criticality_profile>.txt**
 

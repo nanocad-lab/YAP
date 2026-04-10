@@ -67,8 +67,8 @@ d2w_simulation:
 
   # === Defect Parameters ===
   first_contact: 'center'            # First contact location: 'center' or 'edge' or 'corner (left-top)'
-  D0: 1e-11                              # Particle density (1/µm²)
-  D1: 1e-10                              # Edge peak particle density (1/µm²)
+  D0: 1e-9                              # Particle density (1/µm²)
+  D1: 1e-8                              # Edge peak particle density (1/µm²)
   EDGE_REGION_WIDTH_um: 300.0           # Width of the edge region for elevated particle density (µm)
   z: 3                                  # Particle thickness distribution exponent
   t_0: 0.1                                # Minimum particle thickness (µm)
@@ -353,7 +353,7 @@ d2w_modeling:
   TILT_Y_MEAN_DEG: 0.000
   TILT_Y_STD_DEG: 1e-5
   V_MIN_V: 0.0
-  V_MAX_V: 5.0
+  V_MAX_V: 30.0
   WEIBULL_K: 4.44985
   WEIBULL_LAMBDA: 0.0621816
   CUTOFF_MIN_A: 0.0

@@ -664,30 +664,28 @@ def risk_map_generator(cfg,
     Risk map output format:
     <pad_coords_x> <pad_coords_y> <esd_failure_probability> <overlay_failure_probability> <particle_failure_probability> <mechanical_failure_probability>
     '''
-    risk_map = list()
     output_dir = os.path.join(cfg.OUTPUT_DIR, input_args['ds_name'], cfg.INTERFACE)
     risk_map_path = os.path.join(output_dir, f"{cfg.INTERFACE}_risk.map")
-    for pad_id in range(len(interface.pad_coords)):
-        pad_coords_x = interface.pad_coords[pad_id, 0]
-        pad_coords_y = interface.pad_coords[pad_id, 1]
-        if np.isnan(pad_coords_x) or np.isnan(pad_coords_y):
-            continue
-        pad_ovl_yield = interface.pad_yield_map['Y_ovl'].flatten()[pad_id]
-        pad_df_yield = interface.pad_yield_map['Y_df'].flatten()[pad_id]
-        pad_ce_yield = interface.pad_yield_map['Y_ce'].flatten()[pad_id]
-        pad_esd_yield = interface.pad_yield_map['Y_esd'].flatten()[pad_id]
-        risk_map.append({
-            "pad_coords_x": pad_coords_x,
-            "pad_coords_y": pad_coords_y,
-            "esd_failure_probability": 1 - pad_esd_yield,
-            "overlay_failure_probability": 1 - pad_ovl_yield,
-            "particle_failure_probability": 1 - pad_df_yield,
-            "mechanical_failure_probability": 1 - pad_ce_yield,
-        })
-    with open(risk_map_path, 'w') as f:
-        for pad_risk in risk_map:
-            f.write(f"{pad_risk['pad_coords_x']} {pad_risk['pad_coords_y']} {pad_risk['esd_failure_probability']} {pad_risk['overlay_failure_probability']} {pad_risk['particle_failure_probability']} {pad_risk['mechanical_failure_probability']}\n")
+    pad_coords = np.asarray(interface.pad_coords, dtype=np.float32)
+    valid_mask = np.isfinite(pad_coords[:, 0]) & np.isfinite(pad_coords[:, 1])
+    risk_map = np.column_stack(
+        (
+            pad_coords[valid_mask, 0],
+            pad_coords[valid_mask, 1],
+            1.0 - np.asarray(interface.pad_yield_map['Y_esd'], dtype=np.float32).reshape(-1)[valid_mask],
+            1.0 - np.asarray(interface.pad_yield_map['Y_ovl'], dtype=np.float32).reshape(-1)[valid_mask],
+            1.0 - np.asarray(interface.pad_yield_map['Y_df'], dtype=np.float32).reshape(-1)[valid_mask],
+            1.0 - np.asarray(interface.pad_yield_map['Y_ce'], dtype=np.float32).reshape(-1)[valid_mask],
+        )
+    )
+    np.savetxt(risk_map_path, risk_map, fmt="%.6f")
     print("Risk map file saved in ", risk_map_path)
+
+    save_risk_map_plots = bool(getattr(cfg, "plot_flag", False))
+    if not save_risk_map_plots:
+        print("Failure mechanism risk-map PNGs skipped (use --plot to enable).")
+        print()
+        return
 
     mechanism_specs = {
         "esd": ("Y_esd", "ESD Failure Probability"),

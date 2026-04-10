@@ -66,6 +66,15 @@ def _append_file_suffix(filename, file_suffix):
     return f"{stem}{file_suffix}{ext}"
 
 
+def _link_or_copy(src_path, dst_path):
+    if os.path.exists(dst_path):
+        os.remove(dst_path)
+    try:
+        os.link(src_path, dst_path)
+    except OSError:
+        shutil.copy2(src_path, dst_path)
+
+
 def _redundant_group_signature(pad_bitmap_collection):
     criticality_info = pad_bitmap_collection["criticality_info"]
     group_records = []
@@ -367,7 +376,7 @@ def copy_representative_bitmap_outputs(output_root, representative, duplicate):
     for src_name, dst_name in copy_plan:
         src_path = os.path.join(rep_dir, src_name)
         if os.path.exists(src_path):
-            shutil.copy2(src_path, os.path.join(dup_dir, dst_name))
+            _link_or_copy(src_path, os.path.join(dup_dir, dst_name))
 
     note_path = os.path.join(dup_dir, f"{duplicate}_bitmap_reused_from.txt")
     with open(note_path, "w") as f:
@@ -393,7 +402,7 @@ def copy_representative_risk_outputs(output_root, representative, duplicate):
     for src_name, dst_name in copy_plan:
         src_path = os.path.join(rep_dir, src_name)
         if os.path.exists(src_path):
-            shutil.copy2(src_path, os.path.join(dup_dir, dst_name))
+            _link_or_copy(src_path, os.path.join(dup_dir, dst_name))
 
 
 def copy_representative_simulation_outputs(output_root, representative, duplicate, file_suffix=""):
@@ -403,7 +412,7 @@ def copy_representative_simulation_outputs(output_root, representative, duplicat
 
     pattern = _append_file_suffix("simulation_failure_map_*.png", file_suffix)
     for src_path in glob.glob(os.path.join(rep_dir, pattern)):
-        shutil.copy2(src_path, os.path.join(dup_dir, os.path.basename(src_path)))
+        _link_or_copy(src_path, os.path.join(dup_dir, os.path.basename(src_path)))
 
 
 def write_per_interface_yield_file(output_root, per_interface_yield_dict, file_suffix=""):

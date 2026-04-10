@@ -44,6 +44,14 @@ def parse_args():
     p.add_argument("--ds_dir", required=True, help="Path to design directory")
     p.add_argument("--plot", "-plot", default=False, action="store_true", help="Enable plotting of the pad risk map")
     p.add_argument("--verbose", "-v", action="store_true", help="Enable verbose output during simulation")
+    p.add_argument(
+        "--save-failure-maps",
+        action="store_true",
+        help=(
+            "Save verbose simulation failure-map artifacts (PNG heatmaps and NPZ files). "
+            "By default these large files are skipped."
+        ),
+    )
     p.add_argument("--debug", action="store_true", help="Enable debug output when loading config")
     p.add_argument(
         "--criticality-profile",
@@ -104,6 +112,7 @@ def write_simulation_summary(
         f.write(f"criticality_profile: {input_args['criticality_profile']}\n")
         f.write(f"verbose: {input_args['verbose']}\n")
         f.write(f"plot: {input_args['plot']}\n")
+        f.write(f"save_failure_maps: {input_args['save_failure_maps']}\n")
         f.write(f"seed_run_base: {input_args['seed_run_base']}\n")
         f.write(f"NUM_DIE_STACKS: {cfg_skeleton.NUM_DIE_STACKS}\n")
         f.write(f"SIM_BATCH_SIZE: {cfg_skeleton.SIM_BATCH_SIZE}\n")
@@ -292,13 +301,14 @@ def main():
                 stack_assembly_yield *= representative_yield ** len(members)
                 for interface_name in members:
                     per_interface_yield_dict[interface_name] = representative_yield
-                for duplicate in members[1:]:
-                    copy_representative_simulation_outputs(
-                        output_root=output_root,
-                        representative=representative,
-                        duplicate=duplicate,
-                        file_suffix=args.output_file_tag,
-                    )
+                if args.save_failure_maps:
+                    for duplicate in members[1:]:
+                        copy_representative_simulation_outputs(
+                            output_root=output_root,
+                            representative=representative,
+                            duplicate=duplicate,
+                            file_suffix=args.output_file_tag,
+                        )
 
             yield_path = write_per_interface_yield_file(
                 output_root,
@@ -314,9 +324,14 @@ def main():
                 with open(note_path, "w") as f:
                     f.write(
                         "Identical-interface reuse was active.\n"
-                        "Per-interface yield and average failure-map PNGs were expanded from representative interfaces.\n"
-                        "Root-level per-sample failure-vector NPZ artifacts were skipped because they cannot be "
-                        "expanded to duplicates without inventing sample-wise correlations.\n"
+                        + "Per-interface yield was expanded from representative interfaces.\n"
+                        + (
+                            "Average failure-map PNGs were also expanded from representative interfaces.\n"
+                            if args.save_failure_maps else
+                            "Failure-map PNG expansion was skipped because --save-failure-maps was not enabled.\n"
+                        )
+                        + "Root-level per-sample failure-vector NPZ artifacts were skipped because they cannot be "
+                        + "expanded to duplicates without inventing sample-wise correlations.\n"
                     )
                 print(f"Collapsed simulation note saved to {note_path}.")
         else:

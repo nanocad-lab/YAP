@@ -38,6 +38,7 @@ def Assembly_Yield_Simulator(
     epoch_yield_list = []
     epoch_interface_yield_list_dict = {interface_name: [] for interface_name in cfg_dict}
     skip_verbose_root_artifacts = bool(input_args.get('skip_verbose_root_artifacts', False))
+    save_failure_maps = bool(input_args.get('save_failure_maps', False))
     file_suffix = input_args.get('output_file_tag', '')
 
     # Initialize a temporary die stack once to extract the reference pad coordinates.
@@ -57,7 +58,8 @@ def Assembly_Yield_Simulator(
         for interface_name, cfg in cfg_dict.items():
             fail_map_per_interface_dict[interface_name], fail_vec_per_interface_dict[interface_name] = {}, {}
             for failure_mechanism in failure_mechanism_list:
-                fail_map_per_interface_dict[interface_name][failure_mechanism] = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL))
+                if save_failure_maps:
+                    fail_map_per_interface_dict[interface_name][failure_mechanism] = np.zeros((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL))
                 fail_vec_per_interface_dict[interface_name][failure_mechanism] = np.zeros(NUM_DIE_STACKS)
 
     for epoch in range(num_sim_epoch):
@@ -102,9 +104,11 @@ def Assembly_Yield_Simulator(
         # Aggregate the fail maps/vectors
         if input_args['verbose']:
             for interface_name, cfg in cfg_dict.items():
+                if save_failure_maps:
+                    for failure_mechanism in failure_mechanism_list:
+                        fail_map_per_interface_dict[interface_name][failure_mechanism]   \
+                            += epoch_fail_map_per_interface_dict[interface_name][failure_mechanism]
                 for failure_mechanism in failure_mechanism_list:
-                    fail_map_per_interface_dict[interface_name][failure_mechanism]   \
-                        += epoch_fail_map_per_interface_dict[interface_name][failure_mechanism]
                     fail_vec_per_interface_dict[interface_name][failure_mechanism][epoch*SIM_BATCH_SIZE:(epoch+1)*SIM_BATCH_SIZE]  \
                         = epoch_fail_vec_per_interface_dict[interface_name][failure_mechanism]
 
@@ -137,9 +141,10 @@ def Assembly_Yield_Simulator(
             if os.path.isfile(file_path):
                 os.remove(file_path)
         if input_args['verbose']:
-            for failure_mechanism in failure_mechanism_list:
-                fail_map_per_interface_dict[interface_name][failure_mechanism]   \
-                        /= (num_sim_epoch * SIM_BATCH_SIZE)
+            if save_failure_maps:
+                for failure_mechanism in failure_mechanism_list:
+                    fail_map_per_interface_dict[interface_name][failure_mechanism]   \
+                            /= (num_sim_epoch * SIM_BATCH_SIZE)
             # Report the failure reasons statistics
             print("{} die stack failures due to overlay misalignment.".format(int(np.sum(fail_vec_per_interface_dict[interface_name]['overlay']))))
             print("{} die stack failures due to particle defects.".format(int(np.sum(fail_vec_per_interface_dict[interface_name]['particle']))))
@@ -147,7 +152,7 @@ def Assembly_Yield_Simulator(
             print("{} die stack failures due to ESD issues.".format(int(np.sum(fail_vec_per_interface_dict[interface_name]['ESD']))))
             print("{} die stack failures in total.".format(int(np.sum(fail_vec_per_interface_dict[interface_name]['overall']))))
             output_dir = os.path.join(cfg.OUTPUT_DIR, input_args['ds_name'])
-            if not skip_verbose_root_artifacts:
+            if save_failure_maps and not skip_verbose_root_artifacts:
                 # Save fail map dict
                 fail_map_path = os.path.join(
                     output_dir,
@@ -155,23 +160,27 @@ def Assembly_Yield_Simulator(
                 )
                 np.savez(fail_map_path, **fail_map_per_interface_dict)
                 print("Failure heat maps saved to {}.".format(fail_map_path))
-                # Save fail vec dict
-                fail_vec_path = os.path.join(
-                    output_dir,
-                    _append_file_suffix('assembly_fail_vec_per_interface_dict.npz', file_suffix),
-                )
-                np.savez(fail_vec_path, **fail_vec_per_interface_dict)
-                print("Failure vectors for all die samples saved to {}.".format(fail_vec_path))
-            else:
+            elif save_failure_maps:
                 print("Skipped root-level verbose NPZ artifacts because identical-interface reuse is active.")
 
-            # Plot the results for this interface and save the figures
-            result_wrapper(
-                mode=input_args['mode'],
-                output_dir=os.path.join(cfg.OUTPUT_DIR, input_args['ds_name']),
-                interface=cfg.INTERFACE,
-                fail_map_dict=fail_map_per_interface_dict[interface_name],
-                file_suffix=file_suffix,
+            # Save fail vec dict
+            fail_vec_path = os.path.join(
+                output_dir,
+                _append_file_suffix('assembly_fail_vec_per_interface_dict.npz', file_suffix),
             )
+            np.savez(fail_vec_path, **fail_vec_per_interface_dict)
+            print("Failure vectors for all die samples saved to {}.".format(fail_vec_path))
+
+            if save_failure_maps:
+                # Plot the results for this interface and save the figures
+                result_wrapper(
+                    mode=input_args['mode'],
+                    output_dir=os.path.join(cfg.OUTPUT_DIR, input_args['ds_name']),
+                    interface=cfg.INTERFACE,
+                    fail_map_dict=fail_map_per_interface_dict[interface_name],
+                    file_suffix=file_suffix,
+                )
+            else:
+                print("Skipped simulation failure-map artifacts (use --save-failure-maps to enable).")
 
     return assembly_yield, epoch_yield_list, per_interface_assembly_yield_dict
