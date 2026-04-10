@@ -9,6 +9,7 @@ JOBS="${JOBS:-16}"
 CRITICALITY_PROFILE="${CRITICALITY_PROFILE:-default}"
 SKIP_EXISTING=0
 DRY_RUN=0
+INCLUDE_HBM_ORIGINAL=1
 
 LOGICAL_CORES="$(nproc 2>/dev/null || echo 1)"
 PHYSICAL_CORES="$(
@@ -26,13 +27,13 @@ if [[ -z "$PHYSICAL_CORES" ]]; then
   PHYSICAL_CORES="$LOGICAL_CORES"
 fi
 
-declare -a DEFAULT_DESIGNS=(design_1 design_2 HBM_A HBM_B)
+declare -a DEFAULT_DESIGNS=(design_5 design_6 HBM_A HBM_B)
 declare -a CONFIG_SUFFIXES=("" "_overlay_pessimistic" "_particle_pessimistic" "_mechanical_pessimistic" "_ESD_pessimistic")
 
 usage() {
   cat <<EOF
 Usage:
-  ./run_all_simulations_parallel.sh [--jobs N] [--criticality-profile PROFILE] [--skip-existing] [--dry-run] [DESIGN ...]
+  ./run_design_5_6_hbm_parallel.sh [--jobs N] [--criticality-profile PROFILE] [--skip-existing] [--dry-run] [DESIGN ...]
 
 Defaults:
   designs: ${DEFAULT_DESIGNS[*]}
@@ -40,16 +41,18 @@ Defaults:
   criticality profile: ${CRITICALITY_PROFILE}
 
 Examples:
-  ./run_all_simulations_parallel.sh
-  ./run_all_simulations_parallel.sh --jobs 32
-  ./run_all_simulations_parallel.sh --jobs 64 --skip-existing
-  ./run_all_simulations_parallel.sh design_1 design_2
-  ./run_all_simulations_parallel.sh HBM_A HBM_B --criticality-profile esd_strict
+  ./run_design_5_6_hbm_parallel.sh
+  ./run_design_5_6_hbm_parallel.sh --jobs 32
+  ./run_design_5_6_hbm_parallel.sh --jobs 16 --skip-existing
+  ./run_design_5_6_hbm_parallel.sh design_5 design_6
+  ./run_design_5_6_hbm_parallel.sh HBM_A HBM_B
 
 Notes:
-  - Each experiment is forced to single-threaded execution via OMP/BLAS/NUMBA env vars.
   - This script runs simulation only.
-  - Safe scheduling: jobs sharing the same ds_dir run serially; only different ds_dir values run in parallel.
+  - Default HBM variants are: Original, Center_IO, Edge_IO, Random_IO.
+  - The table's "Random_1" corresponds to the actual folder name "Random_IO".
+  - Jobs sharing the same ds_dir run serially; only different ds_dir values run in parallel.
+  - Each experiment is forced to single-threaded execution via OMP/BLAS/NUMBA env vars.
   - Output logs are written under output/<ds_name>/parallel_simulation__<config_stem>__<profile>.log
   - Detected logical cores: ${LOGICAL_CORES}
   - Detected physical cores: ${PHYSICAL_CORES}
@@ -95,15 +98,15 @@ list_experiments_for_design() {
   fi
 
   if [[ "$design_name" == HBM_* ]]; then
-    variants=()
-    for variant in Original Center_IO Edge_IO Random_IO; do
-      if [[ -d "${design_root}/${variant}" ]]; then
-        variants+=("$variant")
-      fi
-    done
+    variants=(Center_IO Edge_IO Random_IO)
+    if [[ $INCLUDE_HBM_ORIGINAL -eq 1 ]]; then
+      variants=(Original "${variants[@]}")
+    fi
     for cfg in "${configs[@]}"; do
       for variant in "${variants[@]}"; do
-        printf '%s\t%s\t%s\n' "$cfg" "${design_name}/${variant}" "${design_root}/${variant}"
+        if [[ -d "${design_root}/${variant}" ]]; then
+          printf '%s\t%s\t%s\n' "$cfg" "${design_name}/${variant}" "${design_root}/${variant}"
+        fi
       done
     done
     return 0
@@ -111,15 +114,11 @@ list_experiments_for_design() {
 
   while IFS= read -r ratio_dir; do
     ratio_name="$(basename "$ratio_dir")"
-    variants=()
-    for variant in Center_IO Edge_IO Random_IO; do
-      if [[ -d "${ratio_dir}/${variant}" ]]; then
-        variants+=("$variant")
-      fi
-    done
     for cfg in "${configs[@]}"; do
-      for variant in "${variants[@]}"; do
-        printf '%s\t%s\t%s\n' "$cfg" "${design_name}/${ratio_name}/${variant}" "${ratio_dir}/${variant}"
+      for variant in Center_IO Edge_IO Random_IO; do
+        if [[ -d "${ratio_dir}/${variant}" ]]; then
+          printf '%s\t%s\t%s\n' "$cfg" "${design_name}/${ratio_name}/${variant}" "${ratio_dir}/${variant}"
+        fi
       done
     done
   done < <(find "$design_root" -mindepth 1 -maxdepth 1 -type d -name 'c*_r*_pg*_dm*' | sort)
@@ -310,6 +309,11 @@ echo "Using parallel jobs: ${JOBS}"
 echo "Criticality profile: ${CRITICALITY_PROFILE}"
 echo "Python: ${PYTHON_BIN}"
 echo "Designs: ${design_names[*]}"
+if [[ $INCLUDE_HBM_ORIGINAL -eq 1 ]]; then
+  echo "HBM variants: Original Center_IO Edge_IO Random_IO"
+else
+  echo "HBM variants: Center_IO Edge_IO Random_IO"
+fi
 
 declare -a experiments=()
 while IFS= read -r line; do

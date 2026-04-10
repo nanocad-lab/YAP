@@ -6,7 +6,7 @@ d2w_simulation:
   INPUT_DIR: "input/"          # Output directory for simulation results
   INTERFACE: "HBM_footprint_B"                      # Design name  
   # === Die Settings ===
-  NUM_DIE_STACKS: 10000                            # Number of die stacks used in simulation
+  NUM_DIE_STACKS: 1000                            # Number of die stacks used in simulation
   SIM_BATCH_SIZE: 10                            # Number of die samples simulated in one batch
   PITCH_r_um: 55                            # Row pad pitch (µm) (In checkerboard layout, this is sqrt(2)/2 times of the real pitch)
   PITCH_c_um: 35                            # Column pad pitch (µm)  (In checkerboard layout, this is sqrt(2)/2 times of the real pitch)
@@ -217,7 +217,7 @@ d2w_modeling:
   B_Sub_Sio2_V: 0.00                    # Efficient substrate layer Sio2 volume density
   B_Sub_Si_V: 0.90                      # Efficient substrate layer si volume density
   B_Sub_T: 775e-6                       # Efficient substrate layer thickness (m)
-  S_INIT_A_M: 100e-9                   # Pre-anneal warpages (m)
+  S_INIT_A_M: 300e-9                   # Pre-anneal warpages (m)
   # === Top Wafer Settings ===
   T_Chip_Cu_V: 0.30                     # Efficient chip layer Cu volume density
   T_Chip_Sio2_V: 0.70                   # Efficient chip layer Sio2 volume density
@@ -338,7 +338,7 @@ d2w_modeling:
   Dielectric_Young_modulus_Pa: 73e9                   # Dielectric Young's modulus (Pa)
   Dielectric_thickness: 1.5e-6          # Dielectric layer thickness (m)
   DISH_0_m: 75e-9                         # Reference dish height (m)
-  k_peel: 6.66e15                       # Peel force coefficient (N/m⁴/K)
+  k_peel: 6.66e12                       # Peel force coefficient (N/m⁴/K)
 
   # === Adhesion_energy to Critical Peeling Stress Model Parameters ===
   # σ = Effective_Contact_Area * ((Gc_Jpm2 * E_GPa) / (CRIT_aY2_UM * (1.0 - NU**2)))^(1/2)

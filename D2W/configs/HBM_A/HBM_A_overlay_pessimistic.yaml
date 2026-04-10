@@ -4,7 +4,7 @@ d2w_simulation:
   OUTPUT_DIR: output/
   INPUT_DIR: input/
   INTERFACE: HBM_footprint_A
-  NUM_DIE_STACKS: 10000
+  NUM_DIE_STACKS: 1000
   SIM_BATCH_SIZE: 10
   PITCH_r_um: 55
   PITCH_c_um: 35
@@ -45,8 +45,8 @@ d2w_simulation:
   SYSTEM_TRANSLATION_X_STD_um: 0.02
   SYSTEM_TRANSLATION_Y_MEAN_um: 0
   SYSTEM_TRANSLATION_Y_STD_um: 0.02
-  SYSTEM_ROTATION_MEAN_rad: 0.00075
-  SYSTEM_ROTATION_STD_rad: 0.0001
+  SYSTEM_ROTATION_MEAN_rad: 2e-4
+  SYSTEM_ROTATION_STD_rad: 4e-5
   BOW_DIFFERENCE_MEAN_um: 10.0               # Bow difference mean (µm)
   BOW_DIFFERENCE_STD_um: 3.0                 # Bow difference std (µm)
   k_mag: 0.1
@@ -159,7 +159,7 @@ d2w_modeling:
   B_Sub_Sio2_V: 0.0
   B_Sub_Si_V: 0.9
   B_Sub_T: 0.000775
-  S_INIT_A_M: 1.0e-07
+  S_INIT_A_M: 3.0e-07
   T_Chip_Cu_V: 0.3
   T_Chip_Sio2_V: 0.7
   T_Chip_Si_V: 0.0
@@ -178,8 +178,8 @@ d2w_modeling:
   SYSTEM_TRANSLATION_X_STD_um: 0.02
   SYSTEM_TRANSLATION_Y_MEAN_um: 0
   SYSTEM_TRANSLATION_Y_STD_um: 0.02
-  SYSTEM_ROTATION_MEAN_rad: 0.00075
-  SYSTEM_ROTATION_STD_rad: 0.0001
+  SYSTEM_ROTATION_MEAN_rad: 2e-4
+  SYSTEM_ROTATION_STD_rad: 4e-5
   BOW_DIFFERENCE_MEAN_um: 10.0               # Bow difference mean (µm)
   BOW_DIFFERENCE_STD_um: 3.0                 # Bow difference std (µm)
   k_mag: 0.1
@@ -248,7 +248,7 @@ d2w_modeling:
   Dielectric_Young_modulus_Pa: 73000000000.0
   Dielectric_thickness: 1.5e-06
   DISH_0_m: 7.5e-08
-  k_peel: 6660000000000000.0
+  k_peel: 6660000000000.0
   CRIT_aY2_UM: 1.9
   GC_SIO2_JPM2: 2.0
   GC_CU_JPM2: 25.0
