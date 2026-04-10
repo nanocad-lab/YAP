@@ -55,6 +55,7 @@ def pad_Cu_expansion_yield_map_generator(*,
 
     upper_cu_height_limits_valid_pads = - valid_pad_dishing_bound_array[:, 0] * 2 # - upper Cu height limits
     lower_cu_height_limits_valid_pads = - valid_pad_dishing_bound_array[:, 1] * 2 # - lower Cu height limits
+    upper_cu_height_limits_valid_pads = np.clip(upper_cu_height_limits_valid_pads, a_max=0, a_min=None)  # Clip to ensure upper Cu height limits are <= 0
     # print("Max upper Cu height (nm): {:.2f}, Min upper Cu height (nm): {:.2f}".format(np.max(upper_cu_height_limits_valid_pads), np.min(upper_cu_height_limits_valid_pads)))
     # print("Max lower Cu height (nm): {:.2f}, Min lower Cu height (nm): {:.2f}".format(np.max(lower_cu_height_limits_valid_pads), np.min(lower_cu_height_limits_valid_pads)))
     pos_valid_pads = norm.cdf(upper_cu_height_limits_valid_pads, loc=TOP_DISH_MEAN_nm + BOT_DISH_MEAN_nm, scale=np.sqrt(TOP_DISH_STD_nm**2 + BOT_DISH_STD_nm**2)) - \

@@ -62,8 +62,8 @@ w2w_simulation:
   SYSTEM_ROTATION_STD_rad: 1e-8             # Std of systematic rotation (rad)
 
   # === Bowing and Magnification ===
-  BOW_DIFFERENCE_MEAN_um: 0.5               # Wafer bowing difference mean (µm)
-  BOW_DIFFERENCE_STD_um: 0.1                 # Wafer bowing difference std (µm)
+  BOW_DIFFERENCE_MEAN_um: 10.0               # Bow difference mean (µm)
+  BOW_DIFFERENCE_STD_um: 3.0                 # Bow difference std (µm)
   k_mag: 0.1                           # Magnification coefficient
   M_0: 0                                # Magnification offset (ppm)
 
@@ -78,10 +78,10 @@ w2w_simulation:
   k_S: 2.7
 
   # === Cu Dishing Parameters ===
-  TOP_DISH_MEAN_nm: -2.0                  # Top pad dish mean (nm)
-  TOP_DISH_STD_nm: 0.3                     # Top pad dish std (nm)
-  BOT_DISH_MEAN_nm: -2.0                  # Bottom pad dish mean (nm)
-  BOT_DISH_STD_nm: 0.3                     # Bottom pad dish std (nm)
+  TOP_DISH_MEAN_nm: -4.0                  # Top pad height mean (nm)
+  TOP_DISH_STD_nm: 1.0                  # Top pad height std (nm)
+  BOT_DISH_MEAN_nm: -4.0                  # Bottom pad height mean (nm)
+  BOT_DISH_STD_nm: 1.0                  # Bottom pad height std (nm)
   k_et: 0.053                           # Top Cu expansion coefficient (nm/K)
   k_eb: 0.053                           # Bottom Cu expansion coefficient (nm/K)
   T_R: 25                               # Room temperature (°C)
@@ -223,8 +223,8 @@ w2w_modeling:
   SYSTEM_TRANSLATION_Y_STD_um: 2e-2        # Std of systematic Y translation (µm)
   SYSTEM_ROTATION_MEAN_rad: 5e-8            # Mean of systematic rotation (rad)
   SYSTEM_ROTATION_STD_rad: 1e-8             # Std of systematic rotation (rad)
-  BOW_DIFFERENCE_MEAN_um: 0.5               # Bow difference mean (µm)
-  BOW_DIFFERENCE_STD_um: 0.1                 # Bow difference std (µm)
+  BOW_DIFFERENCE_MEAN_um: 10.0               # Bow difference mean (µm)
+  BOW_DIFFERENCE_STD_um: 3.0                 # Bow difference std (µm)
   k_mag: 0.1                           # Magnification slope coefficient
   M_0: 0                                # Magnification offset
 
@@ -239,10 +239,10 @@ w2w_modeling:
   k_S: 2.7
 
   # === Cu Expansion / Dishing Parameters ===
-  TOP_DISH_MEAN_nm: -2                  # Top pad dish mean (nm)
-  TOP_DISH_STD_nm: 0.3                     # Top pad dish std (nm)
-  BOT_DISH_MEAN_nm: -2                  # Bottom pad dish mean (nm)
-  BOT_DISH_STD_nm: 0.3                     # Bottom pad dish std (nm)
+  TOP_DISH_MEAN_nm: -4.0                  # Top pad height mean (nm)
+  TOP_DISH_STD_nm: 1.0                  # Top pad height std (nm)
+  BOT_DISH_MEAN_nm: -4.0                  # Bottom pad height mean (nm)
+  BOT_DISH_STD_nm: 1.0                  # Bottom pad height std (nm)
   k_et: 0.053                           # Top Cu expansion coef (nm/K)
   k_eb: 0.053                           # Bottom Cu expansion coef (nm/K)
   T_R: 25                               # Room temperature (°C)
@@ -384,8 +384,8 @@ d2w_simulation:
   SYSTEM_ROTATION_STD_rad: 1e-5             # Systematic rotation std (rad)
 
   # === Bowing and Magnification ===
-  BOW_DIFFERENCE_MEAN_um: 0.5               # Bow difference mean (µm)
-  BOW_DIFFERENCE_STD_um: 0.1                 # Bow difference std (µm)
+  BOW_DIFFERENCE_MEAN_um: 10.0               # Bow difference mean (µm)
+  BOW_DIFFERENCE_STD_um: 3.0                 # Bow difference std (µm)
   k_mag: 0.1                           # Magnification slope coefficient
   M_0: 0                                # Magnification offset
 
@@ -401,10 +401,10 @@ d2w_simulation:
   k_S: 2.7
 
   # === Cu Dishing Parameters ===
-  TOP_DISH_MEAN_nm: -1.0                  # Top pad dish mean (nm)
-  TOP_DISH_STD_nm: 0.5                     # Top pad dish std (nm)
-  BOT_DISH_MEAN_nm: -1.0                  # Bottom pad dish mean (nm)
-  BOT_DISH_STD_nm: 0.5                     # Bottom pad dish std (nm)
+  TOP_DISH_MEAN_nm: -4.0                  # Top pad height mean (nm)
+  TOP_DISH_STD_nm: 1.0                  # Top pad height std (nm)
+  BOT_DISH_MEAN_nm: -4.0                  # Bottom pad height mean (nm)
+  BOT_DISH_STD_nm: 1.0                  # Bottom pad height std (nm)
   k_et: 0.053                           # Top Cu expansion coefficient (nm/K)
   k_eb: 0.053                           # Bottom Cu expansion coefficient (nm/K)
   T_R: 25                               # Room temperature (°C)
@@ -550,8 +550,8 @@ d2w_modeling:
   SYSTEM_TRANSLATION_Y_STD_um: 2e-2        # Std of systematic Y translation (µm)
   SYSTEM_ROTATION_MEAN_rad: 6e-5            # Mean of systematic rotation (rad)
   SYSTEM_ROTATION_STD_rad: 1e-5             # Std of systematic rotation (rad)
-  BOW_DIFFERENCE_MEAN_um: 0.5               # Bow difference mean (µm)
-  BOW_DIFFERENCE_STD_um: 0.1                 # Bow difference std (µm)
+  BOW_DIFFERENCE_MEAN_um: 10.0               # Bow difference mean (µm)
+  BOW_DIFFERENCE_STD_um: 3.0                 # Bow difference std (µm)
   k_mag: 0.1                           # Magnification slope coefficient
   M_0: 0                                # Magnification offset
 
@@ -567,10 +567,10 @@ d2w_modeling:
   k_S: 2.7
 
   # === Cu Expansion / Dishing Parameters ===
-  TOP_DISH_MEAN_nm: -1                  # Top pad height mean (nm)
-  TOP_DISH_STD_nm: 0.5                     # Top pad height std (nm)
-  BOT_DISH_MEAN_nm: -1                  # Bottom pad height mean (nm)
-  BOT_DISH_STD_nm: 0.5                     # Bottom pad height std (nm)
+  TOP_DISH_MEAN_nm: -4.0                  # Top pad height mean (nm)
+  TOP_DISH_STD_nm: 1.0                  # Top pad height std (nm)
+  BOT_DISH_MEAN_nm: -4.0                  # Bottom pad height mean (nm)
+  BOT_DISH_STD_nm: 1.0                  # Bottom pad height std (nm)
   k_et: 0.053                           # Top Cu expansion coef (nm/K)
   k_eb: 0.053                           # Bottom Cu expansion coef (nm/K)
   T_R: 25                               # Room temperature (°C)

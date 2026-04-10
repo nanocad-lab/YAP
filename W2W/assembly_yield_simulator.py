@@ -24,7 +24,7 @@ def Assembly_Yield_Simulator(
     epoch_yield_list = []
 
     if cfg.verbose:
-        print("Verbose mode enabled: Tracking failure reasons for each die.")
+        print("Verbose mode enabled: Tracking failure reasons for each die interface.")
         waf_list = wafer_initialize(
             NUM_WAFER_SAMPLES       = cfg.SIM_BATCH_SIZE,
             DIE_W_um                = cfg.DIE_W_um,

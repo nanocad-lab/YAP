@@ -47,11 +47,11 @@ d2w_simulation:
   SYSTEM_TRANSLATION_Y_STD_um: 0.02
   SYSTEM_ROTATION_MEAN_rad: 0.00075
   SYSTEM_ROTATION_STD_rad: 0.0001
-  BOW_DIFFERENCE_MEAN_um: 0.5
-  BOW_DIFFERENCE_STD_um: 0.1
+  BOW_DIFFERENCE_MEAN_um: 10.0               # Bow difference mean (µm)
+  BOW_DIFFERENCE_STD_um: 3.0                 # Bow difference std (µm)
   k_mag: 0.1
   M_0: 0
-  WARPAGE_LIMIT_UM: 100
+  WARPAGE_LIMIT_UM: 20                # Warpage limit (um)
   first_contact: center
   D0: 1.0e-11
   D1: 1.0e-10
@@ -63,11 +63,11 @@ d2w_simulation:
   k_L: 0.062
   k_n: 9.0e-05
   k_S: 2.7
-  CU_RECESS_PAD_FAIL_RATIO: 0.1
-  TOP_DISH_MEAN_nm: -1
-  TOP_DISH_STD_nm: 0.3
-  BOT_DISH_MEAN_nm: -1
-  BOT_DISH_STD_nm: 0.3
+  CU_RECESS_PAD_FAIL_RATIO: 0.0        # Ratio of pads with Cu recess > threshold to consider die as failed
+  TOP_DISH_MEAN_nm: -4.0                  # Top pad height mean (nm)
+  TOP_DISH_STD_nm: 1.0                  # Top pad height std (nm)
+  BOT_DISH_MEAN_nm: -4.0                  # Bottom pad height mean (nm)
+  BOT_DISH_STD_nm: 1.0                  # Bottom pad height std (nm)
   k_et: 0.053
   k_eb: 0.053
   T_R: 25
@@ -180,11 +180,11 @@ d2w_modeling:
   SYSTEM_TRANSLATION_Y_STD_um: 0.02
   SYSTEM_ROTATION_MEAN_rad: 6.0e-05
   SYSTEM_ROTATION_STD_rad: 1.0e-05
-  BOW_DIFFERENCE_MEAN_um: 0.5
-  BOW_DIFFERENCE_STD_um: 0.1
+  BOW_DIFFERENCE_MEAN_um: 10.0               # Bow difference mean (µm)
+  BOW_DIFFERENCE_STD_um: 3.0                 # Bow difference std (µm)
   k_mag: 0.1
   M_0: 0
-  WARPAGE_LIMIT_UM: 100
+  WARPAGE_LIMIT_UM: 20                # Warpage limit (um)
   first_contact: center
   D0: 1.0e-09
   D1: 1.0e-08
@@ -196,11 +196,11 @@ d2w_modeling:
   k_L: 0.062
   k_n: 9.0e-05
   k_S: 2.7
-  CU_RECESS_PAD_FAIL_RATIO: 0.1
-  TOP_DISH_MEAN_nm: -1
-  TOP_DISH_STD_nm: 0.3
-  BOT_DISH_MEAN_nm: -1
-  BOT_DISH_STD_nm: 0.3
+  CU_RECESS_PAD_FAIL_RATIO: 0.0        # Ratio of pads with Cu recess > threshold to consider die as failed
+  TOP_DISH_MEAN_nm: -4.0                  # Top pad height mean (nm)
+  TOP_DISH_STD_nm: 1.0                  # Top pad height std (nm)
+  BOT_DISH_MEAN_nm: -4.0                  # Bottom pad height mean (nm)
+  BOT_DISH_STD_nm: 1.0                  # Bottom pad height std (nm)
   k_et: 0.053
   k_eb: 0.053
   T_R: 25

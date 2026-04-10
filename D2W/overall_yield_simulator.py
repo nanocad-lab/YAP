@@ -299,8 +299,7 @@ def overall_yield_simulator(
 
             # Check critical pad Cu gap
             critical_pad_Cu_gap = Cu_gap_map * die_critical_pad_bitmap  # shape: (PAD_ARR_ROW, PAD_ARR_COL)
-            # if np.any(critical_pad_Cu_gap > zeta_1 * die_critical_pad_bitmap) or np.any(critical_pad_Cu_gap < zeta_0 * die_critical_pad_bitmap):
-            if np.any(critical_pad_Cu_gap < zeta_0 * die_critical_pad_bitmap):
+            if np.any(critical_pad_Cu_gap > zeta_1 * die_critical_pad_bitmap) or np.any(critical_pad_Cu_gap < zeta_0 * die_critical_pad_bitmap):
                 die_interface.survival = False
                 die_stack.survival = False
                 if cfg.verbose:
@@ -312,6 +311,7 @@ def overall_yield_simulator(
             # Check redundant pad Cu gap
             redundant_pad_Cu_gap = Cu_gap_map * die_redundant_pad_bitmap
             redundant_pad_fail_map[redundant_pad_Cu_gap < zeta_0 * die_redundant_pad_bitmap] = 1
+            redundant_pad_fail_map[redundant_pad_Cu_gap > zeta_1 * die_redundant_pad_bitmap] = 1
             for redundant_net, physical_mask in redundant_net_to_1d_physical_mask.items():
                 tolerated_mechanical_failures = criticality_info[redundant_net]['tolerated_mechanical_failures']
                 num_fail_pad_in_net = np.sum(redundant_pad_fail_map.flatten()[physical_mask])
@@ -324,11 +324,12 @@ def overall_yield_simulator(
                     if not cfg.verbose:
                         break
 
-            # Check whether there are too many pads with Cu gap out of the safe range, which will cause die failure
-            num_cu_pad_fail_limit = cfg.CU_RECESS_PAD_FAIL_RATIO * die_interface.num_pads
-            # post_bond_warpage = post_bond_warpage_calculator(cfg)
-            post_bond_warpage = 0
-            if (np.sum(Cu_gap_map[valid_pad_mask == 1] > 0) > num_cu_pad_fail_limit) or (post_bond_warpage > cfg.WARPAGE_LIMIT_UM):
+            # We set 10x10 mm chiplet warpage as a reference TODO: Make it more formal once you have time
+            initial_chiplet_warpage_mean = cfg.BOW_DIFFERENCE_MEAN_um / 14.14 * np.sqrt((cfg.DIE_W_um/1000)**2 + (cfg.DIE_L_um/1000)**2)  
+            initial_chiplet_warpage_std = cfg.BOW_DIFFERENCE_STD_um / 14.14 * np.sqrt((cfg.DIE_W_um/1000)**2 + (cfg.DIE_L_um/1000)**2)
+            # sample a initial chiplet warpage for this die stack based on a normal distribution with the mean calculated above and a std that is 20% of the mean
+            initial_chiplet_warpage = np.abs(np.random.normal(loc=initial_chiplet_warpage_mean, scale=initial_chiplet_warpage_std))
+            if (initial_chiplet_warpage > cfg.WARPAGE_LIMIT_UM):
                 die_interface.survival = False
                 die_stack.survival = False
                 if cfg.verbose:

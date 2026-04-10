@@ -51,7 +51,7 @@ def Assembly_Yield_Simulator(
     del temp_die_stack_list
 
     if input_args['verbose']:
-        print("Verbose mode enabled: Tracking failure reasons for each die.")
+        print("Verbose mode enabled: Tracking failure reasons for each die interface.")
         fail_map_per_interface_dict = {}
         fail_vec_per_interface_dict = {}
         for interface_name, cfg in cfg_dict.items():

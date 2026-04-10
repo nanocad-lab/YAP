@@ -60,8 +60,8 @@ w2w_simulation:
   SYSTEM_TRANSLATION_Y_STD_um: 0.02
   SYSTEM_ROTATION_MEAN_rad: 6.0e-05
   SYSTEM_ROTATION_STD_rad: 1.0e-05
-  BOW_DIFFERENCE_MEAN_um: 0.5
-  BOW_DIFFERENCE_STD_um: 0.1
+  BOW_DIFFERENCE_MEAN_um: 10.0               # Bow difference mean (µm)
+  BOW_DIFFERENCE_STD_um: 3.0                 # Bow difference std (µm)
   k_mag: 0.1
   M_0: 0
   D0: 2.0e-09
@@ -72,10 +72,10 @@ w2w_simulation:
   k_L: 0.062
   k_n: 9.0e-05
   k_S: 2.7
-  TOP_DISH_MEAN_nm: -1.0
-  TOP_DISH_STD_nm: 0.5
-  BOT_DISH_MEAN_nm: -1.0
-  BOT_DISH_STD_nm: 0.5
+  TOP_DISH_MEAN_nm: -4.0                  # Top pad height mean (nm)
+  TOP_DISH_STD_nm: 1.0                  # Top pad height std (nm)
+  BOT_DISH_MEAN_nm: -4.0                  # Bottom pad height mean (nm)
+  BOT_DISH_STD_nm: 1.0                  # Bottom pad height std (nm)
   k_et: 0.053
   k_eb: 0.053
   T_R: 25
@@ -175,8 +175,8 @@ w2w_modeling:
   SYSTEM_TRANSLATION_Y_STD_um: 0.02
   SYSTEM_ROTATION_MEAN_rad: 6.0e-05
   SYSTEM_ROTATION_STD_rad: 1.0e-05
-  BOW_DIFFERENCE_MEAN_um: 0.5
-  BOW_DIFFERENCE_STD_um: 0.1
+  BOW_DIFFERENCE_MEAN_um: 10.0               # Bow difference mean (µm)
+  BOW_DIFFERENCE_STD_um: 3.0                 # Bow difference std (µm)
   k_mag: 0.1
   M_0: 0
   D0: 1.0e-09
@@ -187,10 +187,10 @@ w2w_modeling:
   k_L: 0.062
   k_n: 9.0e-05
   k_S: 2.7
-  TOP_DISH_MEAN_nm: -1
-  TOP_DISH_STD_nm: 0.5
-  BOT_DISH_MEAN_nm: -1
-  BOT_DISH_STD_nm: 0.5
+  TOP_DISH_MEAN_nm: -4.0                  # Top pad height mean (nm)
+  TOP_DISH_STD_nm: 1.0                  # Top pad height std (nm)
+  BOT_DISH_MEAN_nm: -4.0                  # Bottom pad height mean (nm)
+  BOT_DISH_STD_nm: 1.0                  # Bottom pad height std (nm)
   k_et: 0.053
   k_eb: 0.053
   T_R: 25
@@ -288,8 +288,8 @@ d2w_simulation:
   SYSTEM_TRANSLATION_Y_STD_um: 0.02
   SYSTEM_ROTATION_MEAN_rad: 6.0e-05
   SYSTEM_ROTATION_STD_rad: 1.0e-05
-  BOW_DIFFERENCE_MEAN_um: 0.5
-  BOW_DIFFERENCE_STD_um: 0.1
+  BOW_DIFFERENCE_MEAN_um: 10.0               # Bow difference mean (µm)
+  BOW_DIFFERENCE_STD_um: 3.0                 # Bow difference std (µm)
   k_mag: 0.1
   M_0: 0
   first_contact: center
@@ -301,10 +301,10 @@ d2w_simulation:
   k_L: 0.062
   k_n: 9.0e-05
   k_S: 2.7
-  TOP_DISH_MEAN_nm: -1.0
-  TOP_DISH_STD_nm: 0.5
-  BOT_DISH_MEAN_nm: -1.0
-  BOT_DISH_STD_nm: 0.5
+  TOP_DISH_MEAN_nm: -4.0                  # Top pad height mean (nm)
+  TOP_DISH_STD_nm: 1.0                  # Top pad height std (nm)
+  BOT_DISH_MEAN_nm: -4.0                  # Bottom pad height mean (nm)
+  BOT_DISH_STD_nm: 1.0                  # Bottom pad height std (nm)
   k_et: 0.053
   k_eb: 0.053
   T_R: 25
@@ -406,8 +406,8 @@ d2w_modeling:
   SYSTEM_TRANSLATION_Y_STD_um: 0.02
   SYSTEM_ROTATION_MEAN_rad: 6.0e-05
   SYSTEM_ROTATION_STD_rad: 1.0e-05
-  BOW_DIFFERENCE_MEAN_um: 0.5
-  BOW_DIFFERENCE_STD_um: 0.1
+  BOW_DIFFERENCE_MEAN_um: 10.0               # Bow difference mean (µm)
+  BOW_DIFFERENCE_STD_um: 3.0                 # Bow difference std (µm)
   k_mag: 0.1
   M_0: 0
   first_contact: center
@@ -419,10 +419,10 @@ d2w_modeling:
   k_L: 0.062
   k_n: 9.0e-05
   k_S: 2.7
-  TOP_DISH_MEAN_nm: -1
-  TOP_DISH_STD_nm: 0.5
-  BOT_DISH_MEAN_nm: -1
-  BOT_DISH_STD_nm: 0.5
+  TOP_DISH_MEAN_nm: -4.0                  # Top pad height mean (nm)
+  TOP_DISH_STD_nm: 1.0                  # Top pad height std (nm)
+  BOT_DISH_MEAN_nm: -4.0                  # Bottom pad height mean (nm)
+  BOT_DISH_STD_nm: 1.0                  # Bottom pad height std (nm)
   k_et: 0.053
   k_eb: 0.053
   T_R: 25
