@@ -27,13 +27,13 @@ if [[ -z "$PHYSICAL_CORES" ]]; then
   PHYSICAL_CORES="$LOGICAL_CORES"
 fi
 
-declare -a DEFAULT_DESIGNS=(design_5 design_6 HBM_A HBM_B)
+declare -a DEFAULT_DESIGNS=(design_1_p5 design_2_p10 HBM_A HBM_B)
 declare -a CONFIG_SUFFIXES=("" "_overlay_pessimistic" "_particle_pessimistic" "_mechanical_pessimistic" "_ESD_pessimistic")
 
 usage() {
   cat <<EOF
 Usage:
-  ./run_design_5_6_hbm_parallel.sh [--jobs N] [--criticality-profile PROFILE] [--skip-existing] [--dry-run] [DESIGN ...]
+  ./run_design_1_p5_6_hbm_parallel.sh [--jobs N] [--criticality-profile PROFILE] [--skip-existing] [--dry-run] [DESIGN ...]
 
 Defaults:
   designs: ${DEFAULT_DESIGNS[*]}
@@ -41,11 +41,11 @@ Defaults:
   criticality profile: ${CRITICALITY_PROFILE}
 
 Examples:
-  ./run_design_5_6_hbm_parallel.sh
-  ./run_design_5_6_hbm_parallel.sh --jobs 32
-  ./run_design_5_6_hbm_parallel.sh --jobs 16 --skip-existing
-  ./run_design_5_6_hbm_parallel.sh design_5 design_6
-  ./run_design_5_6_hbm_parallel.sh HBM_A HBM_B
+  ./run_design_1_p5_6_hbm_parallel.sh
+  ./run_design_1_p5_6_hbm_parallel.sh --jobs 32
+  ./run_design_1_p5_6_hbm_parallel.sh --jobs 16 --skip-existing
+  ./run_design_1_p5_6_hbm_parallel.sh design_1_p5 design_2_p10
+  ./run_design_1_p5_6_hbm_parallel.sh HBM_A HBM_B
 
 Notes:
   - This script runs simulation only.

@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """
-Shrink fine-pitch design_5/design_6 in-plane geometry while keeping pitch/bump size fixed.
+Shrink fine-pitch design_1_p5/design_2_p10 in-plane geometry while keeping pitch/bump size fixed.
 
 Rules
 -----
-- design_5: shrink all die and substrate XY dimensions to 1/2.
-- design_6: shrink all die and substrate XY dimensions to 1/3.
+- design_1_p5: shrink all die and substrate XY dimensions to 1/2.
+- design_2_p10: shrink all die and substrate XY dimensions to 1/3.
 - Keep pitch unchanged:
-    design_5 -> 5um pitch, 2.5um bump size
-    design_6 -> 10um pitch, 5.0um bump size
+    design_1_p5 -> 5um pitch, 2.5um bump size
+    design_2_p10 -> 10um pitch, 5.0um bump size
 - Recompute pad-array size from the shrunken pad-array footprint.
 - Rewrite root + variant .3dbf/.3dbv/.3dbx files.
 - Rebuild every .bmap from scratch.
@@ -46,19 +46,19 @@ class ShrinkSpec:
 
 SPECS = (
     ShrinkSpec(
-        name="design_5",
+        name="design_1_p5",
         design_kind="design_1",
-        input_root=REPO_ROOT / "D2W/input/design_5",
-        config_root=REPO_ROOT / "D2W/configs/design_5",
+        input_root=REPO_ROOT / "D2W/input/design_1_p5",
+        config_root=REPO_ROOT / "D2W/configs/design_1_p5",
         scale_xy=0.5,
         pitch_um=5.0,
         bump_size_um=2.5,
     ),
     ShrinkSpec(
-        name="design_6",
+        name="design_2_p10",
         design_kind="design_2",
-        input_root=REPO_ROOT / "D2W/input/design_6",
-        config_root=REPO_ROOT / "D2W/configs/design_6",
+        input_root=REPO_ROOT / "D2W/input/design_2_p10",
+        config_root=REPO_ROOT / "D2W/configs/design_2_p10",
         scale_xy=1.0 / 3.0,
         pitch_um=10.0,
         bump_size_um=5.0,
@@ -67,7 +67,7 @@ SPECS = (
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Shrink fine-pitch design_5/design_6 geometry.")
+    parser = argparse.ArgumentParser(description="Shrink fine-pitch design_1_p5/design_2_p10 geometry.")
     parser.add_argument(
         "--jobs",
         type=int,
