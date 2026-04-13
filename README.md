@@ -193,6 +193,7 @@ pip install -r requirements.txt
   - Jobs sharing the same `ds_dir` are serialized; only different `ds_dir` values run in parallel.
   - `.bmap` inputs are no longer sorted in place during runtime. A sorted copy is created under `output/<ds_name>/temp/`.
   - Mechanical dishing caches are isolated by `ds_name + config + criticality_profile`, so different configs can run on the same `ds_dir` without sharing temp files.
+  - Per-run generated interface YAML files are written under the design config folder (for example `D2W/configs/design_1/`) with the `__<config_stem>__<criticality_profile>` suffix in the filename to avoid cross-run overwrites.
   - Runtime temp files are cleaned automatically after each experiment finishes.
   - Per-experiment logs are written to `output/<ds_name>/parallel_simulation__<config_stem>__<criticality_profile>.log`.
   - `run_design_1_p5_design_2_p10_hbm_parallel.sh` defaults to:
@@ -337,4 +338,3 @@ Four helper scripts are provided to quickly generate starter files for testing:
 
 # Paper Link
 To be continued...
-

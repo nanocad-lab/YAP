@@ -284,7 +284,8 @@ def get_config_dict(cfg_folder: str,
                     _3dbv_path: str,
                     _3dbx_path: str,
                     mode: str,
-                    debug=False) -> dict:
+                    debug=False,
+                    file_suffix: str = "") -> dict:
     """
     Load base configuration from a YAML file and update with .3dbv and .bmap design parameters.
     args:
@@ -302,10 +303,11 @@ def get_config_dict(cfg_folder: str,
                                                 input_ds_dir=input_ds_dir,
                                                 _3dbv_path=_3dbv_path,
                                                 _3dbx_path=_3dbx_path,)
+    suffix = file_suffix or ""
     for interface_name, cfg in cfg_dict.items():
         cfg = finalize_cfg_for_mode(cfg, ds_name=ds_name, mode=mode)
         # Save updated config file for reference
-        OmegaConf.save(cfg, cfg_folder + f"/{interface_name}.yaml")
+        OmegaConf.save(cfg, cfg_folder + f"/{interface_name}{suffix}.yaml")
 
     if debug:
         cfg.DEBUG = True
@@ -322,7 +324,8 @@ def get_single_interface_config_dict(cfg_folder: str,
                                      ds_name: str,
                                      input_ds_dir: str,
                                      mode: str,
-                                     debug=False) -> dict:
+                                     debug=False,
+                                     file_suffix: str = "") -> dict:
     """
     Legacy single-interface mode for designs that provide one .bmap directly
     from the config without 3dblox wrapper files.
@@ -355,7 +358,8 @@ def get_single_interface_config_dict(cfg_folder: str,
         )
 
     cfg = finalize_cfg_for_mode(cfg, ds_name=ds_name, mode=mode)
-    OmegaConf.save(cfg, cfg_folder + f"/{cfg.INTERFACE}.yaml")
+    suffix = file_suffix or ""
+    OmegaConf.save(cfg, cfg_folder + f"/{cfg.INTERFACE}{suffix}.yaml")
 
     if debug:
         cfg.DEBUG = True
@@ -972,6 +976,5 @@ def result_wrapper(
             plt.savefig(save_path + f'/{filename}')
             plt.close(figure)
             print(f"Failure map for {mechanism} saved to {save_path + f'/{filename}'}")
-
 
 

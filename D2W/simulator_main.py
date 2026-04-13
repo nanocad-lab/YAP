@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import os
+import shutil
 import numpy as np
 from utils.util import *
 import time
@@ -164,6 +165,8 @@ def main():
     args.seed_run_base = secrets.randbits(63)
     args.output_file_tag = _build_output_file_tag(args.config, args.criticality_profile)
     cfg_dict = None
+    config_stem = os.path.splitext(os.path.basename(args.config))[0]
+    cfg_output_dir = args.config.rsplit('/', 1)[0]
 
     # Extract the design input files directory if provided
     input_ds_dir = args.ds_dir
@@ -179,23 +182,25 @@ def main():
     try:
         # Load config and update with design and ADK parameters (from .3dbv and .bmap)
         if os.path.exists(_3dbv_path) and os.path.exists(_3dbx_path):
-            cfg_dict = get_config_dict(cfg_folder=args.config.rsplit('/', 1)[0],
+            cfg_dict = get_config_dict(cfg_folder=cfg_output_dir,
                                         cfg_skeleton=cfg_skeleton, 
                                         ds_name=args.ds_name,
                                         input_ds_dir=input_ds_dir,
                                         _3dbv_path=_3dbv_path,
                                         _3dbx_path=_3dbx_path,
                                         mode=args.mode, 
-                                        debug=args.debug)
+                                        debug=args.debug,
+                                        file_suffix=args.output_file_tag)
         else:
             print("Using legacy single-interface input mode (no generated_stack_config.3dbx / generated_chiplet_definitions.3dbv).")
             cfg_dict = get_single_interface_config_dict(
-                cfg_folder=args.config.rsplit('/', 1)[0],
+                cfg_folder=cfg_output_dir,
                 cfg_skeleton=cfg_skeleton,
                 ds_name=args.ds_name,
                 input_ds_dir=input_ds_dir,
                 mode=args.mode,
                 debug=args.debug,
+                file_suffix=args.output_file_tag,
             )
         cfg_loading_time = time.perf_counter() - start_time
         print(f"Config loading and processing finished in {cfg_loading_time:.2f} seconds.")
@@ -372,6 +377,7 @@ def main():
             removed_temp_paths = cleanup_runtime_temp_files(cfg_dict, vars(args))
             if removed_temp_paths:
                 print(f"Cleaned {len(removed_temp_paths)} runtime temp files.")
+        # Generated interface configs are saved under the design's config folder.
 
 
 if __name__ == "__main__":
