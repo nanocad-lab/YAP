@@ -664,28 +664,48 @@ def risk_map_generator(cfg,
     Risk map output format:
     <pad_coords_x> <pad_coords_y> <esd_failure_probability> <overlay_failure_probability> <particle_failure_probability> <mechanical_failure_probability>
     '''
+    file_suffix = str(input_args.get("output_file_tag", ""))
+    if not file_suffix:
+        config_path = str(input_args.get("config", ""))
+        criticality_profile = str(input_args.get("criticality_profile", "default"))
+        if config_path:
+            config_stem = os.path.splitext(os.path.basename(config_path))[0]
+            safe_parts = []
+            for ch in f"{config_stem}__{criticality_profile}":
+                if ch.isalnum() or ch in ("-", "_"):
+                    safe_parts.append(ch)
+                else:
+                    safe_parts.append("_")
+            safe_tag = "".join(safe_parts).strip("_")
+            if safe_tag:
+                file_suffix = f"__{safe_tag}"
+
+    def append_file_suffix(filename: str) -> str:
+        if not file_suffix:
+            return filename
+        stem, ext = os.path.splitext(filename)
+        return f"{stem}{file_suffix}{ext}"
+
     output_dir = os.path.join(cfg.OUTPUT_DIR, input_args['ds_name'], cfg.INTERFACE)
-    risk_map_path = os.path.join(output_dir, f"{cfg.INTERFACE}_risk.map")
-    pad_coords = np.asarray(interface.pad_coords, dtype=np.float32)
+    risk_map_path = os.path.join(output_dir, append_file_suffix(f"{cfg.INTERFACE}_risk.map"))
+    pad_coords = np.asarray(interface.pad_coords, dtype=np.float64)
     valid_mask = np.isfinite(pad_coords[:, 0]) & np.isfinite(pad_coords[:, 1])
     risk_map = np.column_stack(
         (
             pad_coords[valid_mask, 0],
             pad_coords[valid_mask, 1],
-            1.0 - np.asarray(interface.pad_yield_map['Y_esd'], dtype=np.float32).reshape(-1)[valid_mask],
-            1.0 - np.asarray(interface.pad_yield_map['Y_ovl'], dtype=np.float32).reshape(-1)[valid_mask],
-            1.0 - np.asarray(interface.pad_yield_map['Y_df'], dtype=np.float32).reshape(-1)[valid_mask],
-            1.0 - np.asarray(interface.pad_yield_map['Y_ce'], dtype=np.float32).reshape(-1)[valid_mask],
+            1.0 - np.asarray(interface.pad_yield_map['Y_esd'], dtype=np.float64).reshape(-1)[valid_mask],
+            1.0 - np.asarray(interface.pad_yield_map['Y_ovl'], dtype=np.float64).reshape(-1)[valid_mask],
+            1.0 - np.asarray(interface.pad_yield_map['Y_df'], dtype=np.float64).reshape(-1)[valid_mask],
+            1.0 - np.asarray(interface.pad_yield_map['Y_ce'], dtype=np.float64).reshape(-1)[valid_mask],
         )
     )
-    np.savetxt(risk_map_path, risk_map, fmt="%.6f")
+    np.savetxt(
+        risk_map_path,
+        risk_map,
+        fmt=["%.6f", "%.6f", "%.12f", "%.12f", "%.12f", "%.12f"],
+    )
     print("Risk map file saved in ", risk_map_path)
-
-    save_risk_map_plots = bool(getattr(cfg, "plot_flag", False))
-    if not save_risk_map_plots:
-        print("Failure mechanism risk-map PNGs skipped (use --plot to enable).")
-        print()
-        return
 
     mechanism_specs = {
         "esd": ("Y_esd", "ESD Failure Probability"),
@@ -699,6 +719,7 @@ def risk_map_generator(cfg,
         masked_failure_map = np.ma.masked_invalid(failure_map)
 
         finite_vals = failure_map[np.isfinite(failure_map)]
+        vmin = float(np.min(finite_vals)) if finite_vals.size > 0 else 0.0
         vmax = float(np.max(finite_vals)) if finite_vals.size > 0 else 1.0
         if vmax <= 0.0:
             vmax = 1.0
@@ -706,9 +727,9 @@ def risk_map_generator(cfg,
         fig, ax = plt.subplots(figsize=(8, 6))
         image = ax.imshow(
             masked_failure_map,
-            cmap='hot',
+            cmap='viridis',
             interpolation='nearest',
-            vmin=0.0,
+            vmin=vmin,
             vmax=vmax,
         )
         fig.colorbar(image, ax=ax, label=colorbar_label)
@@ -716,7 +737,10 @@ def risk_map_generator(cfg,
         ax.set_xlabel('Pad Column Index')
         ax.set_ylabel('Pad Row Index')
 
-        save_path = os.path.join(output_dir, f"{cfg.INTERFACE}_{mechanism}_risk_map.png")
+        save_path = os.path.join(
+            output_dir,
+            append_file_suffix(f"{cfg.INTERFACE}_{mechanism}_risk_map.png"),
+        )
         fig.savefig(save_path, dpi=300, bbox_inches='tight')
         plt.close(fig)
 
@@ -941,15 +965,13 @@ def result_wrapper(
         for mechanism, fail_map in fail_map_dict.items():
             # Draw the failure map and save the figure to the output directory
             figure = plt.figure(figsize=(10, 10))
-            plt.imshow(fail_map, cmap='hot', interpolation='nearest')
+            plt.imshow(fail_map, cmap='viridis', interpolation='nearest')
             plt.colorbar(label='Failure Count')
             plt.title(f'Assembly Failure Map - {mechanism}')
             filename = f"simulation_failure_map_{mechanism}{file_suffix}.png"
             plt.savefig(save_path + f'/{filename}')
             plt.close(figure)
             print(f"Failure map for {mechanism} saved to {save_path + f'/{filename}'}")
-
-
 
 
 

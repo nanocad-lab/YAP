@@ -98,7 +98,8 @@ pip install -r requirements.txt
   - ESD pad risk map generation now applies two automatic accelerations by default.
   - A coarse-grid ESD evaluation is computed and then interpolated back to the full pad map.
   - Candidate-pad pruning evaluates only pads near the deterministic first-touch edge when that pruning is safe.
-  - Risk-map saving is also optimized: text `.risk.map` output is written with a vectorized writer, and the large per-mechanism PNGs are only saved when `--plot` is enabled.
+  - Risk-map saving is also optimized: text `.risk.map` output is written with a vectorized writer, and per-mechanism risk-map PNGs are now saved by default.
+  - `--plot` is only needed if you also want the extra interactive mechanism plots shown during modeling.
   - You can override the coarse-grid factor with `ESD_PAD_MAP_SUB_FACTOR` in the YAML.
   - If `ESD_PAD_MAP_SUB_FACTOR` is unset or `0`, a factor is chosen automatically from the active pad count.
   - Optional candidate-pruning knobs:
@@ -267,13 +268,15 @@ pip install -r requirements.txt
 
 
 # Output
-**1.<design>_risk.map**
+**1.<interface>_risk__<config_stem>__<criticality_profile>.map**
 
-  The risk map of the design in a text format. Each line corresponds to a pad and contains the x and y coordinates of the pad, followed by the failure probabilities of different failure mechanisms.
+  The risk map of the interface in a text format. Each line corresponds to a pad and contains the x and y coordinates of the pad, followed by the failure probabilities of different failure mechanisms.
+  The `__<config_stem>__<criticality_profile>` suffix distinguishes baseline and each pessimistic case.
 
-**1a.<design>_<mechanism>_risk_map.png**
+**1a.<interface>_<mechanism>_risk_map__<config_stem>__<criticality_profile>.png**
 
-  Per-mechanism pad risk maps are only written when `--plot` is enabled for `pad_risk_map_calculator.py`.
+  Per-mechanism pad risk maps are written by default for `pad_risk_map_calculator.py`.
+  `--plot` only controls the extra interactive plots shown during modeling.
 
 **2.assembly_yield_summary__<config_stem>__<criticality_profile>.txt**
 

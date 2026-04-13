@@ -448,16 +448,17 @@ def pad_esd_yield_map_generator(
     risk_vec = risk_active.copy()
     valid_pad_yield_map_vec = 1.0 - risk_vec
 
-    if bool(getattr(cfg, "plot_flag", False)):
-        fig = _plot_probability_over_pads_with_pitch(
-            pad_coords_um=pad_coords_um,
-            prob_vec=risk_vec,
-            pitch_um=pad_pitch_um,
-            die_w_um=top_die_w_um,
-            die_h_um=top_die_h_um,
-            title="Risk Pad Map = E[1(first-touch pad) * p_fail(V)], analytical",
-        )
-    else:
-        fig = None
+    # if bool(getattr(cfg, "plot_flag", False)):
+    #     fig = _plot_probability_over_pads_with_pitch(
+    #         pad_coords_um=pad_coords_um,
+    #         prob_vec=risk_vec,
+    #         pitch_um=pad_pitch_um,
+    #         die_w_um=top_die_w_um,
+    #         die_h_um=top_die_h_um,
+    #         title="Risk Pad Map = E[1(first-touch pad) * p_fail(V)], analytical",
+    #     )
+    # else:
+    #     fig = None
+    fig = None
 
     return valid_pad_yield_map_vec, fig, float(p_fail_avg)

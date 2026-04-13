@@ -63,7 +63,7 @@ d2w_simulation:
 
   # === Bowing and Magnification ===
   BOW_DIFFERENCE_MEAN_um: 10.0               # Bow difference mean (µm)
-  BOW_DIFFERENCE_STD_um: 3.0                 # Bow difference std (µm)
+  BOW_DIFFERENCE_STD_um: 1.0                 # Bow difference std (µm)
   k_mag: 0.1                           # Magnification slope coefficient
   M_0: 0                                # Magnification offset
   WARPAGE_LIMIT_UM: 20                # Warpage limit (um)
@@ -137,8 +137,8 @@ d2w_simulation:
   TILT_Y_MEAN_DEG: 0.000              # Tilt Y mean (deg)
   TILT_Y_STD_DEG: 1e-5                 # Tilt Y std (deg)
 
-  V_MIN_V: 0.0                    # Minimum ESD voltage (V) 
-  V_MAX_V: 5.0                    # Maximum ESD voltage (V)
+  V_MIN_V: 0.0
+  V_MAX_V: 5.0
 
   WEIBULL_K: 4.44985                # Weibull shape parameter for ESD failure probability
   WEIBULL_LAMBDA: 0.0621816         # Weibull scale parameter for ESD failure probability
@@ -214,7 +214,7 @@ d2w_modeling:
   SYSTEM_ROTATION_MEAN_rad: 6e-5            # Systematic rotation mean (rad)
   SYSTEM_ROTATION_STD_rad: 1e-5             # Systematic rotation std (rad)
   BOW_DIFFERENCE_MEAN_um: 10.0               # Bow difference mean (µm)
-  BOW_DIFFERENCE_STD_um: 3.0                 # Bow difference std (µm)
+  BOW_DIFFERENCE_STD_um: 1.0                 # Bow difference std (µm)
   k_mag: 0.1                           # Magnification slope coefficient
   M_0: 0                                # Magnification offset
   WARPAGE_LIMIT_UM: 20                # Warpage limit (um)
@@ -290,8 +290,8 @@ d2w_modeling:
   n_tilts_samples: 1                  # Number of tilt samples for ESD simulation
   n_dishes_samples: 10000             # Number of dish samples for ESD simulation
 
-  V_MIN_V: 0.0                   # Minimum ESD voltage (V)
-  V_MAX_V: 5.0                   # Maximum ESD voltage (V)
+  V_MIN_V: 0.0
+  V_MAX_V: 5.0
  
   WEIBULL_K: 4.44985               # Weibull shape parameter for ESD failure probability
   WEIBULL_LAMBDA: 0.0621816        # Weibull scale parameter for ESD failure probability

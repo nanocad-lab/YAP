@@ -386,18 +386,36 @@ def copy_representative_bitmap_outputs(output_root, representative, duplicate):
         )
 
 
-def copy_representative_risk_outputs(output_root, representative, duplicate):
+def copy_representative_risk_outputs(output_root, representative, duplicate, file_suffix=""):
     rep_dir = os.path.join(output_root, representative)
     dup_dir = os.path.join(output_root, duplicate)
     os.makedirs(dup_dir, exist_ok=True)
 
     copy_plan = [
-        (f"{representative}_risk.map", f"{duplicate}_risk.map"),
-        (f"{representative}_esd_risk_map.png", f"{duplicate}_esd_risk_map.png"),
-        (f"{representative}_overlay_risk_map.png", f"{duplicate}_overlay_risk_map.png"),
-        (f"{representative}_particle_risk_map.png", f"{duplicate}_particle_risk_map.png"),
-        (f"{representative}_mechanical_risk_map.png", f"{duplicate}_mechanical_risk_map.png"),
-        (f"{representative}_overall_risk_map.png", f"{duplicate}_overall_risk_map.png"),
+        (
+            _append_file_suffix(f"{representative}_risk.map", file_suffix),
+            _append_file_suffix(f"{duplicate}_risk.map", file_suffix),
+        ),
+        (
+            _append_file_suffix(f"{representative}_esd_risk_map.png", file_suffix),
+            _append_file_suffix(f"{duplicate}_esd_risk_map.png", file_suffix),
+        ),
+        (
+            _append_file_suffix(f"{representative}_overlay_risk_map.png", file_suffix),
+            _append_file_suffix(f"{duplicate}_overlay_risk_map.png", file_suffix),
+        ),
+        (
+            _append_file_suffix(f"{representative}_particle_risk_map.png", file_suffix),
+            _append_file_suffix(f"{duplicate}_particle_risk_map.png", file_suffix),
+        ),
+        (
+            _append_file_suffix(f"{representative}_mechanical_risk_map.png", file_suffix),
+            _append_file_suffix(f"{duplicate}_mechanical_risk_map.png", file_suffix),
+        ),
+        (
+            _append_file_suffix(f"{representative}_overall_risk_map.png", file_suffix),
+            _append_file_suffix(f"{duplicate}_overall_risk_map.png", file_suffix),
+        ),
     ]
     for src_name, dst_name in copy_plan:
         src_path = os.path.join(rep_dir, src_name)

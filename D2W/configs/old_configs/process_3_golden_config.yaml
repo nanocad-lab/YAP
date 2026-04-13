@@ -63,7 +63,7 @@ w2w_simulation:
 
   # === Bowing and Magnification ===
   BOW_DIFFERENCE_MEAN_um: 10.0               # Bow difference mean (µm)
-  BOW_DIFFERENCE_STD_um: 3.0                 # Bow difference std (µm)
+  BOW_DIFFERENCE_STD_um: 1.0                 # Bow difference std (µm)
   k_mag: 0.1                           # Magnification coefficient
   M_0: 0                                # Magnification offset (ppm)
 
@@ -224,7 +224,7 @@ w2w_modeling:
   SYSTEM_ROTATION_MEAN_rad: 5e-8            # Mean of systematic rotation (rad)
   SYSTEM_ROTATION_STD_rad: 1e-8             # Std of systematic rotation (rad)
   BOW_DIFFERENCE_MEAN_um: 10.0               # Bow difference mean (µm)
-  BOW_DIFFERENCE_STD_um: 3.0                 # Bow difference std (µm)
+  BOW_DIFFERENCE_STD_um: 1.0                 # Bow difference std (µm)
   k_mag: 0.1                           # Magnification slope coefficient
   M_0: 0                                # Magnification offset
 
@@ -385,7 +385,7 @@ d2w_simulation:
 
   # === Bowing and Magnification ===
   BOW_DIFFERENCE_MEAN_um: 10.0               # Bow difference mean (µm)
-  BOW_DIFFERENCE_STD_um: 3.0                 # Bow difference std (µm)
+  BOW_DIFFERENCE_STD_um: 1.0                 # Bow difference std (µm)
   k_mag: 0.1                           # Magnification slope coefficient
   M_0: 0                                # Magnification offset
 
@@ -551,7 +551,7 @@ d2w_modeling:
   SYSTEM_ROTATION_MEAN_rad: 6e-5            # Systematic rotation mean (rad)
   SYSTEM_ROTATION_STD_rad: 1e-5             # Systematic rotation std (rad)
   BOW_DIFFERENCE_MEAN_um: 10.0               # Bow difference mean (µm)
-  BOW_DIFFERENCE_STD_um: 3.0                 # Bow difference std (µm)
+  BOW_DIFFERENCE_STD_um: 1.0                 # Bow difference std (µm)
   k_mag: 0.1                           # Magnification slope coefficient
   M_0: 0                                # Magnification offset
 

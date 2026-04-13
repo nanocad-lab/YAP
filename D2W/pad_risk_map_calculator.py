@@ -19,13 +19,35 @@ from utils.interface_reuse import (
 )
 
 
+def _sanitize_output_tag(value: str) -> str:
+    safe = []
+    for ch in value:
+        if ch.isalnum() or ch in ("-", "_"):
+            safe.append(ch)
+        else:
+            safe.append("_")
+    return "".join(safe).strip("_")
+
+
+def _build_output_file_tag(config_path: str, criticality_profile: str) -> str:
+    config_stem = os.path.splitext(os.path.basename(config_path))[0]
+    tag = _sanitize_output_tag(f"{config_stem}__{criticality_profile}")
+    return f"__{tag}" if tag else ""
+
+
 def parse_args():
     p = argparse.ArgumentParser(description="Simulate assembly yield for D2W hybrid bonding")
     p.add_argument("--config", "-c", required=True, help="Path to modeling config yaml")
     p.add_argument("--mode", "-m", required=True, default="d2w_modeling", help="Mode to load from config (default: d2w_modeling)")
     p.add_argument("--ds_name", "-d", required=True, help="Name of design (used for output directory naming)")
     p.add_argument("--ds_dir", required=True, help="Path to design directory")
-    p.add_argument("--plot", "-plot", default=False, action="store_true", help="Enable plotting of the pad risk map")
+    p.add_argument(
+        "--plot",
+        "-plot",
+        default=False,
+        action="store_true",
+        help="Enable additional interactive mechanism plots during modeling",
+    )
     p.add_argument("--verbose", "-v", action="store_true", help="Enable verbose output during simulation")
     p.add_argument("--debug", action="store_true", help="Enable debug output when loading config")
     p.add_argument(
@@ -44,6 +66,7 @@ def parse_args():
 
 def main():
     args = parse_args()
+    args.output_file_tag = _build_output_file_tag(args.config, args.criticality_profile)
     cfg_dict = None
 
     # Extract the design input files directory if provided
@@ -190,6 +213,7 @@ def main():
                         output_root=output_root,
                         representative=representative,
                         duplicate=duplicate,
+                        file_suffix=args.output_file_tag,
                     )
         else:
             Pad_Yield_Map_Generator(

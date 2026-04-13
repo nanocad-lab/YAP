@@ -72,7 +72,7 @@ def pad_Cu_expansion_yield_map_generator(*,
 
     if cfg.plot_flag:
         # Draw the pad yield map
-        plt.figure(figsize=(13.5, 6), dpi=300)
+        plt.figure(figsize=(8, 6))
         plt.imshow(
             pad_yield_map,
             cmap='viridis', 

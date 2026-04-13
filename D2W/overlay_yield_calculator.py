@@ -359,7 +359,7 @@ def pad_overlay_yield_map_generator(*,
         
         if cfg.plot_flag:
         # Draw the pad yield map
-            plt.figure(figsize=(14, 6))
+            plt.figure(figsize=(8, 6))
             plt.imshow(
                 overlay_pad_yield_map_sub, 
                 cmap='viridis', 
