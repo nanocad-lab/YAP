@@ -128,6 +128,14 @@ pip install -r requirements.txt
   ./run_design_pad_risk_maps.sh HBM_A HBM_B
   ```
 
+  Example command to run pad risk map generation in parallel
+
+  ```
+  ./run_design_1_2_hbm_pad_risk_maps_parallel.sh --jobs 16
+  ./run_all_pad_risk_maps_parallel.sh --jobs 16 design_1_p5 design_2_p10 HBM_A HBM_B
+  ./run_all_pad_risk_maps_parallel.sh --jobs 16 --skip-existing design_1 design_2 HBM_A HBM_B
+  ```
+
   Notes:
   - Ratio-based designs such as `design_1`, `design_2`, `design_1_p5`, and `design_2_p10` should be run with `--ratio`.
   - `HBM_A` and `HBM_B` use direct variant folders and do not require a ratio.
@@ -164,19 +172,20 @@ pip install -r requirements.txt
   ./run_design_simulations.sh HBM_A HBM_B
   ```
 
-  Example command to run all simulation experiments in parallel
+  Example command to run simulation experiments in parallel
 
   ```
-  ./run_all_simulations_parallel.sh --jobs 16
-  ./run_all_simulations_parallel.sh --jobs 16 --skip-existing
-  ./run_all_simulations_parallel.sh --dry-run --jobs 4
+  ./run_design_1_2_hbm_simulations_parallel.sh --jobs 16
+  ./run_design_1_2_hbm_simulations_parallel.sh --jobs 16 --skip-existing
+  ./run_design_1_p5_design_2_p10_hbm_parallel.sh --jobs 16
+  ./run_design_1_p5_design_2_p10_hbm_parallel.sh --dry-run --jobs 4
   ```
 
   Example command to run the full `design_1_p5 / design_2_p10 / HBM_A / HBM_B` sweep used for result tables
 
   ```
-  ./run_design_1_p5_6_hbm_parallel.sh --jobs 16
-  ./run_design_1_p5_6_hbm_parallel.sh --dry-run --jobs 4
+  ./run_design_1_p5_design_2_p10_hbm_parallel.sh --jobs 16
+  ./run_design_1_p5_design_2_p10_hbm_parallel.sh --dry-run --jobs 4
   ```
 
   Notes for the parallel simulation launcher:
@@ -186,10 +195,18 @@ pip install -r requirements.txt
   - Mechanical dishing caches are isolated by `ds_name + config + criticality_profile`, so different configs can run on the same `ds_dir` without sharing temp files.
   - Runtime temp files are cleaned automatically after each experiment finishes.
   - Per-experiment logs are written to `output/<ds_name>/parallel_simulation__<config_stem>__<criticality_profile>.log`.
-  - `run_design_1_p5_6_hbm_parallel.sh` defaults to:
+  - `run_design_1_p5_design_2_p10_hbm_parallel.sh` defaults to:
   - `design_1_p5`: all ratios, `Center_IO / Edge_IO / Random_IO`
   - `design_2_p10`: all ratios, `Center_IO / Edge_IO / Random_IO`
   - `HBM_A` and `HBM_B`: `Original / Center_IO / Edge_IO / Random_IO`
+
+  Example command to package the current `design_1 / design_2 / HBM_A / HBM_B` configs and inputs for handoff
+
+  ```
+  tar -czf configs_input_design_1_2_HBM_A_HBM_B.tar.gz \
+    configs/design_1 configs/design_2 configs/HBM_A configs/HBM_B \
+    input/design_1 input/design_2 input/HBM_A input/HBM_B
+  ```
 
 # File Formats
 **1. Bump Map (.bmap):**
@@ -320,5 +337,4 @@ Four helper scripts are provided to quickly generate starter files for testing:
 
 # Paper Link
 To be continued...
-
 
