@@ -55,8 +55,8 @@ d2w_simulation:
   SYSTEM_TRANSLATION_X_STD_um: 2e-2        # Systematic X translation std (µm)
   SYSTEM_TRANSLATION_Y_MEAN_um: 0       # Systematic Y translation mean (µm)
   SYSTEM_TRANSLATION_Y_STD_um: 2e-2        # Systematic Y translation std (µm)
-  SYSTEM_ROTATION_MEAN_rad: 6e-5            # Systematic rotation mean (rad)
-  SYSTEM_ROTATION_STD_rad: 1e-5             # Systematic rotation std (rad)
+  SYSTEM_ROTATION_MEAN_rad: 4e-4            # Systematic rotation mean (rad)
+  SYSTEM_ROTATION_STD_rad: 1e-4             # Systematic rotation std (rad)
 
   # === Bowing and Magnification ===
   BOW_DIFFERENCE_MEAN_um: 10.0               # Bow difference mean (µm)
@@ -68,7 +68,7 @@ d2w_simulation:
   # === Defect Parameters ===
   first_contact: 'center'            # First contact location: 'center' or 'edge' or 'corner (left-top)'
   D0: 1e-9                              # Particle density (1/µm²)
-  D1: 1e-8                              # Edge peak particle density (1/µm²)
+  D1: 5e-9                              # Edge peak particle density (1/µm²)
   EDGE_REGION_WIDTH_um: 300.0           # Width of the edge region for elevated particle density (µm)
   z: 3                                  # Particle thickness distribution exponent
   t_0: 0.1                                # Minimum particle thickness (µm)
@@ -242,8 +242,8 @@ d2w_modeling:
   SYSTEM_TRANSLATION_X_STD_um: 2e-2        # Std of systematic X translation (µm)
   SYSTEM_TRANSLATION_Y_MEAN_um: 0       # Mean of systematic Y translation (µm)
   SYSTEM_TRANSLATION_Y_STD_um: 2e-2        # Std of systematic Y translation (µm)
-  SYSTEM_ROTATION_MEAN_rad: 6e-5            # Mean of systematic rotation (rad)
-  SYSTEM_ROTATION_STD_rad: 1e-5             # Std of systematic rotation (rad)
+  SYSTEM_ROTATION_MEAN_rad: 4e-4            # Systematic rotation mean (rad)
+  SYSTEM_ROTATION_STD_rad: 1e-4             # Systematic rotation std (rad)
   BOW_DIFFERENCE_MEAN_um: 10.0               # Bow difference mean (µm)
   BOW_DIFFERENCE_STD_um: 1.0                 # Bow difference std (µm)
   k_mag: 0.1                           # Magnification slope coefficient
@@ -253,7 +253,7 @@ d2w_modeling:
   # === Defect Parameters ===
   first_contact: 'center'            # First contact location: 'center' or 'vertical-edge' or 'horizontal-edge' or 'corner' (left-bottom)
   D0: 1e-9                              # Particle density (1/µm²)
-  D1: 1e-8                              # Edge peak particle density (1/µm²)
+  D1: 5e-9                              # Edge peak particle density (1/µm²)
   EDGE_REGION_WIDTH_um: 300.0           # Width of the edge region for elevated particle density (µm)
   z: 3                                  # Thickness distribution exponent factor
   t_0: 0.1                              # Minimum particle thickness (µm)

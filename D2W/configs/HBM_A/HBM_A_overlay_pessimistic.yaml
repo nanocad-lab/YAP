@@ -4,7 +4,7 @@ d2w_simulation:
   OUTPUT_DIR: output/
   INPUT_DIR: input/
   INTERFACE: HBM_footprint_A
-  NUM_DIE_STACKS: 10000
+  NUM_DIE_STACKS: 10000                            # Number of die stacks used in simulation
   SIM_BATCH_SIZE: 10
   PITCH_r_um: 55
   PITCH_c_um: 35
@@ -54,7 +54,7 @@ d2w_simulation:
   WARPAGE_LIMIT_UM: 20                # Warpage limit (um)
   first_contact: center
   D0: 1e-9                              # Particle density (1/µm²)
-  D1: 1e-8                              # Edge peak particle density (1/µm²)
+  D1: 5e-9                              # Edge peak particle density (1/µm²)
   EDGE_REGION_WIDTH_um: 300.0
   z: 3
   t_0: 0.1
@@ -187,7 +187,7 @@ d2w_modeling:
   WARPAGE_LIMIT_UM: 20                # Warpage limit (um)
   first_contact: center
   D0: 1e-9                              # Particle density (1/µm²)
-  D1: 1e-8                              # Edge peak particle density (1/µm²)
+  D1: 5e-9                              # Edge peak particle density (1/µm²)
   EDGE_REGION_WIDTH_um: 300.0
   z: 3
   t_0: 0.1

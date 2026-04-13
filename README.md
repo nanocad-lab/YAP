@@ -112,7 +112,7 @@ pip install -r requirements.txt
   ```
   python pad_risk_map_calculator.py --config configs/design_1/design_1.yaml --mode d2w_modeling --ds_name design_1/c25_r0_pg50_dm25/Center_IO --ds_dir input/design_1/c25_r0_pg50_dm25/Center_IO --criticality-profile esd_strict --verbose
 
-  python pad_risk_map_calculator.py --config configs/design_1/design_1.yaml --mode d2w_modeling --ds_name design_1/c25_r0_pg50_dm25/Center_IO --ds_dir input/design_1/c25_r0_pg50_dm25/Center_IO --criticality-profile default --verbose
+  python pad_risk_map_calculator.py --config configs/design_2/design_2.yaml --mode d2w_modeling --ds_name design_2/c25_r0_pg50_dm25/Center_IO --ds_dir input/design_2/c25_r0_pg50_dm25/Center_IO --criticality-profile default --verbose
 
   python pad_risk_map_calculator.py --config configs/HBM_A/HBM_A.yaml --mode d2w_modeling --ds_name HBM_A/Center_IO --ds_dir input/HBM_A/Center_IO --verbose
 

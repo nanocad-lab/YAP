@@ -28,7 +28,7 @@ if [[ -z "$PHYSICAL_CORES" ]]; then
   PHYSICAL_CORES="$LOGICAL_CORES"
 fi
 
-declare -a DEFAULT_DESIGNS=(design_1 design_2 design_1_p5 design_2_p10 HBM_A HBM_B)
+declare -a DEFAULT_DESIGNS=(design_1 design_2 HBM_A HBM_B)
 declare -a CONFIG_SUFFIXES=("" "_overlay_pessimistic" "_particle_pessimistic" "_mechanical_pessimistic" "_ESD_pessimistic")
 
 usage() {
@@ -248,21 +248,6 @@ launch_experiment() {
   echo "[START] ${desc} (pid=${pid})"
 }
 
-maybe_launch() {
-  local cfg="$1"
-  local ds_name="$2"
-  local ds_dir="$3"
-
-  while true; do
-    reap_finished
-    if [[ ${#pids[@]} -lt $JOBS && -z "${active_group_pid[$ds_dir]:-}" ]]; then
-      launch_experiment "$cfg" "$ds_name" "$ds_dir"
-      break
-    fi
-    sleep 0.5
-  done
-}
-
 declare -a raw_design_args=()
 declare -a design_names=()
 declare -A seen_designs=()
@@ -366,10 +351,45 @@ fi
 
 echo "Total experiments: ${#experiments[@]}"
 
-for entry in "${experiments[@]}"; do
-  IFS=$'\t' read -r cfg ds_name ds_dir <<< "$entry"
-  maybe_launch "$cfg" "$ds_name" "$ds_dir"
-done
+if [[ $DRY_RUN -eq 1 ]]; then
+  for experiment in "${experiments[@]}"; do
+    IFS=$'\t' read -r cfg ds_name ds_dir <<< "$experiment"
+    launch_experiment "$cfg" "$ds_name" "$ds_dir"
+  done
+else
+  declare -a pending_experiments=("${experiments[@]}")
+  declare -a remaining_experiments=()
+  launched_any=0
+
+  while [[ ${#pending_experiments[@]} -gt 0 ]]; do
+    remaining_experiments=()
+    launched_any=0
+
+    for experiment in "${pending_experiments[@]}"; do
+      IFS=$'\t' read -r cfg ds_name ds_dir <<< "$experiment"
+
+      if [[ ${#pids[@]} -ge $JOBS || -n "${active_group_pid[$ds_dir]:-}" ]]; then
+        remaining_experiments+=("$experiment")
+        continue
+      fi
+
+      launch_experiment "$cfg" "$ds_name" "$ds_dir"
+      launched_any=1
+    done
+
+    pending_experiments=("${remaining_experiments[@]}")
+
+    if [[ ${#pending_experiments[@]} -gt 0 && $launched_any -eq 0 ]]; then
+      sleep 1
+      reap_finished
+    fi
+
+    while [[ ${#pids[@]} -ge $JOBS ]]; do
+      sleep 1
+      reap_finished
+    done
+  done
+fi
 
 while [[ ${#pids[@]} -gt 0 ]]; do
   reap_finished

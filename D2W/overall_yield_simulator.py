@@ -554,6 +554,8 @@ def overall_yield_simulator(
 
                 zeta_0[valid_pad_mask == 1] = - valid_pad_dishing_bound_array[:, 1] * 2 # lower limits of the sum of top and bottom Cu heights
                 zeta_1[valid_pad_mask == 1] = - valid_pad_dishing_bound_array[:, 0] * 2 # upper limits of the sum of top and bottom Cu heights
+                zeta_0 = np.clip(zeta_0, a_max=0, a_min=None)
+                zeta_1 = np.clip(zeta_1, a_max=0, a_min=None)
                 
                 if cfg.verbose and save_failure_maps:
                     epoch_fail_map_per_interface_dict[interface_name]['mechanical'] += (

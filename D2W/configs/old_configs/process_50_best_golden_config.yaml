@@ -80,7 +80,7 @@ w2w_simulation:
   M_0: 0                                # Magnification offset (ppm)
 
   # === Defect Parameters ===
-  D0: 2e-9                              # Particle density (1/µm²)
+  D0: 1e-9                              # Particle density (1/µm²)
   z: 3                                  # Particle thickness distribution exponent
   t_0: 1                                # Minimum particle thickness (µm)
   k_r: 1.8e-4
@@ -242,7 +242,7 @@ w2w_modeling:
   M_0: 0                                # Magnification offset
 
   # === Defect Parameters ===
-  D0: 2e-9                              # Particle density (1/µm²)
+  D0: 1e-9                              # Particle density (1/µm²)
   z: 3                                  # Thickness distribution exponent factor
   t_0: 0.1                              # Minimum particle thickness (µm)
   k_r: 1.8e-4
