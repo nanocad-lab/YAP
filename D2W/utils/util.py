@@ -729,17 +729,33 @@ def risk_map_generator(cfg,
             vmax = 1.0
 
         fig, ax = plt.subplots(figsize=(8, 6))
+        extent = None
+        x_label = 'Pad Column Index'
+        y_label = 'Pad Row Index'
+        pitch_c = getattr(cfg, "PITCH_c_um", None)
+        pitch_r = getattr(cfg, "PITCH_r_um", None)
+        if pitch_c not in (None, "None") and pitch_r not in (None, "None"):
+            cols = masked_failure_map.shape[1]
+            rows = masked_failure_map.shape[0]
+            half_w = (cols - 1) * float(pitch_c) / 2.0
+            half_h = (rows - 1) * float(pitch_r) / 2.0
+            extent = [-half_w, half_w, half_h, -half_h]
+            x_label = 'X (um)'
+            y_label = 'Y (um)'
+
         image = ax.imshow(
             masked_failure_map,
             cmap='viridis',
             interpolation='nearest',
             vmin=vmin,
             vmax=vmax,
+            origin='upper',
+            extent=extent,
         )
         fig.colorbar(image, ax=ax, label=colorbar_label)
         ax.set_title(f"{mechanism.title()} Risk Map")
-        ax.set_xlabel('Pad Column Index')
-        ax.set_ylabel('Pad Row Index')
+        ax.set_xlabel(x_label)
+        ax.set_ylabel(y_label)
 
         save_path = os.path.join(
             output_dir,
@@ -976,5 +992,4 @@ def result_wrapper(
             plt.savefig(save_path + f'/{filename}')
             plt.close(figure)
             print(f"Failure map for {mechanism} saved to {save_path + f'/{filename}'}")
-
 

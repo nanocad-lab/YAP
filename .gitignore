@@ -13,6 +13,7 @@ design_*/
 yap_env/
 D2W/output/*/temp/
 W2W/output/*/temp/
+output/
 *.png
 .codex
 *.tar.zst

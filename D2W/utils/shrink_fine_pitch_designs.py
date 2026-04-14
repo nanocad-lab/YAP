@@ -42,6 +42,9 @@ class ShrinkSpec:
     scale_xy: float
     pitch_um: float
     bump_size_um: float
+    source_name: str | None = None
+    source_input_root: Path | None = None
+    source_config_root: Path | None = None
 
 
 SPECS = (
@@ -74,6 +77,12 @@ def parse_args() -> argparse.Namespace:
         default=min(16, os.cpu_count() or 1),
         help="Parallel workers for .bmap generation.",
     )
+    parser.add_argument("--source-design", help="Source design directory name under D2W/configs and D2W/input.")
+    parser.add_argument("--target-design", help="Target design directory name under D2W/configs and D2W/input.")
+    parser.add_argument("--design-kind", choices=["design_1", "design_2"], help="Design family for net regeneration.")
+    parser.add_argument("--scale-xy", type=float, help="In-plane XY shrink factor.")
+    parser.add_argument("--pitch-um", type=float, help="Pad pitch in micron for regenerated interface configs.")
+    parser.add_argument("--bump-size-um", type=float, help="Bump size in micron for regenerated interface configs.")
     return parser.parse_args()
 
 
@@ -86,6 +95,12 @@ def write_text(path: Path, text: str) -> None:
     tmp = path.with_suffix(path.suffix + f".tmp.{os.getpid()}")
     tmp.write_text(text, encoding="utf-8")
     tmp.replace(path)
+
+
+def clone_tree(src: Path, dst: Path) -> None:
+    if dst.exists():
+        subprocess.run(["rm", "-rf", str(dst)], check=True)
+    subprocess.run(["cp", "-a", str(src), str(dst)], check=True)
 
 
 def replace_yaml_scalar(text: str, key: str, value: str) -> str:
@@ -245,10 +260,35 @@ def generate_bmap(
 
 
 def rebuild_design(spec: ShrinkSpec, jobs: int) -> None:
-    if not spec.input_root.is_dir():
-        raise FileNotFoundError(f"Missing input root: {spec.input_root}")
-    if not spec.config_root.is_dir():
-        raise FileNotFoundError(f"Missing config root: {spec.config_root}")
+    source_input_root = spec.source_input_root or spec.input_root
+    source_config_root = spec.source_config_root or spec.config_root
+    source_name = spec.source_name or spec.name
+
+    if not source_input_root.is_dir():
+        raise FileNotFoundError(f"Missing input root: {source_input_root}")
+    if not source_config_root.is_dir():
+        raise FileNotFoundError(f"Missing config root: {source_config_root}")
+
+    if source_input_root != spec.input_root:
+        clone_tree(source_input_root, spec.input_root)
+    if source_config_root != spec.config_root:
+        clone_tree(source_config_root, spec.config_root)
+
+    for old_name, new_name in (
+        (f"{source_name}.yaml", f"{spec.name}.yaml"),
+        (f"{source_name}_overlay_pessimistic.yaml", f"{spec.name}_overlay_pessimistic.yaml"),
+        (f"{source_name}_particle_pessimistic.yaml", f"{spec.name}_particle_pessimistic.yaml"),
+        (f"{source_name}_mechanical_pessimistic.yaml", f"{spec.name}_mechanical_pessimistic.yaml"),
+        (f"{source_name}_ESD_pessimistic.yaml", f"{spec.name}_ESD_pessimistic.yaml"),
+    ):
+        old_path = spec.config_root / old_name
+        new_path = spec.config_root / new_name
+        if old_path.exists() and old_path != new_path:
+            old_path.replace(new_path)
+
+    for yaml_path in spec.config_root.glob("*.yaml"):
+        text = read_text(yaml_path).replace(source_name, spec.name)
+        write_text(yaml_path, text)
 
     interface_geom_by_key: dict[str, dict[str, float]] = {}
     for if_yaml in sorted(path for path in spec.config_root.glob("*.yaml") if "_From_" in path.name or "_To_" in path.name):
@@ -338,7 +378,36 @@ def rebuild_design(spec: ShrinkSpec, jobs: int) -> None:
 
 def main() -> None:
     args = parse_args()
-    for spec in SPECS:
+    if args.source_design or args.target_design:
+        required = [
+            ("--source-design", args.source_design),
+            ("--target-design", args.target_design),
+            ("--design-kind", args.design_kind),
+            ("--scale-xy", args.scale_xy),
+            ("--pitch-um", args.pitch_um),
+            ("--bump-size-um", args.bump_size_um),
+        ]
+        missing = [flag for flag, value in required if value is None]
+        if missing:
+            raise SystemExit(f"Missing required arguments for custom shrink: {', '.join(missing)}")
+        specs = (
+            ShrinkSpec(
+                name=args.target_design,
+                design_kind=args.design_kind,
+                input_root=REPO_ROOT / "D2W/input" / args.target_design,
+                config_root=REPO_ROOT / "D2W/configs" / args.target_design,
+                scale_xy=args.scale_xy,
+                pitch_um=args.pitch_um,
+                bump_size_um=args.bump_size_um,
+                source_name=args.source_design,
+                source_input_root=REPO_ROOT / "D2W/input" / args.source_design,
+                source_config_root=REPO_ROOT / "D2W/configs" / args.source_design,
+            ),
+        )
+    else:
+        specs = SPECS
+
+    for spec in specs:
         print(f"=== Shrinking {spec.name}: scale={spec.scale_xy} pitch={spec.pitch_um} bump={spec.bump_size_um}")
         rebuild_design(spec, jobs=args.jobs)
         print(f"=== Finished {spec.name}")
