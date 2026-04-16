@@ -1,0 +1,267 @@
+d2w_simulation:
+  MODE: D2W_Hybrid_Bonding_Simulation
+  DEBUG: false
+  OUTPUT_DIR: output/
+  INPUT_DIR: input/
+  INTERFACE: HBM_footprint_A
+  NUM_DIE_STACKS: 10000            # Number of die stacks used in simulation
+  SIM_BATCH_SIZE: 10
+  PITCH_r_um: 55
+  PITCH_c_um: 35
+  DIE_W_um: 10850
+  DIE_L_um: 8965
+  PAD_ARR_ROW: 161
+  PAD_ARR_COL: 308
+  PAD_BOT_R_um: 9
+  PAD_TOP_R_um: 9
+  VOID_SHAPE: circle
+  dice_width: 100
+  pad_yield_flag: true
+  pad_yield_map_sub_factor: 1
+  PAD_ARRANGE_PATTERN: checkerboard
+  B_Chip_Cu_V: 0.4
+  B_Chip_Sio2_V: 0.6
+  B_Chip_Si_V: 0.0
+  B_Chip_T: 3.2e-06
+  B_Sub_Cu_V: 0.1
+  B_Sub_Sio2_V: 0.0
+  B_Sub_Si_V: 0.9
+  B_Sub_T: 0.000775
+  S_INIT_A_M: 3.0e-07
+  T_Chip_Cu_V: 0.3
+  T_Chip_Sio2_V: 0.7
+  T_Chip_Si_V: 0.0
+  T_Chip_T: 3.2e-06
+  T_Sub_Cu_V: 0.1
+  T_Sub_Sio2_V: 0.0
+  T_Sub_Si_V: 0.9
+  T_Sub_T: 0.000775
+  S_INIT_B_M: 0.0
+  CONTACT_AREA_CONSTRAINT: 0.75
+  CRITICAL_DIST_CONSTRAINT: 0.75
+  RANDOM_MISALIGNMENT_MEAN_um: 0
+  RANDOM_MISALIGNMENT_STD_um: 0.02
+  SYSTEM_TRANSLATION_X_MEAN_um: 0
+  SYSTEM_TRANSLATION_X_STD_um: 0.02
+  SYSTEM_TRANSLATION_Y_MEAN_um: 0
+  SYSTEM_TRANSLATION_Y_STD_um: 0.02
+  SYSTEM_ROTATION_MEAN_rad: 1.5e-4            # Systematic rotation mean (rad)
+  SYSTEM_ROTATION_STD_rad: 3e-5             # Systematic rotation std (rad)
+  BOW_DIFFERENCE_MEAN_um: 10.0               # Bow difference mean (µm)
+  BOW_DIFFERENCE_STD_um: 1.0                 # Bow difference std (µm)
+  k_mag: 0.1
+  M_0: 0
+  WARPAGE_LIMIT_UM: 20                # Warpage limit (um)
+  first_contact: center
+  D0: 2e-9                              # Particle density (1/µm²)
+  D1: 2e-8                              # Edge peak particle density (1/µm²)
+  EDGE_REGION_WIDTH_um: 300.0
+  z: 3
+  t_0: 0.1
+  k_r: 0.00018
+  k_r0: 230
+  k_L: 0.062
+  k_n: 9.0e-05
+  k_S: 2.7
+  CU_RECESS_PAD_FAIL_RATIO: 0.0        # Ratio of pads with Cu recess > threshold to consider die as failed
+  TOP_DISH_MEAN_nm: -4.0                  # Top pad height mean (nm)
+  TOP_DISH_STD_nm: 1.0                  # Top pad height std (nm)
+  BOT_DISH_MEAN_nm: -4.0                  # Bottom pad height mean (nm)
+  BOT_DISH_STD_nm: 1.0                  # Bottom pad height std (nm)
+  k_et: 0.053
+  k_eb: 0.053
+  T_R: 25
+  T_anl: 300
+  CU_E_GPA: 91.8
+  CU_NU: 0.34
+  CU_ALPHA_PPM: 17.6
+  OX_E_GPA: 73.0
+  OX_NU: 0.17
+  OX_ALPHA_PPM: 0.5
+  SI_E_GPA: 131.0
+  SI_NU: 0.28
+  SI_ALPHA_PPM: 2.6
+  SIGMA_Y_MPA: 321.0
+  R_P: 60.0
+  R_C: 20.0
+  CREEP_FACTOR: 0.01
+  C_HEAT_E: 1.005319e-12
+  C_HEAT_P: 6.088622e-06
+  C_COOL_E: 3.375203e-06
+  C_COOL_P: 3.721387e-06
+  EXP_PHI: 0.206576
+  BAUSCHINGER: 0.208455
+  EXP_INVPHI: 0.1
+  EXP_AREA: 0.0465
+  KN_DEN_M: 1.7310513e-05
+  TCU_BASE_UM: 0.036
+  TCU_K_PER_C: 0.0031
+  PHI_CU0: 1.0e-06
+  ETA_GROWTH: 0.122019
+  T_INT_NM: 13000.0
+  COOL_BAUSINGER_REDUCTION: 0.7
+  COOL_A_HARD_MPA: 80.0
+  COOL_K_HARD_PER_MPA: 0.03238
+  KN_COOL_GAIN: 3.0
+  VISC_LAMBDA: 0.836626
+  VISC_EXP: 0.5
+  TCU_CONST_UM_COOL: 0.122074
+  KDISH_TCU_GAIN_PER_NM: 0.010466
+  Asperity_R_m: 2.0e-06
+  Roughness_sigma_m: 5.0e-10
+  eta_s: 40000000000000.0
+  Roughness_constant: 0.07
+  Adhesion_energy: 1.2
+  Dielectric_Young_modulus_Pa: 73000000000.0
+  Dielectric_thickness: 1.5e-06
+  DISH_0_m: 7.5e-08
+  k_peel: 6660000000000.0
+  CRIT_aY2_UM: 1.9
+  GC_SIO2_JPM2: 2.0
+  GC_CU_JPM2: 25.0
+  Effective_Contact_Area: 1.0
+  TILT_X_MEAN_DEG: 0.0
+  TILT_X_STD_DEG: 1.0e-05
+  TILT_Y_MEAN_DEG: 0.0
+  TILT_Y_STD_DEG: 1.0e-05
+  V_MIN_V: 0.0
+  V_MAX_V: 5.0
+  WEIBULL_K: 4.44985
+  WEIBULL_LAMBDA: 0.0621816
+  CUTOFF_MIN_A: 0.0
+  simulation_times: 1
+  approximate_set: 1
+  plot_flag: false
+d2w_modeling:
+  MODE: D2W_Hybrid_Bonding_Modeling
+  DEBUG: false
+  OUTPUT_DIR: output/
+  INPUT_DIR: input/
+  INTERFACE: HBM_footprint_A
+  PITCH_r_um: 55
+  PITCH_c_um: 35
+  DIE_W_um: 10850
+  DIE_L_um: 8965
+  PAD_ARR_ROW: 161
+  PAD_ARR_COL: 308
+  PAD_BOT_R_um: 9
+  PAD_TOP_R_um: 9
+  VOID_SHAPE: circle
+  dice_width: 100
+  pad_yield_flag: true
+  pad_yield_map_sub_factor: 1
+  PAD_ARRANGE_PATTERN: checkerboard
+  B_Chip_Cu_V: 0.4
+  B_Chip_Sio2_V: 0.6
+  B_Chip_Si_V: 0.0
+  B_Chip_T: 3.2e-06
+  B_Sub_Cu_V: 0.1
+  B_Sub_Sio2_V: 0.0
+  B_Sub_Si_V: 0.9
+  B_Sub_T: 0.000775
+  S_INIT_A_M: 3.0e-07
+  T_Chip_Cu_V: 0.3
+  T_Chip_Sio2_V: 0.7
+  T_Chip_Si_V: 0.0
+  T_Chip_T: 3.2e-06
+  T_Sub_Cu_V: 0.1
+  T_Sub_Sio2_V: 0.0
+  T_Sub_Si_V: 0.9
+  T_Sub_T: 0.000775
+  S_INIT_B_M: 0.0
+  CONTACT_AREA_CONSTRAINT: 0.75
+  CRITICAL_DIST_CONSTRAINT: 0.75
+  num_samples: 10000
+  RANDOM_MISALIGNMENT_MEAN_um: 0
+  RANDOM_MISALIGNMENT_STD_um: 0.02
+  SYSTEM_TRANSLATION_X_MEAN_um: 0
+  SYSTEM_TRANSLATION_X_STD_um: 0.02
+  SYSTEM_TRANSLATION_Y_MEAN_um: 0
+  SYSTEM_TRANSLATION_Y_STD_um: 0.02
+  SYSTEM_ROTATION_MEAN_rad: 1.5e-4            # Systematic rotation mean (rad)
+  SYSTEM_ROTATION_STD_rad: 3e-5             # Systematic rotation std (rad)
+  BOW_DIFFERENCE_MEAN_um: 10.0               # Bow difference mean (µm)
+  BOW_DIFFERENCE_STD_um: 1.0                 # Bow difference std (µm)
+  k_mag: 0.1
+  M_0: 0
+  WARPAGE_LIMIT_UM: 20                # Warpage limit (um)
+  first_contact: center
+  D0: 2e-9                              # Particle density (1/µm²)
+  D1: 2e-8                              # Edge peak particle density (1/µm²)
+  EDGE_REGION_WIDTH_um: 300.0
+  z: 3
+  t_0: 0.1
+  k_r: 0.00018
+  k_r0: 230
+  k_L: 0.062
+  k_n: 9.0e-05
+  k_S: 2.7
+  CU_RECESS_PAD_FAIL_RATIO: 0.0        # Ratio of pads with Cu recess > threshold to consider die as failed
+  TOP_DISH_MEAN_nm: -4.0                  # Top pad height mean (nm)
+  TOP_DISH_STD_nm: 1.0                  # Top pad height std (nm)
+  BOT_DISH_MEAN_nm: -4.0                  # Bottom pad height mean (nm)
+  BOT_DISH_STD_nm: 1.0                  # Bottom pad height std (nm)
+  k_et: 0.053
+  k_eb: 0.053
+  T_R: 25
+  T_anl: 300
+  CU_E_GPA: 91.8
+  CU_NU: 0.34
+  CU_ALPHA_PPM: 17.6
+  OX_E_GPA: 73.0
+  OX_NU: 0.17
+  OX_ALPHA_PPM: 0.5
+  SI_E_GPA: 131.0
+  SI_NU: 0.28
+  SI_ALPHA_PPM: 2.6
+  SIGMA_Y_MPA: 321.0
+  R_P: 60.0
+  R_C: 20.0
+  CREEP_FACTOR: 0.01
+  C_HEAT_E: 1.005319e-12
+  C_HEAT_P: 6.088622e-06
+  C_COOL_E: 3.375203e-06
+  C_COOL_P: 3.721387e-06
+  EXP_PHI: 0.206576
+  BAUSCHINGER: 0.208455
+  EXP_INVPHI: 0.1
+  EXP_AREA: 0.0465
+  KN_DEN_M: 1.7310513e-05
+  TCU_BASE_UM: 0.036
+  TCU_K_PER_C: 0.0031
+  PHI_CU0: 1.0e-06
+  ETA_GROWTH: 0.122019
+  T_INT_NM: 13000.0
+  COOL_BAUSINGER_REDUCTION: 0.7
+  COOL_A_HARD_MPA: 80.0
+  COOL_K_HARD_PER_MPA: 0.03238
+  KN_COOL_GAIN: 3.0
+  VISC_LAMBDA: 0.836626
+  VISC_EXP: 0.5
+  TCU_CONST_UM_COOL: 0.122074
+  KDISH_TCU_GAIN_PER_NM: 0.010466
+  Asperity_R_m: 2.0e-06
+  Roughness_sigma_m: 5.0e-10
+  eta_s: 40000000000000.0
+  Roughness_constant: 0.07
+  Adhesion_energy: 1.2
+  Dielectric_Young_modulus_Pa: 73000000000.0
+  Dielectric_thickness: 1.5e-06
+  DISH_0_m: 7.5e-08
+  k_peel: 6660000000000.0
+  CRIT_aY2_UM: 1.9
+  GC_SIO2_JPM2: 2.0
+  GC_CU_JPM2: 25.0
+  Effective_Contact_Area: 1.0
+  TILT_X_MEAN_DEG: 0.0
+  TILT_X_STD_DEG: 1.0e-05
+  TILT_Y_MEAN_DEG: 0.0
+  TILT_Y_STD_DEG: 1.0e-05
+  V_MIN_V: 0.0
+  V_MAX_V: 5.0
+  WEIBULL_K: 4.44985
+  WEIBULL_LAMBDA: 0.0621816
+  CUTOFF_MIN_A: 0.0
+  n_tilts_samples: 100
+  n_dishes_samples: 100
+  plot_flag: false

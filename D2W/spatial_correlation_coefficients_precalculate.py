@@ -1,112 +1,112 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-#### Overall yield simulator for hybrid bonding
+#### Spatial correlation coefficient precalculation for D2W hybrid bonding
 #### Author: Zhichao Chen
-#### Date: Sep 26, 2024
+#### Updated: Apr 6, 2026
 
 import os
-import numpy as np
-from scipy.integrate import quad
-from scipy.stats import norm
 import time
 
-from wafer_die_initialization import die_initialize
-from overlay_yield_simulator import overlay_term_simulator
 from defect_yield_simulator import defect_yield_simulator
-from overall_yield_simulator import overall_yield_simulator
-from spatial_correlation_coefficients import get_spatial_correlation_coefficients
+from overlay_yield_simulator import overlay_term_simulator
+from spatial_correlation_coefficients import (
+    finalize_spatial_correlation_coefficients,
+    get_spatial_correlation_coefficients,
+    initialize_spatial_correlation_state,
+)
+from wafer_die_stack_initialization import die_stack_list_initialize
 
 
 def Spatial_Correlation_Coefficients_Precalculate(
-    cfg,
-    pad_bitmap_collection,
-):   
-    # Initialize the die list (Extract the base pad coordinates seperately for later use, so that a lot of memory can be saved)
-    die_list, base_pad_coords = die_initialize(
-        NUM_DIES                    =       cfg.NUM_DIES,
-        DIE_W_um                    =       cfg.DIE_W_um,
-        DIE_L_um                    =       cfg.DIE_L_um,
-        PAD_ARR_W_um                =       cfg.PAD_ARR_W_um,
-        PAD_ARR_L_um                =       cfg.PAD_ARR_L_um,
-        PAD_ARR_ROW                 =       cfg.PAD_ARR_ROW,
-        PAD_ARR_COL                 =       cfg.PAD_ARR_COL,
-        PITCH_r_um                  =       cfg.PITCH_r_um,
-        PITCH_c_um                  =       cfg.PITCH_c_um,
-        PAD_TOP_R_um                =       cfg.PAD_TOP_R_um,
-        PAD_BOT_R_um                =       cfg.PAD_BOT_R_um,
-        pad_bitmap_collection       =       pad_bitmap_collection,
-        pad_yield_flag              =       cfg.pad_yield_flag,
-    )
-    # die_sample = die_list[0]
-    # die_sample.draw_die(fig_size=(6, 6))
+    *,
+    input_args: dict,
+    cfg_skeleton: object,
+    cfg_dict: dict,
+    pad_bitmap_collection_dict: dict,
+):
+    num_die_stacks = int(cfg_skeleton.NUM_DIE_STACKS)
+    sim_batch_size = int(cfg_skeleton.SIM_BATCH_SIZE)
+    if num_die_stacks <= 0:
+        raise ValueError("NUM_DIE_STACKS must be positive for spatial correlation precalculation.")
+    if sim_batch_size <= 0:
+        raise ValueError("SIM_BATCH_SIZE must be positive for spatial correlation precalculation.")
 
-    # Generate overlay terms
-    system_translation_x_um, system_translation_y_um, system_rotation_rad, system_magnification_ppm, MAX_ALLOWED_MISALIGNMENT_um = overlay_term_simulator(
-        cfg                            =       cfg,
-        PAD_TOP_R_um                   =       cfg.PAD_TOP_R_um,
-        PAD_BOT_R_um                   =       cfg.PAD_BOT_R_um,
-        PITCH_r_um                     =       cfg.PITCH_r_um,
-        PITCH_c_um                     =       cfg.PITCH_c_um,
-        CONTACT_AREA_CONSTRAINT     =       cfg.CONTACT_AREA_CONSTRAINT,
-        CRITICAL_DIST_CONSTRAINT    =       cfg.CRITICAL_DIST_CONSTRAINT,
-        SYSTEM_ROTATION_MEAN_rad        =       cfg.SYSTEM_ROTATION_MEAN_rad,
-        SYSTEM_ROTATION_STD_rad         =       cfg.SYSTEM_ROTATION_STD_rad,
-        SYSTEM_TRANSLATION_X_MEAN_um   =       cfg.SYSTEM_TRANSLATION_X_MEAN_um,
-        SYSTEM_TRANSLATION_X_STD_um    =       cfg.SYSTEM_TRANSLATION_X_STD_um,
-        SYSTEM_TRANSLATION_Y_MEAN_um   =       cfg.SYSTEM_TRANSLATION_Y_MEAN_um,
-        SYSTEM_TRANSLATION_Y_STD_um    =       cfg.SYSTEM_TRANSLATION_Y_STD_um,
-        BOW_DIFFERENCE_MEAN_um         =       cfg.BOW_DIFFERENCE_MEAN_um,
-        BOW_DIFFERENCE_STD_um          =       cfg.BOW_DIFFERENCE_STD_um,
-        NUM_DIES                    =       cfg.NUM_DIES,
-        k_mag                       =       cfg.k_mag,
-        M_0                         =       cfg.M_0,
+    print("Initializing base pad coordinates for correlation precalculation...")
+    temp_die_stack_list, base_pad_coords_dict = die_stack_list_initialize(
+        cfg_dict=cfg_dict,
+        pad_bitmap_collection_dict=pad_bitmap_collection_dict,
+        num_stack_samples=1,
+        base_pad_coords_flag=True,
+        mode="simulation",
     )
-    
-    # Generate void defects
-    defect_yield_simulator(
-        cfg             =       cfg,
-        D0              =       cfg.D0,  # Number of particles of all thicknesses per unit area (um^{-1}) on the die
-        t_0             =       cfg.t_0,
-        z               =       cfg.z,
-        k_r             =       cfg.k_r,
-        k_r0            =       cfg.k_r0,
-        k_n             =       cfg.k_n,
-        k_L             =       cfg.k_L,
-        k_S             =       cfg.k_S,
-        VOID_SHAPE      =       cfg.VOID_SHAPE,
-        DIE_W_um        =       cfg.DIE_W_um,
-        DIE_L_um        =       cfg.DIE_L_um,
-        NUM_DIES        =       cfg.NUM_DIES,
-        die_list        =       die_list,
+    del temp_die_stack_list
+
+    correlation_state_dict = initialize_spatial_correlation_state(
+        input_args=input_args,
+        cfg_dict=cfg_dict,
+        pad_bitmap_collection_dict=pad_bitmap_collection_dict,
+        base_pad_coords_dict=base_pad_coords_dict,
+        distance_interval_um=float(input_args["distance_interval_um"]),
+        bin_width_um=float(input_args["bin_width_um"]),
+        pair_query_chunk_size=int(input_args["pair_query_chunk_size"]),
+        max_correlation_distance_um=input_args.get("max_correlation_distance_um"),
     )
 
-    get_spatial_correlation_coefficients(
-            cfg                             =       cfg,
-            die_list                        =       die_list,
-            NUM_DIES                        =       cfg.NUM_DIES,
-            base_pad_coords                 =       base_pad_coords,
-            system_translation_x_um         =       system_translation_x_um,
-            system_translation_y_um         =       system_translation_y_um,
-            system_rotation_rad             =       system_rotation_rad,
-            system_magnification_ppm        =       system_magnification_ppm,
-            MAX_ALLOWED_MISALIGNMENT_um     =       MAX_ALLOWED_MISALIGNMENT_um,
-            PAD_ARR_W_um                    =       cfg.PAD_ARR_W_um,
-            PAD_ARR_L_um                    =       cfg.PAD_ARR_L_um,
-            PAD_ARR_ROW                     =       cfg.PAD_ARR_ROW,
-            PAD_ARR_COL                     =       cfg.PAD_ARR_COL,
-            TOP_DISH_MEAN_nm                =       cfg.TOP_DISH_MEAN_nm,
-            TOP_DISH_STD_nm                 =       cfg.TOP_DISH_STD_nm,
-            BOT_DISH_MEAN_nm                =       cfg.BOT_DISH_MEAN_nm,
-            BOT_DISH_STD_nm                 =       cfg.BOT_DISH_STD_nm,
-            TILT_X_MEAN_DEG                 =       cfg.TILT_X_MEAN_DEG,
-            TILT_X_STD_DEG                  =       cfg.TILT_X_STD_DEG,
-            TILT_Y_MEAN_DEG                 =       cfg.TILT_Y_MEAN_DEG,
-            TILT_Y_STD_DEG                  =       cfg.TILT_Y_STD_DEG,
-            PITCH_r_um                      =       cfg.PITCH_r_um,
-            PITCH_c_um                      =       cfg.PITCH_c_um,
-            PAD_TOP_R_um                    =       cfg.PAD_TOP_R_um,
-            RANDOM_MISALIGNMENT_MEAN_um     =       cfg.RANDOM_MISALIGNMENT_MEAN_um,
-            RANDOM_MISALIGNMENT_STD_um      =       cfg.RANDOM_MISALIGNMENT_STD_um,
-            approximate_set                 =       cfg.approximate_set,
-            pad_bitmap_collection           =       pad_bitmap_collection,
+    processed_stacks = 0
+    while processed_stacks < num_die_stacks:
+        batch_size = min(sim_batch_size, num_die_stacks - processed_stacks)
+        start_time = time.perf_counter()
+
+        die_stack_list = die_stack_list_initialize(
+            cfg_dict=cfg_dict,
+            pad_bitmap_collection_dict=pad_bitmap_collection_dict,
+            num_stack_samples=batch_size,
+            mode="simulation",
+        )
+
+        overlay_term_simulator(
+            cfg_dict=cfg_dict,
+            die_stack_list=die_stack_list,
+        )
+        defect_yield_simulator(
+            cfg_dict=cfg_dict,
+            die_stack_list=die_stack_list,
+        )
+
+        get_spatial_correlation_coefficients(
+            cfg_dict=cfg_dict,
+            die_stack_list=die_stack_list,
+            pad_bitmap_collection_dict=pad_bitmap_collection_dict,
+            base_pad_coords_dict=base_pad_coords_dict,
+            correlation_state_dict=correlation_state_dict,
+            sample_index_offset=processed_stacks,
+        )
+
+        processed_stacks += batch_size
+        print(
+            f"Correlation precalculation progress: {processed_stacks} / {num_die_stacks} "
+            f"die stacks processed. Time taken: {time.perf_counter() - start_time:.2f} seconds.",
+            end="\r",
+        )
+        del die_stack_list
+
+    print("\n>>> Spatial correlation precalculation completed. Saving results...")
+    results_dict = finalize_spatial_correlation_coefficients(
+        input_args=input_args,
+        cfg_dict=cfg_dict,
+        correlation_state_dict=correlation_state_dict,
     )
+
+    temp_dirs = {
+        os.path.join(cfg.OUTPUT_DIR, cfg.DESIGN, "temp")
+        for cfg in cfg_dict.values()
+    }
+    for temp_dir in temp_dirs:
+        if not os.path.isdir(temp_dir):
+            continue
+        for name in os.listdir(temp_dir):
+            file_path = os.path.join(temp_dir, name)
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+
+    return results_dict

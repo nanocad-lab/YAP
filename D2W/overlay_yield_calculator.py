@@ -9,8 +9,8 @@ Overlay yield calculator for D2W hybrid bonding:
 2. Calculate the systematic misalignment for every pad based on the systematic translation, rotation, and magnification
 3. Calculate the overlay yield:
     i. If pad_yield_flag is True, calculate the overlay yield for each pad and return the pad yield map.
-    ii. If pad_yield_flag is False, calculate the overlay yield for the die based on the worst-case pad misalignment.
-4. Calculate the overall overlay yield for the die.
+    ii. If pad_yield_flag is False, calculate the overlay yield for the interface based on the worst-case pad misalignment.
+4. Calculate the overall overlay yield for the interface.
 '''
 
 import numpy as np
@@ -87,16 +87,16 @@ if NUMBA_AVAILABLE:
         return overlay_pad_yield_vec
 
 # Calculate the misalignment of the pad based on the systematic translation, rotation, and magnification
-def die_pad_misalignment(
-    die,
+def interface_pad_misalignment(
+    interface,
     system_translation_x_um: float,
     system_translation_y_um: float,
     system_rotation_um: float,
     system_magnification: float,
 ):
-    pad_misalignment = np.zeros(len(die.pad_array_box))
-    dx = (system_translation_x_um - system_rotation_um * die.pad_array_box[:, 1] + system_magnification * die.pad_array_box[:, 0])
-    dy = (system_translation_y_um + system_rotation_um * die.pad_array_box[:, 0] + system_magnification * die.pad_array_box[:, 1])
+    pad_misalignment = np.zeros(len(interface.pad_array_box))
+    dx = (system_translation_x_um - system_rotation_um * interface.pad_array_box[:, 1] + system_magnification * interface.pad_array_box[:, 0])
+    dy = (system_translation_y_um + system_rotation_um * interface.pad_array_box[:, 0] + system_magnification * interface.pad_array_box[:, 1])
     pad_misalignment = np.sqrt(dx**2 + dy**2)
     return pad_misalignment
 
@@ -164,7 +164,7 @@ def overlay_yield_calculator(*,
     SYSTEM_TRANSLATION_Y_STD_um: float,
     RANDOM_MISALIGNMENT_MEAN_um: float,
     RANDOM_MISALIGNMENT_STD_um: float,
-    die,
+    interface,
     redundant_flag: bool,
     pad_yield_flag: bool = False,
     pad_yield_map_sub_factor: int = 1,
@@ -191,23 +191,23 @@ def overlay_yield_calculator(*,
     # Sample the systematic misalignment for corner pads based on the systematic translation, rotation, and magnification
     # Calculate the die yield based on the worst-case pad misalignment
     if redundant_flag == True:
-        far_dx_samples_0 = (system_translation_x_samples_um - system_rotation_samples_rad * die.ovl_critical_pad_boundary_coords[0, 1] + system_magnification_samples * die.ovl_critical_pad_boundary_coords[0, 0])
-        far_dy_samples_0 = (system_translation_y_samples_um + system_rotation_samples_rad * die.ovl_critical_pad_boundary_coords[0, 0] + system_magnification_samples * die.ovl_critical_pad_boundary_coords[0, 1])
-        far_dx_samples_1 = (system_translation_x_samples_um - system_rotation_samples_rad * die.ovl_critical_pad_boundary_coords[1, 1] + system_magnification_samples * die.ovl_critical_pad_boundary_coords[1, 0])
-        far_dy_samples_1 = (system_translation_y_samples_um + system_rotation_samples_rad * die.ovl_critical_pad_boundary_coords[1, 0] + system_magnification_samples * die.ovl_critical_pad_boundary_coords[1, 1])
-        far_dx_samples_2 = (system_translation_x_samples_um - system_rotation_samples_rad * die.ovl_critical_pad_boundary_coords[2, 1] + system_magnification_samples * die.ovl_critical_pad_boundary_coords[2, 0])
-        far_dy_samples_2 = (system_translation_y_samples_um + system_rotation_samples_rad * die.ovl_critical_pad_boundary_coords[2, 0] + system_magnification_samples * die.ovl_critical_pad_boundary_coords[2, 1])
-        far_dx_samples_3 = (system_translation_x_samples_um - system_rotation_samples_rad * die.ovl_critical_pad_boundary_coords[3, 1] + system_magnification_samples * die.ovl_critical_pad_boundary_coords[3, 0])
-        far_dy_samples_3 = (system_translation_y_samples_um + system_rotation_samples_rad * die.ovl_critical_pad_boundary_coords[3, 0] + system_magnification_samples * die.ovl_critical_pad_boundary_coords[3, 1])
+        far_dx_samples_0 = (system_translation_x_samples_um - system_rotation_samples_rad * interface.ovl_critical_pad_boundary_coords[0, 1] + system_magnification_samples * interface.ovl_critical_pad_boundary_coords[0, 0])
+        far_dy_samples_0 = (system_translation_y_samples_um + system_rotation_samples_rad * interface.ovl_critical_pad_boundary_coords[0, 0] + system_magnification_samples * interface.ovl_critical_pad_boundary_coords[0, 1])
+        far_dx_samples_1 = (system_translation_x_samples_um - system_rotation_samples_rad * interface.ovl_critical_pad_boundary_coords[1, 1] + system_magnification_samples * interface.ovl_critical_pad_boundary_coords[1, 0])
+        far_dy_samples_1 = (system_translation_y_samples_um + system_rotation_samples_rad * interface.ovl_critical_pad_boundary_coords[1, 0] + system_magnification_samples * interface.ovl_critical_pad_boundary_coords[1, 1])
+        far_dx_samples_2 = (system_translation_x_samples_um - system_rotation_samples_rad * interface.ovl_critical_pad_boundary_coords[2, 1] + system_magnification_samples * interface.ovl_critical_pad_boundary_coords[2, 0])
+        far_dy_samples_2 = (system_translation_y_samples_um + system_rotation_samples_rad * interface.ovl_critical_pad_boundary_coords[2, 0] + system_magnification_samples * interface.ovl_critical_pad_boundary_coords[2, 1])
+        far_dx_samples_3 = (system_translation_x_samples_um - system_rotation_samples_rad * interface.ovl_critical_pad_boundary_coords[3, 1] + system_magnification_samples * interface.ovl_critical_pad_boundary_coords[3, 0])
+        far_dy_samples_3 = (system_translation_y_samples_um + system_rotation_samples_rad * interface.ovl_critical_pad_boundary_coords[3, 0] + system_magnification_samples * interface.ovl_critical_pad_boundary_coords[3, 1])
     else:
-        far_dx_samples_0 = (system_translation_x_samples_um - system_rotation_samples_rad * die.pad_array_box[0, 1] + system_magnification_samples * die.pad_array_box[0, 0])
-        far_dy_samples_0 = (system_translation_y_samples_um + system_rotation_samples_rad * die.pad_array_box[0, 0] + system_magnification_samples * die.pad_array_box[0, 1])
-        far_dx_samples_1 = (system_translation_x_samples_um - system_rotation_samples_rad * die.pad_array_box[1, 1] + system_magnification_samples * die.pad_array_box[1, 0])
-        far_dy_samples_1 = (system_translation_y_samples_um + system_rotation_samples_rad * die.pad_array_box[1, 0] + system_magnification_samples * die.pad_array_box[1, 1])
-        far_dx_samples_2 = (system_translation_x_samples_um - system_rotation_samples_rad * die.pad_array_box[2, 1] + system_magnification_samples * die.pad_array_box[2, 0])
-        far_dy_samples_2 = (system_translation_y_samples_um + system_rotation_samples_rad * die.pad_array_box[2, 0] + system_magnification_samples * die.pad_array_box[2, 1])
-        far_dx_samples_3 = (system_translation_x_samples_um - system_rotation_samples_rad * die.pad_array_box[3, 1] + system_magnification_samples * die.pad_array_box[3, 0])
-        far_dy_samples_3 = (system_translation_y_samples_um + system_rotation_samples_rad * die.pad_array_box[3, 0] + system_magnification_samples * die.pad_array_box[3, 1])
+        far_dx_samples_0 = (system_translation_x_samples_um - system_rotation_samples_rad * interface.pad_array_box[0, 1] + system_magnification_samples * interface.pad_array_box[0, 0])
+        far_dy_samples_0 = (system_translation_y_samples_um + system_rotation_samples_rad * interface.pad_array_box[0, 0] + system_magnification_samples * interface.pad_array_box[0, 1])
+        far_dx_samples_1 = (system_translation_x_samples_um - system_rotation_samples_rad * interface.pad_array_box[1, 1] + system_magnification_samples * interface.pad_array_box[1, 0])
+        far_dy_samples_1 = (system_translation_y_samples_um + system_rotation_samples_rad * interface.pad_array_box[1, 0] + system_magnification_samples * interface.pad_array_box[1, 1])
+        far_dx_samples_2 = (system_translation_x_samples_um - system_rotation_samples_rad * interface.pad_array_box[2, 1] + system_magnification_samples * interface.pad_array_box[2, 0])
+        far_dy_samples_2 = (system_translation_y_samples_um + system_rotation_samples_rad * interface.pad_array_box[2, 0] + system_magnification_samples * interface.pad_array_box[2, 1])
+        far_dx_samples_3 = (system_translation_x_samples_um - system_rotation_samples_rad * interface.pad_array_box[3, 1] + system_magnification_samples * interface.pad_array_box[3, 0])
+        far_dy_samples_3 = (system_translation_y_samples_um + system_rotation_samples_rad * interface.pad_array_box[3, 0] + system_magnification_samples * interface.pad_array_box[3, 1])
     far_pad_misalignment_samples_0 = np.sqrt(far_dx_samples_0**2 + far_dy_samples_0**2)
     far_pad_misalignment_samples_1 = np.sqrt(far_dx_samples_1**2 + far_dy_samples_1**2)
     far_pad_misalignment_samples_2 = np.sqrt(far_dx_samples_2**2 + far_dy_samples_2**2)
@@ -262,7 +262,7 @@ def pad_overlay_yield_map_generator(*,
     SYSTEM_TRANSLATION_Y_STD_um: float,
     RANDOM_MISALIGNMENT_MEAN_um: float,
     RANDOM_MISALIGNMENT_STD_um: float,
-    die,
+    interface,
     pad_yield_flag: bool = False,
     pad_yield_map_sub_factor: int = 1,
 ):  
@@ -283,8 +283,8 @@ def pad_overlay_yield_map_generator(*,
     system_magnification_samples = np.random.normal(SYSTEM_MAGNIFICATION_MEAN_ppm, SYSTEM_MAGNIFICATION_STD_ppm, num_samples)
     # print("system_translation_x_samples_um contribution", system_translation_x_samples_um.mean()*1e3, " nm")
     # print("system_translation_y_samples_um contribution", system_translation_y_samples_um.mean()*1e3, " nm")
-    # print("system_rotation_samples_rad contribution", system_rotation_samples_rad.mean() * np.sqrt(die.DIE_W_um**2 + die.DIE_L_um**2) * 1e3, " nm")
-    # print("system_magnification_samples contribution", system_magnification_samples.mean() * np.sqrt(die.DIE_W_um**2 + die.DIE_L_um**2) * 1e3, " nm")
+    # print("system_rotation_samples_rad contribution", system_rotation_samples_rad.mean() * np.sqrt(interface.DIE_W_um**2 + interface.DIE_L_um**2) * 1e3, " nm")
+    # print("system_magnification_samples contribution", system_magnification_samples.mean() * np.sqrt(interface.DIE_W_um**2 + interface.DIE_L_um**2) * 1e3, " nm")
 
     if pad_yield_flag == True:
         glb_defect_pad_yield_min = 1.0
@@ -310,7 +310,7 @@ def pad_overlay_yield_map_generator(*,
 
             RR, CC = np.meshgrid(r_idx, c_idx, indexing='ij')
             sampled_pad_linear_idx = (RR * PAD_ARR_COL + CC).reshape(-1)
-            sampled_pad_coords = die.pad_coords[sampled_pad_linear_idx]
+            sampled_pad_coords = interface.pad_coords[sampled_pad_linear_idx]
 
             start_time = time.perf_counter()
             overlay_pad_yield_vec = _pad_overlay_yield_map_sub_numba(
@@ -338,8 +338,8 @@ def pad_overlay_yield_map_generator(*,
                 for kc in range(nc):
                     c = round(kc * (PAD_ARR_COL - 1) / (nc - 1))
                     i = r * PAD_ARR_COL + c
-                    dx_array_samples_i = (system_translation_x_samples_um - system_rotation_samples_rad * die.pad_coords[i, 1] + system_magnification_samples * die.pad_coords[i, 0])
-                    dy_array_samples_i = (system_translation_y_samples_um + system_rotation_samples_rad * die.pad_coords[i, 0] + system_magnification_samples * die.pad_coords[i, 1])
+                    dx_array_samples_i = (system_translation_x_samples_um - system_rotation_samples_rad * interface.pad_coords[i, 1] + system_magnification_samples * interface.pad_coords[i, 0])
+                    dy_array_samples_i = (system_translation_y_samples_um + system_rotation_samples_rad * interface.pad_coords[i, 0] + system_magnification_samples * interface.pad_coords[i, 1])
                     pad_misalignment_samples_i = np.sqrt(dx_array_samples_i**2 + dy_array_samples_i**2)
                     upper_limit_i = MAX_ALLOWED_MISALIGNMENT - pad_misalignment_samples_i
                     lower_limit_i = -MAX_ALLOWED_MISALIGNMENT - pad_misalignment_samples_i
@@ -355,16 +355,16 @@ def pad_overlay_yield_map_generator(*,
             # )
         glb_defect_pad_yield_min = min(glb_defect_pad_yield_min, np.nanmin(overlay_pad_yield_map_sub))
         glb_defect_pad_yield_max = max(glb_defect_pad_yield_max, np.nanmax(overlay_pad_yield_map_sub))
-        die.glb_pad_yield_min_max_dict['Y_ovl'] = (glb_defect_pad_yield_min, glb_defect_pad_yield_max)
+        interface.glb_pad_yield_min_max_dict['Y_ovl'] = (glb_defect_pad_yield_min, glb_defect_pad_yield_max)
         
         if cfg.plot_flag:
         # Draw the pad yield map
-            plt.figure(figsize=(14, 6))
+            plt.figure(figsize=(8, 6))
             plt.imshow(
                 overlay_pad_yield_map_sub, 
                 cmap='viridis', 
-                vmin=die.glb_pad_yield_min_max_dict['Y_ovl'][0],
-                vmax=die.glb_pad_yield_min_max_dict['Y_ovl'][1],
+                vmin=interface.glb_pad_yield_min_max_dict['Y_ovl'][0],
+                vmax=interface.glb_pad_yield_min_max_dict['Y_ovl'][1],
                 interpolation='nearest',
                 )
             plt.colorbar(label='Pad Overlay Yield (Subsampled)')

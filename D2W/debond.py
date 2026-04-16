@@ -11,7 +11,9 @@ UPDATED (paper Eq.(27)–(36) version):
 1) PAD-SCALE CORE replaced by paper Eq.(27)–(36).
 2) All paper coefficients are loaded from cfg in __init_params(cfg).
 3) Inversion (FIXED WINDOW):
-   - SiO2: search D in [-5, 10] nm only; if no root -> return -5
+   - SiO2: search D in [-10, 10] nm only; if no root -> return -10
+           More negative than -10 nm means the oxide protrusion is treated
+           as particle-like and can interfere with bond formation.
    - Cu  : search D in [0, D_contact_max] only, D_contact_max = delta_heat/2
            if no root -> return D_contact_max
    Notes:
@@ -509,7 +511,7 @@ def _ensure_luts_ready(sio2_n: int = 2001, cu_n: int = 4001):
     """
     Build sigma->D LUTs once per __init_params(cfg).
 
-    SiO2 window: D in [-5,10] nm (inclusive)
+    SiO2 window: D in [-10,10] nm (inclusive)
     Cu  window: D in [0, hi_eval] where hi_eval = nextafter(D_contact_max, 0)
     """
     global _LUT_READY, _LUT_SIO2, _LUT_CU
@@ -519,7 +521,9 @@ def _ensure_luts_ready(sio2_n: int = 2001, cu_n: int = 4001):
     const = _padscale_precompute_constants()
 
     # ---- SiO2 LUT ----
-    D_sio2 = np.linspace(-5.0, 10.0, int(sio2_n), dtype=np.float64)
+    # More negative than -10 nm means the SiO2 protrusion is treated as a
+    # particle-like defect that can interfere with bond formation.
+    D_sio2 = np.linspace(-10.0, 10.0, int(sio2_n), dtype=np.float64)
     sig_sio2 = _sigma_sio2_vec_MPa(D_sio2, const)
 
     # enforce monotone non-increasing
@@ -528,7 +532,7 @@ def _ensure_luts_ready(sio2_n: int = 2001, cu_n: int = 4001):
     _LUT_SIO2 = dict(
         D_nm=D_sio2,
         sigma_MPa=sig_sio2_mono,
-        lo=-5.0,
+        lo=-10.0,
         hi=10.0,
         f_lo=float(sig_sio2_mono[0]),
         f_hi=float(sig_sio2_mono[-1]),
@@ -599,7 +603,7 @@ def _ensure_luts_ready(sio2_n: int = 2001, cu_n: int = 4001):
 def _invert_sio2_from_lut(sigma_eff_MPa: np.ndarray) -> np.ndarray:
     """
     Vectorized inversion for SiO2 using sigma->D LUT.
-    Rule: window [-5,10] nm; if no root -> return -5.
+    Rule: window [-10,10] nm; if no root -> return -10.
     """
     _ensure_luts_ready()
     lut = _LUT_SIO2
@@ -651,8 +655,8 @@ def _invert_cu_from_lut(sigma_eff_MPa: np.ndarray) -> np.ndarray:
 def invert_dishing_sio2_given_sigma_eff(sigma_eff_MPa: float) -> Tuple[float, dict]:
     """
     Fixed window inversion for SiO2 (sigma->D LUT):
-      - search D in [-5, 10] nm only
-      - if no root -> return -5
+      - search D in [-10, 10] nm only
+      - if no root -> return -10
     """
     t = float(sigma_eff_MPa)
     D_val = float(_invert_sio2_from_lut(np.array([t], dtype=np.float64))[0])
