@@ -379,6 +379,6 @@ def main():
                 print(f"Cleaned {len(removed_temp_paths)} runtime temp files.")
         # Generated interface configs are saved under the design's config folder.
 
-
+    print("\n\n\n")
 if __name__ == "__main__":
     main()

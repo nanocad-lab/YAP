@@ -69,8 +69,8 @@ def load_rows(path: str):
                 "vmax_v": float(head[3]),
                 "tilt_std_deg": float(tail_values[0]),
                 "stack_assembly_yield": float(tail_values[1]),
-                "memory_yield": float(tail_values[2]),
-                "compute_yield": float(tail_values[3]),
+                "compute_yield": float(tail_values[2]),
+                "memory_yield": float(tail_values[3]),
             }
         except ValueError:
             continue

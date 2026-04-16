@@ -90,9 +90,9 @@ w2w_simulation:
   k_S: 2.7
 
   # === Cu Dishing Parameters ===
-  TOP_DISH_MEAN_nm: -3                  # Top pad height mean (nm)
+  TOP_DISH_MEAN_nm: -3.3                  # Top pad height mean (nm)
   TOP_DISH_STD_nm: 1.0                  # Top pad height std (nm)
-  BOT_DISH_MEAN_nm: -3                  # Bottom pad height mean (nm)
+  BOT_DISH_MEAN_nm: -3.3                  # Bottom pad height mean (nm)
   BOT_DISH_STD_nm: 1.0                  # Bottom pad height std (nm)
   k_et: 0.053                           # Top Cu expansion coefficient (nm/K)
   k_eb: 0.053                           # Bottom Cu expansion coefficient (nm/K)
@@ -252,9 +252,9 @@ w2w_modeling:
   k_S: 2.7
 
   # === Cu Expansion / Dishing Parameters ===
-  TOP_DISH_MEAN_nm: -3                  # Top pad height mean (nm)
+  TOP_DISH_MEAN_nm: -3.3                  # Top pad height mean (nm)
   TOP_DISH_STD_nm: 1.0                  # Top pad height std (nm)
-  BOT_DISH_MEAN_nm: -3                  # Bottom pad height mean (nm)
+  BOT_DISH_MEAN_nm: -3.3                  # Bottom pad height mean (nm)
   BOT_DISH_STD_nm: 1.0                  # Bottom pad height std (nm)
   k_et: 0.053                           # Top Cu expansion coef (nm/K)
   k_eb: 0.053                           # Bottom Cu expansion coef (nm/K)
@@ -413,9 +413,9 @@ d2w_simulation:
   k_S: 2.7
 
   # === Cu Dishing Parameters ===
-  TOP_DISH_MEAN_nm: -3                  # Top pad height mean (nm)
+  TOP_DISH_MEAN_nm: -3.3                  # Top pad height mean (nm)
   TOP_DISH_STD_nm: 1.0                  # Top pad height std (nm)
-  BOT_DISH_MEAN_nm: -3                  # Bottom pad height mean (nm)
+  BOT_DISH_MEAN_nm: -3.3                  # Bottom pad height mean (nm)
   BOT_DISH_STD_nm: 1.0                  # Bottom pad height std (nm)
   k_et: 0.053                           # Top Cu expansion coefficient (nm/K)
   k_eb: 0.053                           # Bottom Cu expansion coefficient (nm/K)
@@ -579,9 +579,9 @@ d2w_modeling:
   k_S: 2.7
 
   # === Cu Expansion / Dishing Parameters ===
-  TOP_DISH_MEAN_nm: -3                  # Top pad height mean (nm)
+  TOP_DISH_MEAN_nm: -3.3                  # Top pad height mean (nm)
   TOP_DISH_STD_nm: 1.0                  # Top pad height std (nm)
-  BOT_DISH_MEAN_nm: -3                  # Bottom pad height mean (nm)
+  BOT_DISH_MEAN_nm: -3.3                  # Bottom pad height mean (nm)
   BOT_DISH_STD_nm: 1.0                  # Bottom pad height std (nm)
   k_et: 0.053                           # Top Cu expansion coef (nm/K)
   k_eb: 0.053                           # Bottom Cu expansion coef (nm/K)

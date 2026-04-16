@@ -27,7 +27,9 @@ import bmap_grid_sync as bgs
 import generate_criticality as gc
 from bump_assignment_utils import build_random_partitions
 
-RATIO_RE = re.compile(r"^c(?P<c>\d+)_r(?P<r>\d+)_pg_?(?P<pg>\d+)_dm(?P<dm>\d+)$")
+RATIO_RE = re.compile(
+    r"^c(?P<c>\d+(?:[.pd]\d+)?)_r(?P<r>\d+(?:[.pd]\d+)?)_pg_?(?P<pg>\d+(?:[.pd]\d+)?)_dm(?P<dm>\d+(?:[.pd]\d+)?)$"
+)
 CHIPLET_PREFIX_RE = re.compile(r"^chiplet_(?P<id>\d+)_(?P<rest>.+)$")
 PG_PATTERN = ("VDD", "VSS")
 
@@ -79,7 +81,10 @@ def parse_ratio_from_path(path: Path) -> tuple[float, float, float, float]:
     for part in path.parts:
         match = RATIO_RE.match(part)
         if match:
-            return tuple(int(match.group(name)) / 100.0 for name in ("c", "r", "pg", "dm"))
+            return tuple(
+                float(match.group(name).replace("p", ".").replace("d", ".")) / 100.0
+                for name in ("c", "r", "pg", "dm")
+            )
     raise ValueError(f"Could not find ratio folder in path: {path}")
 
 

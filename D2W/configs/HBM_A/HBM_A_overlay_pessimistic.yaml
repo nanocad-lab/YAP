@@ -4,7 +4,7 @@ d2w_simulation:
   OUTPUT_DIR: output/
   INPUT_DIR: input/
   INTERFACE: HBM_footprint_A
-  NUM_DIE_STACKS: 10000                            # Number of die stacks used in simulation
+  NUM_DIE_STACKS: 10000            # Number of die stacks used in simulation
   SIM_BATCH_SIZE: 10
   PITCH_r_um: 55
   PITCH_c_um: 35
@@ -45,16 +45,16 @@ d2w_simulation:
   SYSTEM_TRANSLATION_X_STD_um: 0.02
   SYSTEM_TRANSLATION_Y_MEAN_um: 0
   SYSTEM_TRANSLATION_Y_STD_um: 0.02
-  SYSTEM_ROTATION_MEAN_rad: 2e-4
-  SYSTEM_ROTATION_STD_rad: 4e-5
+  SYSTEM_ROTATION_MEAN_rad: 1.5e-4            # Systematic rotation mean (rad)
+  SYSTEM_ROTATION_STD_rad: 3e-5             # Systematic rotation std (rad)
   BOW_DIFFERENCE_MEAN_um: 10.0               # Bow difference mean (µm)
   BOW_DIFFERENCE_STD_um: 1.0                 # Bow difference std (µm)
   k_mag: 0.1
   M_0: 0
   WARPAGE_LIMIT_UM: 20                # Warpage limit (um)
   first_contact: center
-  D0: 1e-9                              # Particle density (1/µm²)
-  D1: 5e-9                              # Edge peak particle density (1/µm²)
+  D0: 2e-9                              # Particle density (1/µm²)
+  D1: 2e-8                              # Edge peak particle density (1/µm²)
   EDGE_REGION_WIDTH_um: 300.0
   z: 3
   t_0: 0.1
@@ -178,16 +178,16 @@ d2w_modeling:
   SYSTEM_TRANSLATION_X_STD_um: 0.02
   SYSTEM_TRANSLATION_Y_MEAN_um: 0
   SYSTEM_TRANSLATION_Y_STD_um: 0.02
-  SYSTEM_ROTATION_MEAN_rad: 2e-4
-  SYSTEM_ROTATION_STD_rad: 4e-5
+  SYSTEM_ROTATION_MEAN_rad: 1.5e-4            # Systematic rotation mean (rad)
+  SYSTEM_ROTATION_STD_rad: 3e-5             # Systematic rotation std (rad)
   BOW_DIFFERENCE_MEAN_um: 10.0               # Bow difference mean (µm)
   BOW_DIFFERENCE_STD_um: 1.0                 # Bow difference std (µm)
   k_mag: 0.1
   M_0: 0
   WARPAGE_LIMIT_UM: 20                # Warpage limit (um)
   first_contact: center
-  D0: 1e-9                              # Particle density (1/µm²)
-  D1: 5e-9                              # Edge peak particle density (1/µm²)
+  D0: 2e-9                              # Particle density (1/µm²)
+  D1: 2e-8                              # Edge peak particle density (1/µm²)
   EDGE_REGION_WIDTH_um: 300.0
   z: 3
   t_0: 0.1
