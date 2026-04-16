@@ -1,36 +1,41 @@
 # YAP+
 - YAP+ is a Python-based yield modeling and simulation tool for advanced packaging that supports yield analysis of arbitrary I/O pad layouts. Currently, the model is specifically designed for wafer-to-wafer (W2W) and die-to-wafer (D2W) hybrid bonding.
 - A [GUI of YAP](http://nanocad.ee.ucla.edu:8081/yap_gui/) and the [user guide video](https://youtu.be/8hiKIQ6C7ng) is available.
+
+Current active D2W design families in this repository are:
+- `design_1_p5`
+- `design_2_p10`
+- `HBM_A`
+- `HBM_B`
+
+Legacy `design_1` / `design_2` assets are still present under `D2W/configs/old_configs/` or older handoff folders, but the examples below are written for the current active flow.
+
 # File Structure
 ```
 .
 ├── D2W/      # Code for D2W hybrid bonding
 │   ├── configs/    # Golden and per-design configuration files
 │   │   ├── GOLDEN.yaml
-│   │   ├── design_1/
-│   │   │   ├── design_1.yaml
-│   │   │   └── design_1_<mechanism>_pessimistic.yaml
-│   │   ├── design_2/
 │   │   ├── design_1_p5/
 │   │   ├── design_2_p10/
 │   │   ├── HBM_A/
-│   │   └── HBM_B/
+│   │   ├── HBM_B/
+│   │   └── old_configs/
 │   ├── input/      # Per-design 3dblox inputs, bump maps, and criticality files
-│   │   ├── design_1/
-│   │   │   └── c25_r0_pg50_dm25/
+│   │   ├── design_1_p5/
+│   │   │   └── c10_r0_pg60_dm30/
 │   │   │       ├── Center_IO/
 │   │   │       ├── Edge_IO/
 │   │   │       ├── Random_IO/
 │   │   │       └── <chiplet_A>_to_<chiplet_B>_shared_nets.txt
-│   │   ├── design_2/
-│   │   ├── design_1_p5/
 │   │   ├── design_2_p10/
 │   │   ├── HBM_A/
 │   │   │   ├── Original/
 │   │   │   ├── Center_IO/
 │   │   │   ├── Edge_IO/
 │   │   │   └── Random_IO/
-│   │   └── HBM_B/
+│   │   ├── HBM_B/
+│   │   └── old_bmap/
 │   └── utils/      # Helper scripts for bump map / criticality processing
 ├── W2W/      # Code for W2W hybrid bonding
 ├── LICENSE
@@ -63,10 +68,11 @@ pip install -r requirements.txt
   python D2W/utils/generate_criticality.py --force
   ```
 
-  Generate both criticality profiles for design_1 and design_2:
+  Generate both criticality profiles for explicit bump maps:
 
   ```
-  python D2W/utils/generate_criticality.py --input-root D2W/input --designs 1,2 --profiles both --force
+  python D2W/utils/generate_criticality.py --file D2W/input/design_1_p5/c10_r0_pg60_dm30/Center_IO/Compute_Small_From_Substrate_Silicon.bmap --profiles both --force
+  python D2W/utils/generate_criticality.py --file D2W/input/design_2_p10/c10_r0_pg60_dm30/Center_IO/Compute_Large_0_From_Substrate_Organic.bmap --profiles both --force
   ```
 
   The supported profiles are:
@@ -89,9 +95,9 @@ pip install -r requirements.txt
   Example command to run the pad risk map calculator for D2W hybrid bonding for a single design
 
   ```
-  python pad_risk_map_calculator.py --config configs/design_1/design_1.yaml --mode d2w_modeling --ds_name design_1/c25_r0_pg50_dm25/Center_IO --ds_dir input/design_1/c25_r0_pg50_dm25/Center_IO --verbose
+  python pad_risk_map_calculator.py --config configs/design_1_p5/design_1_p5.yaml --mode d2w_modeling --ds_name design_1_p5/c10_r0_pg60_dm30/Center_IO --ds_dir input/design_1_p5/c10_r0_pg60_dm30/Center_IO --verbose
 
-  python pad_risk_map_calculator.py --config configs/design_1_p5/design_1_p5.yaml --mode d2w_modeling --ds_name design_1_p5/c25_r0_pg50_dm25/Center_IO --ds_dir input/design_1_p5/c25_r0_pg50_dm25/Center_IO --verbose
+  python pad_risk_map_calculator.py --config configs/design_2_p10/design_2_p10.yaml --mode d2w_modeling --ds_name design_2_p10/c10_r0_pg60_dm30/Center_IO --ds_dir input/design_2_p10/c10_r0_pg60_dm30/Center_IO --verbose
   ```
 
   Notes for large-pad-count analytical ESD maps:
@@ -110,9 +116,9 @@ pip install -r requirements.txt
   Example command to run the pad risk map calculator with the strict-ESD criticality profile
 
   ```
-  python pad_risk_map_calculator.py --config configs/design_1/design_1.yaml --mode d2w_modeling --ds_name design_1/c25_r0_pg50_dm25/Center_IO --ds_dir input/design_1/c25_r0_pg50_dm25/Center_IO --criticality-profile esd_strict --verbose
+  python pad_risk_map_calculator.py --config configs/design_1_p5/design_1_p5.yaml --mode d2w_modeling --ds_name design_1_p5/c10_r0_pg60_dm30/Center_IO --ds_dir input/design_1_p5/c10_r0_pg60_dm30/Center_IO --criticality-profile esd_strict --verbose
 
-  python pad_risk_map_calculator.py --config configs/design_2/design_2.yaml --mode d2w_modeling --ds_name design_2/c25_r0_pg50_dm25/Center_IO --ds_dir input/design_2/c25_r0_pg50_dm25/Center_IO --criticality-profile default --verbose
+  python pad_risk_map_calculator.py --config configs/design_2_p10/design_2_p10.yaml --mode d2w_modeling --ds_name design_2_p10/c10_r0_pg60_dm30/Center_IO --ds_dir input/design_2_p10/c10_r0_pg60_dm30/Center_IO --criticality-profile default --verbose
 
   python pad_risk_map_calculator.py --config configs/HBM_A/HBM_A.yaml --mode d2w_modeling --ds_name HBM_A/Center_IO --ds_dir input/HBM_A/Center_IO --verbose
 
@@ -123,61 +129,59 @@ pip install -r requirements.txt
   Example command to run the pad risk map calculator for all variants of one or more designs
 
   ```
-  ./run_design_pad_risk_maps.sh --ratio c25_r0_pg50_dm25 design_1
-  ./run_design_pad_risk_maps.sh --ratio c25_r0_pg50_dm25 design_1 design_2 design_1_p5 design_2_p10 HBM_A HBM_B
+  ./run_design_pad_risk_maps.sh --ratio c10_r0_pg60_dm30 design_1_p5
+  ./run_design_pad_risk_maps.sh --ratio c10_r0_pg60_dm30 design_1_p5 design_2_p10 HBM_A HBM_B
   ./run_design_pad_risk_maps.sh HBM_A HBM_B
   ```
 
   Example command to run pad risk map generation in parallel
 
   ```
-  ./run_design_1_2_hbm_pad_risk_maps_parallel.sh --jobs 16
   ./run_all_pad_risk_maps_parallel.sh --jobs 16 design_1_p5 design_2_p10 HBM_A HBM_B
-  ./run_all_pad_risk_maps_parallel.sh --jobs 16 --skip-existing design_1 design_2 HBM_A HBM_B
+  ./run_all_pad_risk_maps_parallel.sh --jobs 16 --skip-existing design_1_p5 design_2_p10 HBM_A HBM_B
   ```
 
   Notes:
-  - Ratio-based designs such as `design_1`, `design_2`, `design_1_p5`, and `design_2_p10` should be run with `--ratio`.
+  - Ratio-based designs such as `design_1_p5` and `design_2_p10` should be run with `--ratio`.
+  - Current active ratios are `c0_r20_pg60_dm20`, `c5_r10_pg60_dm25`, and `c10_r0_pg60_dm30`.
   - `HBM_A` and `HBM_B` use direct variant folders and do not require a ratio.
+  - The legacy wrapper `run_design_1_2_hbm_pad_risk_maps_parallel.sh` still exists in the repo but points to older design names and is not the recommended entry point for the current active datasets.
 
   Example command to run the simulator main for D2W hybrid bonding for a single design
 
   ```
-  python simulator_main.py   --config configs/design_1/design_1.yaml   --mode d2w_simulation   --ds_name design_1/c25_r0_pg50_dm25/Center_IO   --ds_dir input/design_1/c25_r0_pg50_dm25/Center_IO --verbose
+  python simulator_main.py --config configs/design_1_p5/design_1_p5.yaml --mode d2w_simulation --ds_name design_1_p5/c10_r0_pg60_dm30/Center_IO --ds_dir input/design_1_p5/c10_r0_pg60_dm30/Center_IO --criticality-profile default --verbose
 
-  python simulator_main.py --config configs/design_1_p5/design_1_p5.yaml --mode d2w_simulation --ds_name design_1_p5/c25_r0_pg50_dm25/Center_IO --ds_dir input/design_1_p5/c25_r0_pg50_dm25/Center_IO --criticality-profile default --verbose
+  python simulator_main.py --config configs/design_2_p10/design_2_p10.yaml --mode d2w_simulation --ds_name design_2_p10/c10_r0_pg60_dm30/Center_IO --ds_dir input/design_2_p10/c10_r0_pg60_dm30/Center_IO --criticality-profile default --verbose
   ```
 
   Example command to run the simulator with the strict-ESD criticality profile
 
   ```
-  python simulator_main.py --config configs/design_1/design_1.yaml --mode d2w_simulation --ds_name design_1/c25_r0_pg50_dm25/Center_IO --ds_dir input/design_1/c25_r0_pg50_dm25/Center_IO --criticality-profile esd_strict --verbose
+  python simulator_main.py --config configs/design_1_p5/design_1_p5.yaml --mode d2w_simulation --ds_name design_1_p5/c10_r0_pg60_dm30/Center_IO --ds_dir input/design_1_p5/c10_r0_pg60_dm30/Center_IO --criticality-profile esd_strict --verbose
 
-  python simulator_main.py --config configs/design_1/design_1.yaml --mode d2w_simulation --ds_name design_1/c25_r0_pg50_dm25/Center_IO --ds_dir input/design_1/c25_r0_pg50_dm25/Center_IO --criticality-profile default --verbose
-
-  python simulator_main.py --config configs/design_2/design_2.yaml --mode d2w_simulation --ds_name design_2/c25_r0_pg50_dm25/Center_IO --ds_dir input/design_2/c25_r0_pg50_dm25/Center_IO --criticality-profile default --verbose
+  python simulator_main.py --config configs/design_2_p10/design_2_p10.yaml --mode d2w_simulation --ds_name design_2_p10/c10_r0_pg60_dm30/Center_IO --ds_dir input/design_2_p10/c10_r0_pg60_dm30/Center_IO --criticality-profile default --verbose
 
   python simulator_main.py --config configs/HBM_A/HBM_A.yaml --mode d2w_simulation --ds_name HBM_A/Original --ds_dir input/HBM_A/Original --criticality-profile default --verbose
 
   python simulator_main.py --config configs/HBM_A/HBM_A_particle_pessimistic.yaml --mode d2w_simulation --ds_name HBM_A/Center_IO --ds_dir input/HBM_A/Center_IO --criticality-profile default --verbose
 
-  python simulator_main.py --config configs/design_1_p5/design_1_p5.yaml --mode d2w_simulation --ds_name design_1_p5/c25_r0_pg50_dm25/Center_IO --ds_dir input/design_1_p5/c25_r0_pg50_dm25/Center_IO --criticality-profile default --save-failure-maps --verbose
+  python simulator_main.py --config configs/design_1_p5/design_1_p5.yaml --mode d2w_simulation --ds_name design_1_p5/c10_r0_pg60_dm30/Center_IO --ds_dir input/design_1_p5/c10_r0_pg60_dm30/Center_IO --criticality-profile default --save-failure-maps --verbose
   ```
 
   Example command to run D2W simulation for all variants of one or more designs
 
   ```
-  ./run_design_simulations.sh --ratio c25_r0_pg50_dm25 design_1
-  ./run_design_simulations.sh --ratio c25_r0_pg50_dm25 --verbose design_1 design_2 design_1_p5 design_2_p10 HBM_A HBM_B
+  ./run_design_simulations.sh --ratio c10_r0_pg60_dm30 design_1_p5
+  ./run_design_simulations.sh --ratio c10_r0_pg60_dm30 --verbose design_1_p5 design_2_p10 HBM_A HBM_B
   ./run_design_simulations.sh HBM_A HBM_B
   ```
 
   Example command to run simulation experiments in parallel
 
   ```
-  ./run_design_1_2_hbm_simulations_parallel.sh --jobs 16
-  ./run_design_1_2_hbm_simulations_parallel.sh --jobs 16 --skip-existing
   ./run_design_1_p5_design_2_p10_hbm_parallel.sh --jobs 16
+  ./run_design_1_p5_design_2_p10_hbm_parallel.sh --jobs 16 --skip-existing
   ./run_design_1_p5_design_2_p10_hbm_parallel.sh --dry-run --jobs 4
   ```
 
@@ -193,20 +197,30 @@ pip install -r requirements.txt
   - Jobs sharing the same `ds_dir` are serialized; only different `ds_dir` values run in parallel.
   - `.bmap` inputs are no longer sorted in place during runtime. A sorted copy is created under `output/<ds_name>/temp/`.
   - Mechanical dishing caches are isolated by `ds_name + config + criticality_profile`, so different configs can run on the same `ds_dir` without sharing temp files.
-  - Per-run generated interface YAML files are written under the design config folder (for example `D2W/configs/design_1/`) with the `__<config_stem>__<criticality_profile>` suffix in the filename to avoid cross-run overwrites.
+  - Per-run generated interface YAML files are written under the design config folder (for example `D2W/configs/design_1_p5/`) with the `__<config_stem>__<criticality_profile>` suffix in the filename to avoid cross-run overwrites.
   - Runtime temp files are cleaned automatically after each experiment finishes.
   - Per-experiment logs are written to `output/<ds_name>/parallel_simulation__<config_stem>__<criticality_profile>.log`.
-  - `run_design_1_p5_design_2_p10_hbm_parallel.sh` defaults to:
-  - `design_1_p5`: all ratios, `Center_IO / Edge_IO / Random_IO`
-  - `design_2_p10`: all ratios, `Center_IO / Edge_IO / Random_IO`
-  - `HBM_A` and `HBM_B`: `Original / Center_IO / Edge_IO / Random_IO`
+  - `run_design_1_p5_design_2_p10_hbm_parallel.sh` defaults to `design_1_p5` and `design_2_p10` across all active ratios with `Center_IO / Edge_IO / Random_IO`, plus `HBM_A` and `HBM_B` across `Original / Center_IO / Edge_IO / Random_IO`.
+  - The legacy wrapper `run_design_1_2_hbm_simulations_parallel.sh` still exists in the repo but points to older design names and is not the recommended entry point for the current active datasets.
 
-  Example command to package the current `design_1 / design_2 / HBM_A / HBM_B` configs and inputs for handoff
+  Example commands for the current sensitivity-study helpers
 
   ```
-  tar -czf configs_input_design_1_2_HBM_A_HBM_B.tar.gz \
-    configs/design_1 configs/design_2 configs/HBM_A configs/HBM_B \
-    input/design_1 input/design_2 input/HBM_A input/HBM_B
+  ./run_design1_p5_esd_sensitivity.sh
+  ./run_design1_p5_esd_sensitivity_parallel.sh --jobs 8
+  ./run_design2_p10_particle_sensitivity.sh
+  ./run_design2_p10_particle_sensitivity_parallel.sh --jobs 16
+
+  python D2W/utils/paper/plot_esd_sensitivity.py --input D2W/output/esd_sensitivity_check/esd_sensitivity_design_1_p5.tsv --output D2W/output/esd_sensitivity_check/esd_sensitivity_design_1_p5.png --ylim 85,100
+  python D2W/utils/paper/plot_particle_sensitivity.py --input D2W/output/particle_sensitivity_design_2_p10.tsv --output D2W/output/particle_sensitivity_design_2_p10_bar.png
+  ```
+
+  Example command to package the current `design_1_p5 / design_2_p10 / HBM_A / HBM_B` configs and inputs for handoff
+
+  ```
+  tar -czf configs_input_design_1_p5_design_2_p10_HBM_A_HBM_B_20260414.tar.gz \
+    D2W/configs/design_1_p5 D2W/configs/design_2_p10 D2W/configs/HBM_A D2W/configs/HBM_B \
+    D2W/input/design_1_p5 D2W/input/design_2_p10 D2W/input/HBM_A D2W/input/HBM_B
   ```
 
 # File Formats

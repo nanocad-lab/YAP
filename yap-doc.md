@@ -1,5 +1,76 @@
 # Hybrid Bonding Yield Analysis Platform: Technical Documentation
 
+> Repository status note (updated for the current codebase on 2026-04-16): this document originally described an earlier `design_1 / design_2`-centric workflow. The active D2W flow in the current repository is centered on `design_1_p5`, `design_2_p10`, `HBM_A`, and `HBM_B`, while legacy datasets and configurations are kept under `D2W/configs/old_configs/` and `D2W/input/old_*` style directories where applicable.
+
+## Current Codebase Snapshot
+
+The current D2W implementation is organized around a small set of actively maintained design families and a set of shell wrappers that drive reproducible modeling and simulation sweeps.
+
+### Active design families
+
+*   `design_1_p5`
+    *   Fine-pitch version of `design_1`
+    *   Ratio-based input directories under `D2W/input/design_1_p5/`
+    *   Current ratio folders:
+        *   `c0_r20_pg60_dm20`
+        *   `c5_r10_pg60_dm25`
+        *   `c10_r0_pg60_dm30`
+*   `design_2_p10`
+    *   Fine-pitch version of `design_2`
+    *   Ratio-based input directories under `D2W/input/design_2_p10/`
+    *   Current ratio folders:
+        *   `c0_r20_pg60_dm20`
+        *   `c5_r10_pg60_dm25`
+        *   `c10_r0_pg60_dm30`
+*   `HBM_A`
+    *   Variant folders directly under `D2W/input/HBM_A/`
+    *   Active variants: `Original`, `Center_IO`, `Edge_IO`, `Random_IO`
+*   `HBM_B`
+    *   Variant folders directly under `D2W/input/HBM_B/`
+    *   Active variants: `Original`, `Center_IO`, `Edge_IO`, `Random_IO`
+
+### Current execution entry points
+
+The main D2W entry points in the current repository are:
+
+*   `D2W/pad_risk_map_calculator.py`
+    *   Generates analytical pad-level risk maps
+*   `D2W/simulator_main.py`
+    *   Runs Monte Carlo assembly yield simulation
+*   `D2W/run_design_pad_risk_maps.sh`
+    *   Serial modeling wrapper for one or more designs
+*   `D2W/run_all_pad_risk_maps_parallel.sh`
+    *   Parallel modeling wrapper for full sweeps
+*   `D2W/run_design_simulations.sh`
+    *   Serial simulation wrapper for one or more designs
+*   `D2W/run_design_1_p5_design_2_p10_hbm_parallel.sh`
+    *   Parallel simulation wrapper for `design_1_p5`, `design_2_p10`, `HBM_A`, and `HBM_B`
+
+### Current sensitivity / paper-figure utilities
+
+The following scripts are part of the active workflow for paper figures and focused parameter studies:
+
+*   `D2W/run_design1_p5_esd_sensitivity.sh`
+*   `D2W/run_design1_p5_esd_sensitivity_parallel.sh`
+*   `D2W/run_design2_p10_particle_sensitivity.sh`
+*   `D2W/run_design2_p10_particle_sensitivity_parallel.sh`
+*   `D2W/utils/paper/plot_esd_sensitivity.py`
+*   `D2W/utils/paper/plot_particle_sensitivity.py`
+
+### Generated run-specific configuration files
+
+During modeling or simulation, the code may generate interface-specific configuration files such as:
+
+*   `Compute_Small_From_Substrate_Silicon__design_1_p5__default.yaml`
+*   `Compute_Large_3_From_Substrate_Organic__design_2_p10_overlay_pessimistic__default.yaml`
+*   `HBM_footprint_A__HBM_A__default.yaml`
+
+These generated YAMLs are written under the corresponding design folder in `D2W/configs/` and include the suffix:
+
+*   `__<config_stem>__<criticality_profile>`
+
+This naming scheme is intentional and prevents cross-run overwrites when multiple parameter sets share the same base interface definition.
+
 ## Table of Contents
 
 1.  [**System Architecture and Simulation Flow**](#1-system-architecture-and-simulation-flow)
@@ -46,7 +117,7 @@ The Hybrid Bonding Yield Analysis Platform (YAP) is a modular Python-based simul
 
 ### Entry Points and Configuration Management
 
-The execution flow is initiated via Jupyter notebooks (`simulator_main.ipynb`, `calculator_main.ipynb`) or Python scripts (`simulator_main.py`) within the `D2W/` or `W2W/` directories. These scripts utilize `OmegaConf` to parse YAML configuration files (`configs/config.yaml`). The configuration object (`cfg`) is a global data structure passed sequentially to all sub-modules, containing physical parameters (dimensions, moduli), process parameters (temperatures, particle densities), and simulation settings (iteration counts, grid resolution).
+In the current codebase, the D2W execution flow is initiated primarily through Python entry points (`D2W/simulator_main.py`, `D2W/pad_risk_map_calculator.py`) and shell wrappers under `D2W/`. These entry points utilize `OmegaConf` to parse per-design YAML files stored under `D2W/configs/<design_name>/`, such as `D2W/configs/design_1_p5/design_1_p5.yaml` or `D2W/configs/HBM_A/HBM_A.yaml`. The configuration object (`cfg`) is passed sequentially to downstream modules and contains physical parameters (dimensions, moduli), process parameters (temperatures, particle densities, voltages, tilt statistics), and simulation settings (iteration counts, batching, map subsampling, and approximation toggles).
 
 The `load_modeling_config()` function in `utils/util.py` loads the configuration and computes derived parameters such as:
 *   `PAD_ARR_ROW`, `PAD_ARR_COL`: Number of pads in the array (derived from die dimensions and pitch)
@@ -74,7 +145,7 @@ The core orchestration logic resides in `Assembly_Yield_Simulator` (in `assembly
 The codebase distinguishes between **Calculators** and **Simulators**.
 
 *   **Simulators** (e.g., `overlay_yield_simulator.py`, `defect_yield_simulator.py`): These function within the Monte Carlo loop. They generate discrete random variables (e.g., a specific misalignment value drawn from a Gaussian distribution) and return coordinate sets or modify object state for specific dies/wafers.
-*   **Calculators** (e.g., `overlay_yield_calculator.py`, `defect_yield_calculator.py`, `Cu_expansion_yield_calculator.py`): These perform analytical integration or dense map generation. They use `scipy.integrate.quad` or statistical Cumulative Distribution Functions (CDFs) to compute expected yield probabilities ($Y_{ovl}$, $Y_{df}$, $Y_{Cu}$) and generate spatial yield heatmaps. These are typically invoked by `Assembly_Yield_Calculator` (in `calculator_main.ipynb`) or as a post-processing step in the simulator.
+*   **Calculators** (e.g., `overlay_yield_calculator.py`, `defect_yield_calculator.py`, `Cu_expansion_yield_calculator.py`): These perform analytical integration or dense map generation. They use `scipy.integrate.quad` or statistical Cumulative Distribution Functions (CDFs) to compute expected yield probabilities ($Y_{ovl}$, $Y_{df}$, $Y_{Cu}$) and generate spatial yield heatmaps. In the current repository, they are typically invoked through `pad_risk_map_calculator.py`, the modeling branch of the D2W flow, or focused post-processing / paper-figure scripts.
 
 ### Data Structures for Yield Aggregation
 
@@ -97,7 +168,7 @@ Yield aggregation relies on specific object classes and dictionaries:
 ```mermaid
 graph TD
     subgraph Configuration
-    A[config.yaml] --> B(simulator_main.py/.ipynb)
+    A[Per-design YAML under D2W/configs/] --> B(simulator_main.py / pad_risk_map_calculator.py)
     B --> C{Parameter Sweep Loop}
     end
 
