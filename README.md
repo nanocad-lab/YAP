@@ -89,7 +89,7 @@ pip install -r requirements.txt
   Common variants are:
   - `Original`
   - `Center_IO`
-  - `Edge_IO`
+  - `Edge_IO`   
   - `Random_IO`
 
   Example command to run the pad risk map calculator for D2W hybrid bonding for a single design
