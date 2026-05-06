@@ -17,6 +17,8 @@ Legacy `design_1` / `design_2` assets are still present under `D2W/configs/old_c
 │   ├── configs/    # Golden and per-design configuration files
 │   │   ├── GOLDEN.yaml
 │   │   ├── design_1_p5/
+│   │   ├── design_1_p10_proj/
+│   │   ├── design_1_p20_proj/
 │   │   ├── design_2_p10/
 │   │   ├── HBM_A/
 │   │   ├── HBM_B/
@@ -28,6 +30,10 @@ Legacy `design_1` / `design_2` assets are still present under `D2W/configs/old_c
 │   │   │       ├── Edge_IO/
 │   │   │       ├── Random_IO/
 │   │   │       └── <chiplet_A>_to_<chiplet_B>_shared_nets.txt
+│   │   ├── design_1_p10_proj/
+│   │   │   └── c30_r0_pg50_dm20/
+│   │   │       └── Edge_IO/
+│   │   ├── design_1_p20_proj/
 │   │   ├── design_2_p10/
 │   │   ├── HBM_A/
 │   │   │   ├── Original/
@@ -80,7 +86,7 @@ pip install -r requirements.txt
   - `esd_strict`: replicated redundant nets tolerate `0` ESD failures and `R-1` mechanical failures
 
 
-- Run the simulator and model for D2W hybrid bonding.
+- Run the yield simulator and model for D2W hybrid bonding.
 
   ```
   cd D2W
@@ -95,6 +101,10 @@ pip install -r requirements.txt
   Example command to run the pad risk map calculator for D2W hybrid bonding for a single design
 
   ```
+  python pad_risk_map_calculator.py --config configs/design_1_p10_proj/design_1_p10_proj.yaml --mode d2w_modeling --ds_name design_1_p10_proj/c30_r0_pg50_dm20/Edge_IO --ds_dir input/design_1_p10_proj/c30_r0_pg50_dm20/Edge_IO --verbose
+
+  python pad_risk_map_calculator.py --config configs/design_1_p20_proj/design_1_p20_proj.yaml --mode d2w_modeling --ds_name design_1_p20_proj/c30_r0_pg50_dm20/Edge_IO --ds_dir input/design_1_p20_proj/c30_r0_pg50_dm20/Edge_IO --verbose
+
   python pad_risk_map_calculator.py --config configs/design_1_p5/design_1_p5.yaml --mode d2w_modeling --ds_name design_1_p5/c10_r0_pg60_dm30/Center_IO --ds_dir input/design_1_p5/c10_r0_pg60_dm30/Center_IO --verbose
 
   python pad_risk_map_calculator.py --config configs/design_2_p10/design_2_p10.yaml --mode d2w_modeling --ds_name design_2_p10/c10_r0_pg60_dm30/Center_IO --ds_dir input/design_2_p10/c10_r0_pg60_dm30/Center_IO --verbose
