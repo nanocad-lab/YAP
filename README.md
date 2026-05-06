@@ -168,6 +168,10 @@ pip install -r requirements.txt
   Example command to run the simulator with the strict-ESD criticality profile
 
   ```
+  python simulator_main.py --config configs/design_1_p10_proj/design_1_p10_proj.yaml --mode d2w_simulation --ds_name design_1_p10_proj/c30_r0_pg50_dm20/Edge_IO --ds_dir input/design_1_p10_proj/c30_r0_pg50_dm20/Edge_IO --criticality-profile default --verbose
+
+  python simulator_main.py --config configs/design_1_p20_proj/design_1_p20_proj.yaml --mode d2w_simulation --ds_name design_1_p20_proj/c30_r0_pg50_dm20/Edge_IO --ds_dir input/design_1_p20_proj/c30_r0_pg50_dm20/Edge_IO --criticality-profile default --verbose
+
   python simulator_main.py --config configs/design_1_p5/design_1_p5.yaml --mode d2w_simulation --ds_name design_1_p5/c10_r0_pg60_dm30/Center_IO --ds_dir input/design_1_p5/c10_r0_pg60_dm30/Center_IO --criticality-profile esd_strict --verbose
 
   python simulator_main.py --config configs/design_2_p10/design_2_p10.yaml --mode d2w_simulation --ds_name design_2_p10/c10_r0_pg60_dm30/Center_IO --ds_dir input/design_2_p10/c10_r0_pg60_dm30/Center_IO --criticality-profile default --verbose
