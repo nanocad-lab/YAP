@@ -25,3 +25,7 @@ output/
 *.nfs*
 HBM*/
 CONTEXT.md
+*rebuttal*/
+*rebuttal*
+*paper*
+*mc_*

@@ -112,8 +112,13 @@ def Assembly_Yield_Simulator(
                     fail_vec_per_interface_dict[interface_name][failure_mechanism][epoch*SIM_BATCH_SIZE:(epoch+1)*SIM_BATCH_SIZE]  \
                         = epoch_fail_vec_per_interface_dict[interface_name][failure_mechanism]
 
-        print(f"Simulation progress: {(epoch+1) * SIM_BATCH_SIZE} / {NUM_DIE_STACKS} die stacks simulated. \
-              Epoch yield: {np.mean(yield_list):.4f}. Time taken: {time.perf_counter() - start_time:.2f} seconds.", end='\r')
+        if input_args['verbose'] or input_args.get('show_progress', False):
+            print(
+                f"Simulation progress: {(epoch + 1) * SIM_BATCH_SIZE} / {NUM_DIE_STACKS} die stacks simulated. "
+                f"Epoch yield: {np.mean(yield_list):.4f}. Time taken: {time.perf_counter() - start_time:.2f} seconds.",
+                end='\r',
+                flush=True,
+            )
 
         del die_stack_list
 
@@ -134,12 +139,19 @@ def Assembly_Yield_Simulator(
             f.write(f"{interface_name} {interface_yield:.8f}\n")
     print("Per-interface simulation yield saved to {}.".format(per_interface_yield_path))
 
-    # Remove temporary files if any
+    # Remove only this process's legacy correlation temp files. Other concurrent
+    # replicate runs of the same design may still be using their own pid-tagged files.
+    current_pid_temp_prefixes = {
+        f"{cfg.INTERFACE}_pid{os.getpid()}_"
+        for cfg in cfg_dict.values()
+    }
     for interface_name, cfg in cfg_dict.items():
-        for name in os.listdir(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp'):
-            file_path = os.path.join(cfg.OUTPUT_DIR + cfg.DESIGN + '/temp', name)
-            if os.path.isfile(file_path):
-                os.remove(file_path)
+        legacy_temp_dir = cfg.OUTPUT_DIR + cfg.DESIGN + '/temp'
+        if os.path.isdir(legacy_temp_dir):
+            for name in os.listdir(legacy_temp_dir):
+                file_path = os.path.join(legacy_temp_dir, name)
+                if os.path.isfile(file_path) and any(name.startswith(prefix) for prefix in current_pid_temp_prefixes):
+                    os.remove(file_path)
         if input_args['verbose']:
             if save_failure_maps:
                 for failure_mechanism in failure_mechanism_list:

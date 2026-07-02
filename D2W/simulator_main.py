@@ -9,6 +9,7 @@ import time
 import argparse
 import secrets
 from assembly_yield_simulator import Assembly_Yield_Simulator
+from Cu_gap_simulator import set_Cu_gap_seed
 from utils.generate_criticality import DEFAULT_PROFILE, resolve_criticality_path
 from utils.interface_reuse import (
     copy_representative_bitmap_outputs,
@@ -46,6 +47,11 @@ def parse_args():
     p.add_argument("--plot", "-plot", default=False, action="store_true", help="Enable plotting of the pad risk map")
     p.add_argument("--verbose", "-v", action="store_true", help="Enable verbose output during simulation")
     p.add_argument(
+        "--show-progress",
+        action="store_true",
+        help="Print simulation batch progress without enabling verbose failure-vector artifacts.",
+    )
+    p.add_argument(
         "--save-failure-maps",
         action="store_true",
         help=(
@@ -62,6 +68,15 @@ def parse_args():
             "Which criticality-file profile to use: "
             "'default' tolerates R-1 ESD + mechanical failures for replicated nets; "
             "'esd_strict' tolerates R-1 mechanical failures but 0 ESD failures."
+        ),
+    )
+    p.add_argument(
+        "--seed-run-base",
+        type=int,
+        default=None,
+        help=(
+            "Base random seed for deterministic simulation sampling. "
+            "If omitted, a fresh random seed is generated for this run."
         ),
     )
     return p.parse_args()
@@ -112,8 +127,10 @@ def write_simulation_summary(
         f.write(f"ds_dir: {input_args['ds_dir']}\n")
         f.write(f"criticality_profile: {input_args['criticality_profile']}\n")
         f.write(f"verbose: {input_args['verbose']}\n")
+        f.write(f"show_progress: {input_args['show_progress']}\n")
         f.write(f"plot: {input_args['plot']}\n")
         f.write(f"save_failure_maps: {input_args['save_failure_maps']}\n")
+        f.write(f"fixed_seed: {input_args.get('fixed_seed', False)}\n")
         f.write(f"seed_run_base: {input_args['seed_run_base']}\n")
         f.write(f"NUM_DIE_STACKS: {cfg_skeleton.NUM_DIE_STACKS}\n")
         f.write(f"SIM_BATCH_SIZE: {cfg_skeleton.SIM_BATCH_SIZE}\n")
@@ -162,7 +179,11 @@ def write_simulation_summary(
 
 def main():
     args = parse_args()
-    args.seed_run_base = secrets.randbits(63)
+    args.fixed_seed = args.seed_run_base is not None
+    if args.seed_run_base is None:
+        args.seed_run_base = secrets.randbits(63)
+    np.random.seed(int(args.seed_run_base) % (2**32))
+    set_Cu_gap_seed(int(args.seed_run_base) ^ 0xC0FFEE)
     args.output_file_tag = _build_output_file_tag(args.config, args.criticality_profile)
     cfg_dict = None
     config_stem = os.path.splitext(os.path.basename(args.config))[0]
