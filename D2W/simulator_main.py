@@ -59,6 +59,20 @@ def parse_args():
             "By default these large files are skipped."
         ),
     )
+    esd_group = p.add_mutually_exclusive_group()
+    esd_group.add_argument(
+        "--enable-esd",
+        dest="enable_esd",
+        action="store_true",
+        default=False,
+        help="Include the ESD failure mechanism. Default is disabled for YAP+ alignment.",
+    )
+    esd_group.add_argument(
+        "--disable-esd",
+        dest="enable_esd",
+        action="store_false",
+        help="Disable the ESD failure mechanism. This is the default.",
+    )
     p.add_argument("--debug", action="store_true", help="Enable debug output when loading config")
     p.add_argument(
         "--criticality-profile",
@@ -130,6 +144,7 @@ def write_simulation_summary(
         f.write(f"show_progress: {input_args['show_progress']}\n")
         f.write(f"plot: {input_args['plot']}\n")
         f.write(f"save_failure_maps: {input_args['save_failure_maps']}\n")
+        f.write(f"enable_esd: {input_args.get('enable_esd', False)}\n")
         f.write(f"fixed_seed: {input_args.get('fixed_seed', False)}\n")
         f.write(f"seed_run_base: {input_args['seed_run_base']}\n")
         f.write(f"NUM_DIE_STACKS: {cfg_skeleton.NUM_DIE_STACKS}\n")

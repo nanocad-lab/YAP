@@ -214,6 +214,7 @@ def overall_yield_simulator(
     global_stack_offset = int(input_args.get('global_stack_offset', 0))
     seed_run_base = int(input_args.get('seed_run_base', 0))
     save_failure_maps = bool(input_args.get('save_failure_maps', False))
+    run_esd = bool(input_args.get('enable_esd', False))
 
     epoch_fail_map_per_interface_dict = {}    # This dict stores the fail bump maps for all die samples in this epoch for each mechanism
     epoch_fail_vec_per_interface_dict = {}    # This dict stores failure reason (each mechanism) for all die samples in this epoch
@@ -644,21 +645,24 @@ def overall_yield_simulator(
             Check the ESD failure
             '''
             # TODO: ESD failure simulation to be implemented
-            esd_pad_idx, survive_bool = esd_failure_simulator(
-                                                    cfg=cfg,
-                                                    pad_coords_um=valid_die_pad_coords,
-                                                    pad_size_um=PAD_TOP_R_um * 2,
-                                                    top_die_w_um=die_interface.DIE_W_um,
-                                                    top_die_h_um=die_interface.DIE_L_um,
-                                                    top_dish_nm_ext=top_dish,
-                                                    bot_dish_nm_ext=bot_dish,
-                                                    tilt_x_mean_deg=TILT_X_MEAN_DEG,
-                                                    tilt_x_std_deg=TILT_X_STD_DEG,
-                                                    tilt_y_mean_deg=TILT_Y_MEAN_DEG,
-                                                    tilt_y_std_deg=TILT_Y_STD_DEG,
-                                                    base_seed=seed_run_base + (global_stack_offset + stack_ind) * max(len(cfg_dict), 1) + interface_ind,
-                                                    dummy_pad_bitmap=pad_bitmap_collection['DUMMY_PAD_BITMAP'].flatten()[valid_pad_mask_flat],
-                                                    )
+            if run_esd:
+                esd_pad_idx, survive_bool = esd_failure_simulator(
+                                                        cfg=cfg,
+                                                        pad_coords_um=valid_die_pad_coords,
+                                                        pad_size_um=PAD_TOP_R_um * 2,
+                                                        top_die_w_um=die_interface.DIE_W_um,
+                                                        top_die_h_um=die_interface.DIE_L_um,
+                                                        top_dish_nm_ext=top_dish,
+                                                        bot_dish_nm_ext=bot_dish,
+                                                        tilt_x_mean_deg=TILT_X_MEAN_DEG,
+                                                        tilt_x_std_deg=TILT_X_STD_DEG,
+                                                        tilt_y_mean_deg=TILT_Y_MEAN_DEG,
+                                                        tilt_y_std_deg=TILT_Y_STD_DEG,
+                                                        base_seed=seed_run_base + (global_stack_offset + stack_ind) * max(len(cfg_dict), 1) + interface_ind,
+                                                        dummy_pad_bitmap=pad_bitmap_collection['DUMMY_PAD_BITMAP'].flatten()[valid_pad_mask_flat],
+                                                        )
+            else:
+                esd_pad_idx, survive_bool = None, True
             if esd_pad_idx is not None and survive_bool == False:    # One pad will form the first contact and fail
                 # esd_pad_idx is indexed within the compressed valid-pad list, so map
                 # it back to the full pad-array linear index before decoding row/col.
