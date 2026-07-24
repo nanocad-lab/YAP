@@ -275,14 +275,17 @@ def defect_yield_simulator(
         k_S = cfg.k_S
         VOID_SHAPE = cfg.VOID_SHAPE
 
-        # num_particles calculation
-        drop_particle_range = 1 # the range of the particles to drop regarding the die size
-        total_particles = (drop_particle_range * DIE_W_um) * (drop_particle_range * DIE_L_um) * D0 * NUM_STACKS     # Put the particles on the 2*DIE_W_um * 2*DIE_L_um area
-        particles_per_interface = np.random.multinomial(
-            total_particles, [1 / NUM_STACKS] * NUM_STACKS
+        # Background particles follow an independent Poisson point process on
+        # each stack/interface. Edge-excess particles are sampled separately by
+        # Poisson thinning in generate_particles_at_die_edges().
+        drop_particle_range = 1
+        background_mean_particles = (
+            drop_particle_range * DIE_W_um
+            * drop_particle_range * DIE_L_um
+            * D0
         )
         for stack_ind in range(NUM_STACKS):
-            num_particles = particles_per_interface[stack_ind]
+            num_particles = np.random.poisson(background_mean_particles)
             particle_thickness = np.zeros(num_particles)
             u = np.random.rand(num_particles)
             particle_thickness = inverse_cdf_particle_thickness(u, t_0, z)
