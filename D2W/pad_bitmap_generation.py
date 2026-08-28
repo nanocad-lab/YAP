@@ -1055,6 +1055,57 @@ def A_critical_l_across_theta(cfg,
 
 
 
+def _dilate_redundant_pairs_grouped(main_bitmap, copy_bitmap, kernel, padding_size):
+    """Union pairwise dilation overlaps without expanding every pair plane."""
+    num_pairs, base_h, base_w = main_bitmap.shape
+    out_h = base_h + 2 * padding_size
+    out_w = base_w + 2 * padding_size
+    result = np.zeros((out_h, out_w), dtype=bool)
+    if num_pairs == 0:
+        return result
+
+    main_locations = np.argwhere(main_bitmap)[:, 1:]
+    copy_locations = np.argwhere(copy_bitmap)[:, 1:]
+    displacements = copy_locations - main_locations
+    center = np.array([out_h // 2, out_w // 2])
+
+    for displacement in np.unique(displacements, axis=0):
+        group_mask = np.all(displacements == displacement, axis=1)
+        points = np.zeros((out_h, out_w), dtype=np.uint8)
+        group_locations = main_locations[group_mask] + padding_size
+        points[group_locations[:, 0], group_locations[:, 1]] = 1
+
+        single_main = np.zeros_like(points)
+        single_copy = np.zeros_like(points)
+        single_main[center[0], center[1]] = 1
+        copy_center = center + displacement
+        single_copy[copy_center[0], copy_center[1]] = 1
+        overlap = np.logical_and(
+            cv2.dilate(single_main, kernel, iterations=1),
+            cv2.dilate(single_copy, kernel, iterations=1),
+        )
+        overlap_locations = np.argwhere(overlap)
+        if len(overlap_locations) == 0:
+            continue
+
+        offsets = overlap_locations - center
+        min_offset = np.minimum(offsets.min(axis=0), 0)
+        max_offset = np.maximum(offsets.max(axis=0), 0)
+        anchor = max_offset
+        overlap_kernel = np.zeros(max_offset - min_offset + 1, dtype=np.uint8)
+        kernel_locations = anchor - offsets
+        overlap_kernel[kernel_locations[:, 0], kernel_locations[:, 1]] = 1
+        group_overlap = cv2.dilate(
+            points,
+            overlap_kernel,
+            anchor=(int(anchor[1]), int(anchor[0])),
+            iterations=1,
+        )
+        result |= group_overlap.astype(bool)
+
+    return result
+
+
 def A_critical_r_mv(cfg,
                     PITCH_um,
                     r_mv,
@@ -1101,24 +1152,10 @@ def A_critical_r_mv(cfg,
         constant_values=0
     )
 
-    if REDUNDANT_MAIN_PAD_BLOCK_BITMAP.sum() != 0 and REDUNDANT_COPY_PAD_BLOCK_BITMAP.sum() != 0:
-        REDUNDANT_MAIN_PAD_BLOCK_BITMAP_EXPAND = np.pad(
-            REDUNDANT_MAIN_PAD_BLOCK_BITMAP,
-            pad_width=((0, 0), (padding_size, padding_size), (padding_size, padding_size)),
-            mode='constant',
-            constant_values=0
-        )
-        REDUNDANT_COPY_PAD_BLOCK_BITMAP_EXPAND = np.pad(
-            REDUNDANT_COPY_PAD_BLOCK_BITMAP,
-            pad_width=((0, 0), (padding_size, padding_size), (padding_size, padding_size)),
-            mode='constant',
-            constant_values=0
-        )
-
-        N, H, W = REDUNDANT_MAIN_PAD_BLOCK_BITMAP_EXPAND.shape
-        # Reshape the bitmap to (N * H, W)
-        REDUNDANT_MAIN_PAD_BLOCK_BITMAP_EXPAND = REDUNDANT_MAIN_PAD_BLOCK_BITMAP_EXPAND.reshape(N * H, W).astype(bool)
-        REDUNDANT_COPY_PAD_BLOCK_BITMAP_EXPAND = REDUNDANT_COPY_PAD_BLOCK_BITMAP_EXPAND.reshape(N * H, W).astype(bool)
+    has_redundant_pairs = (
+        REDUNDANT_MAIN_PAD_BLOCK_BITMAP.sum() != 0
+        and REDUNDANT_COPY_PAD_BLOCK_BITMAP.sum() != 0
+    )
     # print("data type of REDUNDANT_MAIN_PAD_BLOCK_BITMAP_EXPAND:", REDUNDANT_MAIN_PAD_BLOCK_BITMAP_EXPAND.dtype)
 
     start = time.time()
@@ -1140,29 +1177,12 @@ def A_critical_r_mv(cfg,
 
     # print("[Time] Critical pad bitmap dilation:", time.time() - start)
     start = time.time()
-    if REDUNDANT_MAIN_PAD_BLOCK_BITMAP.sum() != 0 and REDUNDANT_COPY_PAD_BLOCK_BITMAP.sum() != 0:
-        REDUNDANT_PAD_BLOCK_DILATED = np.zeros_like(REDUNDANT_COPY_PAD_BLOCK_BITMAP_EXPAND[0], dtype=bool)
-        REDUNDANT_MAIN_PAD_BLOCK_BITMAP_DILATED = cv2.dilate(
-            REDUNDANT_MAIN_PAD_BLOCK_BITMAP_EXPAND.astype(np.uint8),
+    if has_redundant_pairs:
+        REDUNDANT_PAD_BLOCK_DILATED = _dilate_redundant_pairs_grouped(
+            REDUNDANT_MAIN_PAD_BLOCK_BITMAP,
+            REDUNDANT_COPY_PAD_BLOCK_BITMAP,
             void_defect,
-            iterations=1
-        )
-        REDUNDANT_COPY_PAD_BLOCK_BITMAP_DILATED = cv2.dilate(
-            REDUNDANT_COPY_PAD_BLOCK_BITMAP_EXPAND.astype(np.uint8),
-            void_defect,
-            iterations=1
-        )
-
-        redundant_pad_block_pair_dilated = np.logical_and(
-            REDUNDANT_MAIN_PAD_BLOCK_BITMAP_DILATED,
-            REDUNDANT_COPY_PAD_BLOCK_BITMAP_DILATED
-        )
-        
-        redundant_pad_block_pair_dilated = np.reshape(redundant_pad_block_pair_dilated, (N, H, W)).astype(bool)  # (N, H, W)
-        redundant_pad_block_pair_dilated = np.any(redundant_pad_block_pair_dilated, axis=0)  # (H, W)
-        REDUNDANT_PAD_BLOCK_DILATED = np.logical_or(
-            REDUNDANT_PAD_BLOCK_DILATED,
-            redundant_pad_block_pair_dilated
+            padding_size,
         )
         # print("How many redundant pad blocks are dilated:", np.sum(REDUNDANT_PAD_BLOCK_DILATED))
         # print("[Time] Redundant pad block dilation:", time.time() - start)
@@ -1186,10 +1206,14 @@ def A_critical_r_mv(cfg,
         plt.title("CRITICAL_PAD_BITMAP_DILATED")
         plt.show()
         sio.savemat("pad_bitmap/CRITICAL_PAD_BITMAP_DILATED.mat", {"CRITICAL_PAD_BITMAP_DILATED": CRITICAL_PAD_BITMAP_DILATED})
-        if REDUNDANT_MAIN_PAD_BLOCK_BITMAP.sum() != 0 and REDUNDANT_COPY_PAD_BLOCK_BITMAP.sum() != 0:
+        if has_redundant_pairs:
             # Draw the redundant pad block pair dilated bitmap
-            REDUNDANT_MAIN_PAD_BLOCK_BITMAP_EXPAND_original = REDUNDANT_MAIN_PAD_BLOCK_BITMAP_EXPAND.reshape(N, H, W)[ind]
-            REDUNDANT_COPY_PAD_BLOCK_BITMAP_EXPAND_original = REDUNDANT_COPY_PAD_BLOCK_BITMAP_EXPAND.reshape(N, H, W)[ind]
+            REDUNDANT_MAIN_PAD_BLOCK_BITMAP_EXPAND_original = np.pad(
+                REDUNDANT_MAIN_PAD_BLOCK_BITMAP[ind], padding_size
+            )
+            REDUNDANT_COPY_PAD_BLOCK_BITMAP_EXPAND_original = np.pad(
+                REDUNDANT_COPY_PAD_BLOCK_BITMAP[ind], padding_size
+            )
             REDUNDANT_MAIN_PAD_BLOCK_BITMAP_EXPAND_original_ind_dilated = cv2.dilate(
                 REDUNDANT_MAIN_PAD_BLOCK_BITMAP_EXPAND_original.astype(np.uint8),
                 void_defect,

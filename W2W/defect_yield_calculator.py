@@ -23,6 +23,8 @@ def get_bitmap_bounds(*,
         bitmap: np.ndarray,
         pad_block_size: int
     ):
+    if bitmap.ndim == 3:
+        bitmap = np.any(bitmap, axis=0)
     # Find the bounds of the non-zero pixels in the bitmap
     rows = np.any(bitmap, axis=1)
     cols = np.any(bitmap, axis=0)

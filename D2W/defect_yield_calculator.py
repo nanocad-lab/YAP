@@ -66,12 +66,12 @@ def defect_yield_calculator(
     REDUNDANT_MAIN_PAD_BLOCK_BITMAP = pad_bitmap_collection["REDUNDANT_MAIN_PAD_BLOCK_BITMAP"]
     is_redundant_copy_same_block = pad_bitmap_collection["is_redundant_copy_same_block"]
     CRITICAL_PAD_ARR_W_um_IND, CRITICAL_PAD_ARR_L_um_IND = get_bitmap_bounds(bitmap=CRITICAL_PAD_BLOCK_BITMAP, pad_block_size=pad_block_size)
-    REDUNDANT_MAIN_PAD_ARR_W_um_IND, REDUNDANT_MAIN_PAD_ARR_L_um_IND = get_bitmap_bounds(bitmap=REDUNDANT_MAIN_PAD_BLOCK_BITMAP, pad_block_size=pad_block_size)
-    REDUNDANT_MAIN_PAD_ARR_W_um = REDUNDANT_MAIN_PAD_ARR_W_um_IND * PITCH_um
-    REDUNDANT_MAIN_PAD_ARR_L_um = REDUNDANT_MAIN_PAD_ARR_L_um_IND * PITCH_um
     CRITICAL_PAD_ARR_W_um = CRITICAL_PAD_ARR_W_um_IND * PITCH_um
     CRITICAL_PAD_ARR_L_um = CRITICAL_PAD_ARR_L_um_IND * PITCH_um
     if is_redundant_copy_same_block:
+        REDUNDANT_MAIN_PAD_ARR_W_um_IND, REDUNDANT_MAIN_PAD_ARR_L_um_IND = get_bitmap_bounds(bitmap=REDUNDANT_MAIN_PAD_BLOCK_BITMAP, pad_block_size=pad_block_size)
+        REDUNDANT_MAIN_PAD_ARR_W_um = REDUNDANT_MAIN_PAD_ARR_W_um_IND * PITCH_um
+        REDUNDANT_MAIN_PAD_ARR_L_um = REDUNDANT_MAIN_PAD_ARR_L_um_IND * PITCH_um
         EFF_PAD_ARR_W_um = max(CRITICAL_PAD_ARR_W_um, REDUNDANT_MAIN_PAD_ARR_W_um)
         EFF_PAD_ARR_L_um = max(CRITICAL_PAD_ARR_L_um, REDUNDANT_MAIN_PAD_ARR_L_um)
     else:

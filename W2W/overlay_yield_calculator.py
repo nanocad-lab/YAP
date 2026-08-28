@@ -191,7 +191,8 @@ def overlay_yield_calculator(
         else:
             overlay_pad_yield_map = None
     
-    wafer.glb_pad_yield_min_max_dict['Y_ovl'] = (glb_defect_pad_yield_min, glb_defect_pad_yield_max)
+    if pad_yield_flag:
+        wafer.glb_pad_yield_min_max_dict['Y_ovl'] = (glb_defect_pad_yield_min, glb_defect_pad_yield_max)
 
     overlay_die_yield = np.mean(overlay_die_yield_list)
     # end_time = time.time()
@@ -199,4 +200,3 @@ def overlay_yield_calculator(
     # print("The overlay die yield is {}.".format(overlay_die_yield))
 
     return overlay_die_yield
-    
