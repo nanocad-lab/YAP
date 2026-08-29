@@ -10,6 +10,7 @@ import scipy.io as sio
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import math
+import os
 from matplotlib.colors import ListedColormap
 import time
 from matplotlib.colors import ListedColormap, BoundaryNorm
@@ -152,6 +153,55 @@ def assign_pad_blocks(mode, num_pads_blocks, num_pads_block_row, num_pads_block_
     return critical_pad_blocks, redundant_pad_blocks, dummy_pad_blocks
 
 
+def place_redundant_block_pairs(critical_blocks, block_rows, block_cols, target_pairs, block_step):
+    """Place axis-aligned main/gap/copy triplets near the die center."""
+    if target_pairs == 0:
+        empty = np.empty(0, dtype=int)
+        return empty, empty, empty
+
+    all_blocks = set(range(block_rows * block_cols))
+    available = all_blocks - set(np.asarray(critical_blocks, dtype=int))
+    center_row = (block_rows - 1) / 2
+    center_col = (block_cols - 1) / 2
+    candidates = []
+    for row in range(block_rows):
+        for col in range(block_cols):
+            for row_step, col_step in ((block_step, 0), (0, block_step)):
+                copy_row = row + row_step
+                copy_col = col + col_step
+                if copy_row >= block_rows or copy_col >= block_cols:
+                    continue
+                if block_step != 2:
+                    continue
+                gap_row = row + row_step // 2
+                gap_col = col + col_step // 2
+                main_id = row * block_cols + col
+                gap_id = gap_row * block_cols + gap_col
+                copy_id = copy_row * block_cols + copy_col
+                if {main_id, gap_id, copy_id}.issubset(available):
+                    radius2 = (gap_row - center_row) ** 2 + (gap_col - center_col) ** 2
+                    candidates.append((radius2, main_id, gap_id, copy_id))
+
+    reserved = set()
+    pairs = []
+    gaps = []
+    for _, main_id, gap_id, copy_id in sorted(candidates):
+        triplet = {main_id, gap_id, copy_id}
+        if reserved.isdisjoint(triplet):
+            reserved.update(triplet)
+            pairs.append((main_id, copy_id))
+            gaps.append(gap_id)
+            if len(pairs) == target_pairs:
+                break
+
+    if len(pairs) != target_pairs:
+        raise ValueError(
+            f"Not enough room for {target_pairs} main/gap/copy redundant block triplets."
+        )
+    pair_array = np.asarray(pairs, dtype=int)
+    return pair_array[:, 0], pair_array[:, 1], np.asarray(gaps, dtype=int)
+
+
 
 def draw_pad_bitmap(bitmap_collection):
     # Draw the critical and redundant pad bitmaps in one figure (critical light red, redundant light blue, dummy light gray)
@@ -197,6 +247,7 @@ def pad_bitmap_generate_random(cfg, pad_layout_pattern):
     '''
     This function generates the random pad bitmaps for the die.
     '''
+    os.makedirs("pad_bitmap", exist_ok=True)
     # Read parameters from the configuration
     PAD_ARR_ROW = cfg.PAD_ARR_ROW
     PAD_ARR_COL = cfg.PAD_ARR_COL
@@ -208,8 +259,6 @@ def pad_bitmap_generate_random(cfg, pad_layout_pattern):
     redundant_logical_pad_ratio = cfg.redundant_logical_pad_ratio
     redundant_logical_pad_copy = cfg.redundant_logical_pad_copy
     redundant_logical_pad_dist = cfg.redundant_logical_pad_dist
-    multi2one_flag = cfg.multi2one_flag
-    multi2one_ratio = cfg.multi2one_ratio
 
     # number of types of pads
     num_critical_pads = int(critical_pad_ratio * PAD_ARR_ROW * PAD_ARR_COL)
@@ -217,9 +266,8 @@ def pad_bitmap_generate_random(cfg, pad_layout_pattern):
     num_dummy_pads = PAD_ARR_ROW * PAD_ARR_COL - num_critical_pads - num_redundant_pads
 
     # Initialize the pad bitmaps
-    CRITICAL_PAD_BITMAP = np.zeros((PAD_ARR_ROW, PAD_ARR_COL))
-    REDUNDANT_PAD_BITMAP = np.zeros((PAD_ARR_ROW, PAD_ARR_COL))
-    DUMMY_PAD_BITMAP = np.zeros((PAD_ARR_ROW, PAD_ARR_COL))
+    CRITICAL_PAD_BITMAP = np.zeros((PAD_ARR_ROW, PAD_ARR_COL), dtype=bool)
+    REDUNDANT_PAD_BITMAP = np.zeros((PAD_ARR_ROW, PAD_ARR_COL), dtype=bool)
     print("PAD_ARR_ROW:", PAD_ARR_ROW)
     print("PAD_ARR_COL:", PAD_ARR_COL)
 
@@ -227,13 +275,22 @@ def pad_bitmap_generate_random(cfg, pad_layout_pattern):
     num_pads_block_row = math.ceil(PAD_ARR_ROW / pad_block_size)
     num_pads_block_col = math.ceil(PAD_ARR_COL / pad_block_size)
     num_pads_blocks = num_pads_block_row * num_pads_block_col
-    num_critical_pad_blocks = math.ceil(num_critical_pads / (pad_block_size ** 2))
+    all_critical = np.isclose(critical_pad_ratio, 1.0) and np.isclose(redundant_pad_ratio, 0.0)
+    num_critical_pad_blocks = (
+        num_pads_blocks
+        if all_critical
+        else math.ceil(num_critical_pads / (pad_block_size ** 2))
+    )
     num_redundant_pad_blocks = min(math.ceil(num_redundant_pads / (pad_block_size ** 2)), \
                                    num_pads_blocks - num_critical_pad_blocks)
     num_dummy_pad_blocks = num_pads_blocks - num_critical_pad_blocks - num_redundant_pad_blocks
 
     # Update the number of types of pads
-    num_critical_pads = num_critical_pad_blocks * pad_block_size ** 2
+    num_critical_pads = (
+        PAD_ARR_ROW * PAD_ARR_COL
+        if all_critical
+        else num_critical_pad_blocks * pad_block_size ** 2
+    )
     num_redundant_pads = num_redundant_pad_blocks * pad_block_size ** 2
     num_redundant_logical_pads = math.ceil(num_redundant_pads * redundant_logical_pad_ratio)
 
@@ -251,6 +308,39 @@ def pad_bitmap_generate_random(cfg, pad_layout_pattern):
                                                                                     num_critical_pad_blocks, 
                                                                                     num_redundant_pad_blocks, 
                                                                                     redundant_mesh_spacing=3)
+
+    planned_redundant_pad_block_pair_dict = {}
+    block_step = int(round(redundant_logical_pad_dist / pad_block_size))
+    same_block_cluster_count = int(pad_block_size / (2 * redundant_logical_pad_dist))
+    if num_redundant_logical_pads > 0 and same_block_cluster_count == 0 and block_step == 2:
+        required_pairs = math.ceil(num_redundant_logical_pads / pad_block_size**2)
+        main_blocks, copy_blocks, gap_blocks = place_redundant_block_pairs(
+            critical_pad_blocks,
+            num_pads_block_row,
+            num_pads_block_col,
+            required_pairs,
+            block_step,
+        )
+        planned_redundant_pad_block_pair_dict = dict(zip(main_blocks, copy_blocks))
+        reserved_blocks = set(np.concatenate((main_blocks, copy_blocks, gap_blocks)))
+        pair_blocks = list(np.concatenate((main_blocks, copy_blocks)))
+        fill_candidates = [
+            int(block_id) for block_id in redundant_pad_blocks
+            if int(block_id) not in reserved_blocks
+        ]
+        if len(pair_blocks) + len(fill_candidates) < num_redundant_pad_blocks:
+            excluded = set(np.asarray(critical_pad_blocks, dtype=int)) | reserved_blocks | set(fill_candidates)
+            fill_candidates.extend(
+                block_id for block_id in range(num_pads_blocks) if block_id not in excluded
+            )
+        redundant_pad_blocks = np.asarray(
+            pair_blocks + fill_candidates[:num_redundant_pad_blocks - len(pair_blocks)],
+            dtype=int,
+        )
+        dummy_pad_blocks = np.setdiff1d(
+            np.arange(num_pads_blocks),
+            np.concatenate((critical_pad_blocks, redundant_pad_blocks)),
+        )
 
     # Save the pad block indices
     np.save("pad_bitmap/critical_pad_blocks.npy", critical_pad_blocks)
@@ -270,18 +360,20 @@ def pad_bitmap_generate_random(cfg, pad_layout_pattern):
         col_end = min(col_end, PAD_ARR_COL)
         CRITICAL_PAD_BITMAP[row_start:row_end, col_start:col_end] = 1
     # Calculate the outmost critical pad coordinates for overlay simulation (4 totally)
-    critical_pad_boundary_bitmap_row_col_block_ind = np.zeros((4, 2), dtype=int)
-    row_col_ind = np.argwhere(CRITICAL_PAD_BITMAP == 1)
-    top_left_ind = row_col_ind[np.argmin(row_col_ind[:, 0] + row_col_ind[:, 1])]
-    top_right_ind = row_col_ind[np.argmin(row_col_ind[:, 0] - row_col_ind[:, 1])]
-    bottom_left_ind = row_col_ind[np.argmax(row_col_ind[:, 0] - row_col_ind[:, 1])]
-    bottom_right_ind = row_col_ind[np.argmax(row_col_ind[:, 0] + row_col_ind[:, 1])]
-    critical_pad_boundary_bitmap_row_col_block_ind[0] = top_left_ind / pad_block_size
-    critical_pad_boundary_bitmap_row_col_block_ind[1] = top_right_ind / pad_block_size
-    critical_pad_boundary_bitmap_row_col_block_ind[2] = bottom_left_ind / pad_block_size 
-    critical_pad_boundary_bitmap_row_col_block_ind[3] = bottom_right_ind / pad_block_size
-    critical_pad_boundary_bitmap_row_col_block_ind_non_zero_mask = (critical_pad_boundary_bitmap_row_col_block_ind != 0)
-    critical_pad_boundary_bitmap_row_col_block_ind = critical_pad_boundary_bitmap_row_col_block_ind + critical_pad_boundary_bitmap_row_col_block_ind_non_zero_mask
+    critical_block_positions = np.column_stack((
+        critical_pad_blocks // num_pads_block_col,
+        critical_pad_blocks % num_pads_block_col,
+    ))
+    top_left = critical_block_positions[np.argmin(critical_block_positions[:, 0] + critical_block_positions[:, 1])]
+    top_right = critical_block_positions[np.argmin(critical_block_positions[:, 0] - critical_block_positions[:, 1])]
+    bottom_left = critical_block_positions[np.argmax(critical_block_positions[:, 0] - critical_block_positions[:, 1])]
+    bottom_right = critical_block_positions[np.argmax(critical_block_positions[:, 0] + critical_block_positions[:, 1])]
+    critical_pad_boundary_bitmap_row_col_block_ind = np.array([
+        top_left,
+        top_right + [0, 1],
+        bottom_left + [1, 0],
+        bottom_right + [1, 1],
+    ], dtype=int)
     # print("Critical pad boundary bitmap row-col indices:", critical_pad_boundary_bitmap_row_col_ind)
 
 
@@ -308,15 +400,24 @@ def pad_bitmap_generate_random(cfg, pad_layout_pattern):
         redundant_available_physical_ids.extend(pad_ids.flatten())
     # print("redundant_available_physical_ids length:", len(redundant_available_physical_ids))
     redundant_available_physical_ids = np.sort(np.array(redundant_available_physical_ids))
+    num_critical_pads = int(np.count_nonzero(CRITICAL_PAD_BITMAP))
+    num_redundant_pads = int(np.count_nonzero(REDUNDANT_PAD_BITMAP))
+    num_redundant_logical_pads = math.ceil(num_redundant_pads * redundant_logical_pad_ratio)
 
     #####
     ## Begin to allocate physical pads for redundant logical pads    
     #####
-    redundant_logical_to_physical_arr = np.zeros((num_redundant_logical_pads, redundant_logical_pad_copy), dtype=int)
+    redundant_logical_to_physical_arr = np.zeros(
+        (num_redundant_logical_pads, redundant_logical_pad_copy), dtype=np.int32
+    )
  
     used_pad_ids = set()
     redundant_available_physical_ids_set = set(redundant_available_physical_ids)
-    if multi2one_flag == False:    # One main pad has one copy pad
+    redundant_pad_block_pair_dict = {}
+    num_clusters = 0
+    if num_redundant_logical_pads == 0:
+        pass
+    else:    # One main pad has one copy pad
         '''
         One-to-one assignment: | M -> C | M -> C | M -> C | .....
         '''
@@ -324,7 +425,7 @@ def pad_bitmap_generate_random(cfg, pad_layout_pattern):
         # If num_clusters is 0, it means the pad block contains all the main or copy pads
         num_clusters = int((col_end - col_start) / (2 * redundant_logical_pad_dist))
         # Find the pad block pairs that has the required distance
-        redundant_pad_block_pair_dict = dict()
+        redundant_pad_block_pair_dict = dict(planned_redundant_pad_block_pair_dict)
         if num_clusters > 0:
             # the main pad and its copies can be placed in the same block
             shuffled_items = list(redundant_pad_block_info_dict.items())
@@ -338,7 +439,15 @@ def pad_bitmap_generate_random(cfg, pad_layout_pattern):
                 cols = np.arange(col_start, col_end)
 
                 if idx % 20 == 0:
-                    print("Processing redundant block {}/{}...  cluster size: {}".format(idx + 1, num_redundant_pad_blocks, int((col_end - col_start) / (2 * redundant_logical_pad_dist))))
+                    print(
+                        "Processing redundant block {}/{}..., cluster size: {}".format(
+                            idx + 1,
+                            num_redundant_pad_blocks,
+                            int((col_end - col_start) / (2 * redundant_logical_pad_dist)),
+                        ),
+                        end="\r",
+                        flush=True,
+                    )
                 cluster_col_starts = col_start + np.arange(num_clusters) * 2 * redundant_logical_pad_dist
                 # number of rows and columns within the cluster
                 num_rows = row_end - row_start
@@ -378,10 +487,15 @@ def pad_bitmap_generate_random(cfg, pad_layout_pattern):
             ])
             # Build a KD-tree for fast nearest neighbor search
             pad_block_tree = KDTree(pad_block_row_col_map)
-            used_redundant_pad_block_ids_set = set()
+            used_redundant_pad_block_ids_set = set(
+                planned_redundant_pad_block_pair_dict.keys()
+            ) | set(planned_redundant_pad_block_pair_dict.values())
             available_redundant_pad_block_ids_set = set(redundant_pad_blocks)
+            available_redundant_pad_block_ids_set -= used_redundant_pad_block_ids_set
 
-            redundant_pad_blocks_shuffled = np.random.permutation(redundant_pad_blocks)
+            redundant_pad_blocks_shuffled = np.random.permutation(
+                list(available_redundant_pad_block_ids_set)
+            )
             for block_ind in redundant_pad_blocks_shuffled:
             # for block_ind in redundant_pad_blocks:
                 # Check if the block is already used
@@ -422,8 +536,10 @@ def pad_bitmap_generate_random(cfg, pad_layout_pattern):
                     # Choose the farthest neighbor as the copy pad block (can not be the used pad block)
                     for neighbor_id, dist in filtered_ids_dist:
                         # print("cpy_block_ind:{}, dist:{}".format(redundant_pad_blocks[neighbor_id], dist))
-                        if neighbor_id not in used_redundant_pad_block_ids_set and neighbor_id in available_redundant_pad_block_ids_set:
-                            copy_block_ind = redundant_pad_blocks[neighbor_id]
+                        copy_block_ind = redundant_pad_blocks[neighbor_id]
+                        # KDTree neighbor IDs index redundant_pad_blocks; availability is
+                        # tracked using the corresponding global block IDs.
+                        if copy_block_ind in available_redundant_pad_block_ids_set:
                             # Update the used pad block ids
                             used_redundant_pad_block_ids_set.add(main_block_ind)
                             used_redundant_pad_block_ids_set.add(copy_block_ind)
@@ -433,22 +549,27 @@ def pad_bitmap_generate_random(cfg, pad_layout_pattern):
                             # Update the redundant pad block pair dictionary
                             redundant_pad_block_pair_dict[main_block_ind] = copy_block_ind
                             break
-                else:
-                    print("Current redundant pad block pair dictionary:", redundant_pad_block_pair_dict)
-                    raise ValueError("No available pad block pairs for the redundant logical pads.")
                 if len(redundant_pad_block_pair_dict) * pad_block_size**2 >= num_redundant_logical_pads:
                     # We've found enough pad block pairs
                     break
             if len(redundant_pad_block_pair_dict) * pad_block_size**2 < num_redundant_logical_pads:
                 raise ValueError("Not enough pad block pairs to assign the redundant pads. Please reduce the redundant_logical_pad_ratio.")
-            print("Redundant pad block pair dictionary:", redundant_pad_block_pair_dict)
+            # print("Redundant pad block pair dictionary:", redundant_pad_block_pair_dict)
 
             # Assign the physical pads for the redundant logical pads
             # Each redundant logical pad has redundant_logical_pad_copy copies
             # Each copy has a distance of at least redundant_logical_pad_dist * PITCH_um
             for idx, (main_block_ind, copy_block_ind) in enumerate(redundant_pad_block_pair_dict.items()):
                 if idx % 20 == 0:
-                    print("Processing redundant block {}/{}..., cluster size: {}".format(idx + 1, num_redundant_pad_blocks, int((col_end - col_start) / (2 * redundant_logical_pad_dist))))
+                    print(
+                        "Processing redundant block {}/{}..., cluster size: {}".format(
+                            idx + 1,
+                            num_redundant_pad_blocks,
+                            int((col_end - col_start) / (2 * redundant_logical_pad_dist)),
+                        ),
+                        end="\r",
+                        flush=True,
+                    )
                 # Get the pad ids for the main pad and its copies
                 row_start, col_start, row_end, col_end = redundant_pad_block_info_dict[main_block_ind]
                 rows = np.arange(row_start, row_end)
@@ -481,182 +602,8 @@ def pad_bitmap_generate_random(cfg, pad_layout_pattern):
                 used_pad_ids.update(main_pad_ids)
                 used_pad_ids.update(copy_pad_ids)
                 
-            print("Redundant blocks and pads assigned.")                   
-    elif multi2one_flag == True:
-        '''
-        Multi-to-one assignment: | M M M M M M M M M M -> C | M M M M M M M M M M -> C | M M M M M M M M M M -> C | .....
-        '''
-        # Check the multi2one_ratio
-        if multi2one_ratio == 1:
-            raise ValueError("multi2one_ratio should be greater than 1 for multi-to-one assignment.")
-        
-        # number of clusters per pad block to accommodate the main pad and its copies 
-        num_clusters = int((col_end - col_start) / (multi2one_ratio + redundant_logical_pad_dist + 1))
-        # Find the pad block pairs that has the required distance
-        redundant_pad_block_pair_dict = dict()
-        if num_clusters > 0:
-            # The main pad and its copies can be placed in the same block
-            for idx, (block_ind, scope) in enumerate(redundant_pad_block_info_dict.items()):
-                redundant_pad_block_pair_dict[block_ind] = block_ind
-                row_start, col_start, row_end, col_end = scope
-                # Get the pad ids for the redundant pads
-                rows = np.arange(row_start, row_end)
-                cols = np.arange(col_start, col_end)
+            print("\nRedundant blocks and pads assigned.")
 
-                if idx % 20 == 0:
-                    print("Processing redundant block {}/{}..., cluster size: {}".format(idx + 1, num_redundant_pad_blocks, int((col_end - col_start) / (multi2one_ratio + redundant_logical_pad_dist + 1))))
-                cluster_col_starts = col_start + np.arange(num_clusters) * (multi2one_ratio + redundant_logical_pad_dist + 1)
-                # number of rows and columns within the cluster
-                num_rows = row_end - row_start
-                num_cols = multi2one_ratio + redundant_logical_pad_dist + 1
-                row_offsets = np.arange(num_rows).reshape(-1, 1, 1)
-                col_offsets = np.arange(num_cols).reshape(1, -1, 1)   
-                cluster_cols = col_offsets + cluster_col_starts
-                cluster_rows = row_offsets + row_start
-                main_pad_cols = cluster_cols[:, :multi2one_ratio]
-                copy_pad_cols = cluster_cols[:, -1:]
-                main_pad_ids = cluster_rows * PAD_ARR_COL + main_pad_cols
-                main_pad_ids = main_pad_ids.flatten()
-                copy_pad_ids = cluster_rows * PAD_ARR_COL + copy_pad_cols
-                # Out of bounds check
-                if len(used_pad_ids) + len(main_pad_ids) + len(copy_pad_ids) > num_redundant_logical_pads * (multi2one_ratio + 1) / multi2one_ratio:
-                    num_remaining_pads = num_redundant_logical_pads * (multi2one_ratio + 1) / multi2one_ratio - len(used_pad_ids)
-                    main_pad_ids = main_pad_ids[0:int(num_remaining_pads / (multi2one_ratio + 1) * multi2one_ratio)]
-                    copy_pad_ids = copy_pad_ids[0:int(num_remaining_pads / (multi2one_ratio + 1))]
-                current_logical_ind = int(len(used_pad_ids) / (multi2one_ratio + 1) * multi2one_ratio)
-                # Update the logical to physical mapping (The index is the logical pad id, the value is the physical pad id)
-                redundant_logical_to_physical_arr[current_logical_ind:current_logical_ind + len(main_pad_ids), 0] = main_pad_ids
-                redundant_logical_to_physical_arr[current_logical_ind:current_logical_ind + len(main_pad_ids), 1] = copy_pad_ids.repeat(multi2one_ratio, axis=2).flatten()
-                # Update the used pad ids
-                used_pad_ids.update(main_pad_ids)
-                used_pad_ids.update(copy_pad_ids)
-                # Update the available pad ids
-                redundant_available_physical_ids_set = redundant_available_physical_ids_set - used_pad_ids
-                if len(used_pad_ids) >= num_redundant_logical_pads * (multi2one_ratio + 1) / multi2one_ratio:
-                    break
-        else:
-            # The main pad and its copies have to be placed across different pad blocks to satisfy the distance requirement
-            # First, calculate the required pad block distance based on the redundant_logical_pad_dist
-            pad_block_dist = np.ceil(redundant_logical_pad_dist / pad_block_size - 1)
-            # Get the pad block row-column ids for the redundant pads
-            pad_block_row_col_map = np.array([
-                (block_ind // num_pads_block_col, block_ind % num_pads_block_col)
-                for block_ind in redundant_pad_blocks
-            ])
-            # Build a KD-tree for fast nearest neighbor search
-            pad_block_tree = KDTree(pad_block_row_col_map)
-            used_redundant_pad_block_ids_set = set()
-            available_redundant_pad_block_ids_set = set(redundant_pad_blocks)
-            # Process every multi2one_ratio blocks
-            main_block_to_be_allocated_ind_list = []        # The list capacity is multi2one_ratio
-            main_block_to_be_allocated_neighbor_ind_arr_list = []      # The list capacity is multi2one_ratio
-            potential_copy_block_ind_set = set()
-            for block_ind in redundant_pad_blocks:
-                # Check if the block is already used
-                if block_ind in used_redundant_pad_block_ids_set:
-                    continue
-
-                main_block_ind = block_ind
-                main_block_pos = np.array([(main_block_ind // num_pads_block_col, main_block_ind % num_pads_block_col)])
-                main_block_to_be_allocated_ind_list.append(main_block_ind)
-                used_redundant_pad_block_ids_set.add(main_block_ind)
-                # Query the KD-tree for the nearest neighbors
-                inner_neighbor_ids = pad_block_tree.query_ball_point(main_block_pos, r=pad_block_dist)[0]
-                outer_neighbor_ids = pad_block_tree.query_ball_point(main_block_pos, r=pad_block_dist+20)[0]     # You may need to increase this range to find a common copy block for multiple main blocks
-                neighbor_ids = np.setdiff1d(outer_neighbor_ids, inner_neighbor_ids)
-                main_block_to_be_allocated_neighbor_ind_arr_list.append(neighbor_ids)
-                if len(main_block_to_be_allocated_ind_list) == multi2one_ratio:
-                    # We've found enough main blocks to assign a copy block
-                    # Get the common neighbor ids array for the main blocks
-                    for idx, neighbor_ids in enumerate(main_block_to_be_allocated_neighbor_ind_arr_list):
-                        if idx == 0:
-                            potential_copy_block_ind_set = set(neighbor_ids)
-                        else:
-                            potential_copy_block_ind_set.intersection_update(set(neighbor_ids))
-                        print("potential_copy_block_ind_set:", potential_copy_block_ind_set)
-                    # Find the farthest neighbor
-                    filtered_ids_dist = []
-                    for neighbor_id in np.array(list(potential_copy_block_ind_set)):
-                        pos = pad_block_row_col_map[neighbor_id]
-                        dist = np.linalg.norm(main_block_pos - pos)
-                        if dist >= pad_block_dist:
-                            filtered_ids_dist.append((neighbor_id, dist))
-                    # Choose the farthest neighbor (this neighbor usually has the required distance)
-                    if len(filtered_ids_dist) > 0:
-                        for neighbor_id, dist in filtered_ids_dist:
-                            if neighbor_id not in used_redundant_pad_block_ids_set and neighbor_id in available_redundant_pad_block_ids_set:
-                                copy_block_ind = redundant_pad_blocks[neighbor_id]
-                                # Update the used pad block ids
-                                used_redundant_pad_block_ids_set.add(main_block_ind for main_block_ind in main_block_to_be_allocated_ind_list)
-                                used_redundant_pad_block_ids_set.add(copy_block_ind)
-                                # Update the available pad block ids
-                                available_redundant_pad_block_ids_set = available_redundant_pad_block_ids_set - used_redundant_pad_block_ids_set
-                                # Update the redundant pad block pair dictionary
-                                for main_block_ind in main_block_to_be_allocated_ind_list:
-                                    redundant_pad_block_pair_dict[main_block_ind] = copy_block_ind      # Multi-to-one assignment, so the main blocks share the same copy block
-                                
-                                # Clean the lists to begin next round
-                                main_block_to_be_allocated_ind_list = []
-                                main_block_to_be_allocated_neighbor_ind_arr_list = []
-                                potential_copy_block_ind_set = set()
-
-                                break
-                    else:
-                        print("Current redundant pad block pair dictionary:", redundant_pad_block_pair_dict)
-                        raise ValueError("No available pad block pairs for the redundant logical pads.")
-                    if len(redundant_pad_block_pair_dict) * pad_block_size**2 >= num_redundant_logical_pads:
-                        # We've found enough pad block pairs
-                        break
-            if len(redundant_pad_block_pair_dict) * pad_block_size**2 < num_redundant_logical_pads:
-                raise ValueError("Not enough pad block pairs to assign the redundant pads. Please reduce the redundant_logical_pad_ratio.")
-            print("Redundant pad block pair dictionary:", redundant_pad_block_pair_dict)
-
-            # Assign the physical pads for the redundant logical pads
-            # Each redundant logical pad has redundant_logical_pad_copy copies
-            # Each copy has a distance of at least redundant_logical_pad_dist * PITCH_um
-            for idx, (main_block_ind, copy_block_ind) in enumerate(redundant_pad_block_pair_dict.items()):
-                if idx % 20 == 0:
-                    print("Processing redundant block {}/{}..., cluster size: {}".format(idx + 1, num_redundant_pad_blocks, int((col_end - col_start) / (multi2one_ratio + redundant_logical_pad_dist + 1))))
-                # Get the pad ids for the main pad and its copies
-                row_start, col_start, row_end, col_end = redundant_pad_block_info_dict[main_block_ind]
-                rows = np.arange(row_start, row_end)
-                cols = np.arange(col_start, col_end)
-                row_grid, col_grid = np.meshgrid(rows, cols, indexing='ij')
-                main_pad_ids = row_grid * PAD_ARR_COL + col_grid
-                main_pad_ids = main_pad_ids.flatten()
-                
-                # Get the pad ids for the copy pad
-                row_start, col_start, row_end, col_end = redundant_pad_block_info_dict[copy_block_ind]
-                rows = np.arange(row_start, row_end)
-                cols = np.arange(col_start, col_end)
-                row_grid, col_grid = np.meshgrid(rows, cols, indexing='ij')
-                copy_pad_ids = row_grid * PAD_ARR_COL + col_grid
-                copy_pad_ids = copy_pad_ids.flatten()
-                copy_pad_ids = copy_pad_ids[(idx % multi2one_ratio) * len(main_pad_ids) // multi2one_ratio: (idx % multi2one_ratio + 1) * len(main_pad_ids) // multi2one_ratio]
-
-                # Check if the pad ids are already used
-                if len(used_pad_ids) + len(main_pad_ids) + len(copy_pad_ids) > num_redundant_logical_pads * (multi2one_ratio + 1) / multi2one_ratio:
-                    num_remaining_pads = num_redundant_logical_pads * (multi2one_ratio + 1) / multi2one_ratio - len(used_pad_ids)
-                    main_pad_ids = main_pad_ids[0:int(num_remaining_pads / (multi2one_ratio + 1) * multi2one_ratio)]
-                    copy_pad_ids = copy_pad_ids[0:int(num_remaining_pads / (multi2one_ratio + 1))]
-                    if len(copy_pad_ids) == 0:    # All copy pads are used up
-                        break
-                current_logical_ind = int(len(used_pad_ids) / (multi2one_ratio + 1) * multi2one_ratio)
-                # Update the logical to physical mapping (The index is the logical pad id, the value is the physical pad id)
-                redundant_logical_to_physical_arr[current_logical_ind:current_logical_ind + len(main_pad_ids), 0] = main_pad_ids
-                if multi2one_ratio * len(copy_pad_ids) != len(main_pad_ids):
-                    repeat_factor = math.ceil(len(main_pad_ids) / len(copy_pad_ids))
-                else:
-                    repeat_factor = multi2one_ratio
-                redundant_logical_to_physical_arr[current_logical_ind:current_logical_ind + len(main_pad_ids), 1] = copy_pad_ids.repeat(repeat_factor).flatten()[:len(main_pad_ids)]
-
-                # Update the used pad ids
-                used_pad_ids.update(main_pad_ids)
-                used_pad_ids.update(copy_pad_ids)
-
-            print("Redundant blocks and pads assigned.")
-
-    
     REDUNDANT_MAIN_PAD_BLOCK_BITMAP = np.zeros((len(redundant_pad_block_pair_dict), num_pads_block_row, num_pads_block_col), dtype=bool)
     REDUNDANT_COPY_PAD_BLOCK_BITMAP = np.zeros((len(redundant_pad_block_pair_dict), num_pads_block_row, num_pads_block_col), dtype=bool)
     for idx, (main_block_ind, copy_block_ind) in enumerate(redundant_pad_block_pair_dict.items()):
@@ -684,11 +631,18 @@ def pad_bitmap_generate_random(cfg, pad_layout_pattern):
 
 
     # Get the physical pad id to logical pad id mapping
-    logical_ids_repeated = np.repeat(np.arange(num_redundant_logical_pads), redundant_logical_pad_copy)
-    physical_ids = redundant_logical_to_physical_arr.flatten()
-    redundant_physical_to_logical_arr = np.empty(PAD_ARR_ROW * PAD_ARR_COL, dtype=int)
-    redundant_physical_to_logical_arr.fill(-1)  # Initialize with -1
-    redundant_physical_to_logical_arr[physical_ids] = logical_ids_repeated
+    if num_redundant_logical_pads > 0:
+        logical_ids_repeated = np.repeat(
+            np.arange(num_redundant_logical_pads, dtype=np.int32),
+            redundant_logical_pad_copy,
+        )
+        physical_ids = redundant_logical_to_physical_arr.flatten()
+        redundant_physical_to_logical_arr = np.full(
+            PAD_ARR_ROW * PAD_ARR_COL, -1, dtype=np.int32
+        )
+        redundant_physical_to_logical_arr[physical_ids] = logical_ids_repeated
+    else:
+        redundant_physical_to_logical_arr = np.empty(0, dtype=np.int32)
 
     # # Save the redundant logical pad -> physical pad mapping and the physical pad -> logical pad mapping
     # np.save("pad_bitmap/redundant_logical_to_physical_arr.npy", redundant_logical_to_physical_arr)
@@ -724,14 +678,12 @@ def pad_bitmap_generate_random(cfg, pad_layout_pattern):
     bitmap_collection["redundant_logical_to_physical_arr"] = redundant_logical_to_physical_arr
     bitmap_collection["redundant_physical_to_logical_arr"] = redundant_physical_to_logical_arr
     bitmap_collection["redundant_pad_block_pair_dict"] = redundant_pad_block_pair_dict
-    bitmap_collection["multi2one_ratio"] = multi2one_ratio
     
-    # Save the bitmap collection as npy file and mat file
-    np.save("pad_bitmap/bitmap_collection.npy", bitmap_collection)
-    # sio.savemat("pad_bitmap/bitmap_collection.mat", bitmap_collection)
-
-    # # Draw the critical and redundant pad bitmaps in one figure (critical light red, redundant light blue, dummy light gray)
-    draw_pad_bitmap(bitmap_collection)
+    if cfg.DEBUG:
+        np.save("pad_bitmap/bitmap_collection.npy", bitmap_collection)
+        draw_pad_bitmap(bitmap_collection)
+    else:
+        print("Pad bitmap collection generated.")
 
     # raise ValueError("Pad bitmap generation finished. Please check the pad_bitmap folder.")
 
@@ -1125,7 +1077,7 @@ def A_critical_r_mv(cfg,
     padding_size = int(np.ceil(2 * r_mv / PITCH_um / pad_block_size))
 
     if cfg.DEBUG == True:
-        print("r_mv:", r_mv)
+        print("r_mv: {:.4f}".format(r_mv))
         # Draw REDUNDANT_MAIN_PAD_BLOCK_BITMAP_DILATED
         plt.figure(figsize=(8, 8))
         plt.imshow(CRITICAL_PAD_BLOCK_BITMAP, cmap='gray')

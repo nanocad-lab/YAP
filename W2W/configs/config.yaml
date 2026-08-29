@@ -3,9 +3,12 @@ w2w_simulation:
   # === General Settings ===
   MODE: "W2W_Hybrid_Bonding_Simulation"  # Name of the simulation
   DEBUG: false                                      # Enable debug mode
+  USE_RANDOM_SEED: true              # true: fixed/reproducible; false: nondeterministic
+  RANDOM_SEED: 20260721              # Seed used when USE_RANDOM_SEED is true
+  pad_layout_pattern: "center"       # Pad block placement pattern
   # === Wafer and Die Settings ===
   NUM_WAFERS: 1                        # Number of wafers used in simulation
-  PITCH_um: 1                             # Pad PITCH_um (µm)
+  PITCH_um: 10                             # Pad PITCH_um (µm)
   DIE_W_um: 10000                          # Die width (µm)
   DIE_L_um: 10000                          # Die length (µm)
   WAF_R_um: 150000                         # Wafer radius (µm)
@@ -13,22 +16,20 @@ w2w_simulation:
   PAD_TOP_R_um_ratio: 0.667                # Ratio of top pad radius to bottom pad radius
   VOID_SHAPE: "circle"                  # Void shape: "circle" or "square"
   dice_width: 1000                      # Width of one die (µm)
-  pad_yield_flag: True
-  pad_yield_map_sub_factor: 10          # Subsampling factor for pad yield map (1: no subsampling, 10: rows/10 and cols/10)
+  pad_yield_flag: False
+  pad_yield_map_sub_factor: 50          # Subsampling factor for pad yield map (1: no subsampling, 10: rows/10 and cols/10)
                                         # The pad yield map will be of size (ceil(PAD_ARR_ROW/sub_factor), ceil(PAD_ARR_COL/sub_factor))
 
   # === Fault-Tolerance Parameters ===
   redundant_flag: True                  # Enable redundant pads
-  critical_pad_ratio: 0.998               # Critical pad ratio per die
-  redundant_pad_ratio: 0.002              # Redundant pad ratio per die
+  critical_pad_ratio: 1.0               # Critical pad ratio per die
+  redundant_pad_ratio: 0.0              # Redundant pad ratio per die
   redundant_survival_ratio: 0.75        # Survival ratio of redundant pads
   redundant_block_interval: 2           # Interval between redundant pad blocks
-  pad_block_dim: 400                    # Pad block dimension (µm)
+  pad_block_dim_um: 400                 # Pad block dimension (µm)
   redundant_logical_pad_ratio: 0.3      # Ratio of redundant logical pads
   redundant_logical_pad_copy: 2         # Number of copies for each redundant logical pad
-  redundant_logical_pad_dist: 2.0      # Distance between redundant logical pads (PITCH_um)
-  multi2one_flag: false                 # Enable multi-to-one mapping
-  multi2one_ratio: 80                   # Ratio for multi-to-one mapping (e.g., 80:1 replicas)
+  redundant_logical_pad_dist: 80.0      # Distance between redundant logical pads = redundant_logical_pad_dist * PITCH_um
 
   CONTACT_AREA_CONSTRAINT: 0.5         # Minimum allowed contact area ratio
   CRITICAL_DIST_CONSTRAINT: 0.5        # Minimum distance constraint for critical pads
@@ -82,7 +83,7 @@ w2w_simulation:
 
   # === Simulation Control ===
   simulation_times: 1                  # Number of simulation iterations
-  approximate_set: 100                 # 1: disable overlay simulation approximation, 100: enable
+  approximate_set: 1                 # 1: full pad-by-pad overlay; other values: boundary approximation
 
 
 #### Modeling parameters for Wafer-to-Wafer (W2W) hybrid bonding simulation.
@@ -90,6 +91,10 @@ w2w_modeling:
   # === General Settings ===
   MODE: "W2W_Hybrid_Bonding_Modeling"   # Name of the modeling
   DEBUG: false                          # Enable debug mode
+  USE_RANDOM_SEED: true              # true: fixed/reproducible; false: nondeterministic
+  RANDOM_SEED: 20260721              # Seed used when USE_RANDOM_SEED is true
+  pad_layout_pattern: "center"       # Pad block placement pattern
+  reuse_dilation: false              # Reuse a compatible saved particle-dilation cache
   # === Per Wafer Parameters ===
   PITCH_um: 10                              # Pad PITCH_um (µm)
   DIE_W_um: 10000                          # Die width (µm)
@@ -99,21 +104,19 @@ w2w_modeling:
   PAD_TOP_R_um_ratio: 0.667                # Ratio of top pad radius to bottom pad radius
   VOID_SHAPE: "circle"                  # Shape of void: "circle" or "square"
   dice_width: 1000                      # Dice width to separate dies (µm)
-  pad_yield_flag: True
+  pad_yield_flag: False
   pad_yield_map_sub_factor: 50          # Subsampling factor for pad yield map (1: no subsampling, 10: rows/10 and cols/10)
 
   # === Fault Tolerance Parameters ===
   redundant_flag: True                  # Enable redundant pads
-  critical_pad_ratio: 0.9               # Critical pad ratio per die
-  redundant_pad_ratio: 0.1              # Redundant pad ratio per die
-  redundant_survival_ratio: 0.3        # Survival ratio of redundant pads
+  critical_pad_ratio: 0.2               # Critical pad ratio per die
+  redundant_pad_ratio: 0.5              # Redundant pad ratio per die
+  redundant_survival_ratio: 0.75        # Survival ratio of redundant pads
   redundant_block_interval: 2           # Interval between redundant pad blocks
-  pad_block_dim: 400                    # Pad block dimension (µm)
+  pad_block_dim_um: 400                 # Pad block dimension (µm)
   redundant_logical_pad_ratio: 0.3      # Ratio of redundant logical pads
   redundant_logical_pad_copy: 2         # Number of copies for each redundant logical pad
-  redundant_logical_pad_dist: 40.0      # Distance between redundant logical pads (PITCH_um)
-  multi2one_flag: False                 # Enable multi-to-one mapping
-  multi2one_ratio: 20                   # Ratio for multi-to-one mapping (e.g., 80:1 replicas)
+  redundant_logical_pad_dist: 80.0      # Distance between redundant logical pads = redundant_logical_pad_dist * PITCH_um
 
   CONTACT_AREA_CONSTRAINT: 0.5         # Minimum allowed contact area ratio
   CRITICAL_DIST_CONSTRAINT: 0.5        # Minimum distance constraint for critical pads

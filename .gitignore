@@ -1,2 +1,4 @@
 *.csv
 *.pyc
+D2W/pad_bitmap/*
+W2W/pad_bitmap/*

@@ -6,12 +6,6 @@
 #### Date: Sep 26, 2024
 
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-from scipy.optimize import fsolve
-import sympy as sp
-from scipy.integrate import quad
-from scipy.stats import norm
 
 class particle:
     def __init__(self, x, y, t):
@@ -171,9 +165,9 @@ def defect_yield_simulator(
         return voids, main_voids, tail_voids
     
 
-    total_particles = np.pi * WAF_R_um**2 * NUM_WAFERS * D0
-    particles_per_wafer = np.random.multinomial(
-        total_particles, [1 / NUM_WAFERS] * NUM_WAFERS
+    expected_particles_per_wafer = np.pi * WAF_R_um**2 * D0
+    particles_per_wafer = np.random.poisson(
+        expected_particles_per_wafer, size=NUM_WAFERS
     )
     for waf_ind in range(NUM_WAFERS):
         num_particles = particles_per_wafer[waf_ind]

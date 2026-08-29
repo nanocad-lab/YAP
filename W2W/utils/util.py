@@ -3,6 +3,30 @@
 
 from omegaconf import OmegaConf
 import numpy as np
+import random
+
+
+def configure_random_seed(cfg, announce=True):
+    """Configure process-wide RNGs from an optional config seed."""
+    use_random_seed = bool(getattr(cfg, "USE_RANDOM_SEED", False))
+    if not use_random_seed:
+        if announce:
+            print("Random seed: disabled (non-reproducible run).")
+        return None
+
+    random_seed = int(getattr(cfg, "RANDOM_SEED", 0))
+    np.random.seed(random_seed)
+    random.seed(random_seed)
+    if announce:
+        print(f"Random seed: {random_seed} (fixed and reproducible).")
+    return random_seed
+
+
+def format_yield_array(values, decimals=4):
+    """Format scalar or array-like yield output without rounding stored values."""
+    return np.array2string(
+        np.asarray(values, dtype=float), precision=decimals, floatmode="fixed"
+    )
 
 def load_modeling_config(path, mode, debug=False):
     full_cfg = OmegaConf.load(path)
@@ -17,11 +41,13 @@ def load_modeling_config(path, mode, debug=False):
         cfg.PAD_TOP_R_um = cfg.PAD_BOT_R_um * cfg.PAD_TOP_R_um_ratio  # top Cu pad radius (um)
         cfg.SYSTEM_MAGNIFICATION_MEAN_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_MEAN_um + cfg.M_0) / 1e6
         cfg.SYSTEM_MAGNIFICATION_STD_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_STD_um) ** 2 / 1e6
-        cfg.pad_block_size = int(cfg.pad_block_dim / cfg.PITCH_um)  # pad block size (#rows or #columns of the pad block)
+        cfg.pad_block_size = int(cfg.pad_block_dim_um / cfg.PITCH_um)  # pad block size (#rows or #columns of the pad block)
     else:
         # TODO: Implement D2W modeling & simulation configuration
         raise NotImplementedError("D2W modeling is not implemented yet.")
 
+
+    configure_random_seed(cfg)
 
     if debug:
         cfg.DEBUG = True
@@ -56,4 +82,4 @@ def update_config_items(cfg, mode):
         cfg.PAD_TOP_R_um = cfg.PAD_BOT_R_um * cfg.PAD_TOP_R_um_ratio  # top Cu pad radius (um)
         cfg.SYSTEM_MAGNIFICATION_MEAN_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_MEAN_um + cfg.M_0) / 1e6
         cfg.SYSTEM_MAGNIFICATION_STD_ppm = (cfg.k_mag * cfg.BOW_DIFFERENCE_STD_um) ** 2 / 1e6
-        cfg.pad_block_size = int(cfg.pad_block_dim / cfg.PITCH_um)  # pad block size (#rows or #columns of the pad block)
+        cfg.pad_block_size = int(cfg.pad_block_dim_um / cfg.PITCH_um)  # pad block size (#rows or #columns of the pad block)

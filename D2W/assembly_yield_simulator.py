@@ -15,12 +15,22 @@ from Cu_gap_simulator import Cu_gap_simulator
 from defect_yield_simulator import defect_yield_simulator
 from roughness_parameters import roughness_parameters
 from overall_yield_simulator import overall_yield_simulator
+from utils.util import configure_random_seed, format_yield_array
 
 
 def Assembly_Yield_Simulator(
     cfg,
     pad_bitmap_collection,
 ):
+    configure_random_seed(cfg, announce=False)
+    expected_bitmap_shape = (cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL)
+    actual_bitmap_shape = pad_bitmap_collection["CRITICAL_PAD_BITMAP"].shape
+    if actual_bitmap_shape != expected_bitmap_shape:
+        raise ValueError(
+            "Pad bitmap shape does not match the current simulation configuration: "
+            f"bitmap={actual_bitmap_shape}, expected={expected_bitmap_shape}. "
+            "Call update_config_items() before generating the bitmap."
+        )
     zeta_0 = cfg.k_et * (cfg.T_anl - cfg.T_R) + cfg.k_eb * (cfg.T_anl - cfg.T_R)    # The total expansion of the Cu pad after annealing (nm)
     zeta_1_ = roughness_parameters(
         Asperity_R_m             =       cfg.Asperity_R_m,
@@ -54,10 +64,11 @@ def Assembly_Yield_Simulator(
             PAD_ARR_COL             =       cfg.PAD_ARR_COL,
             PITCH_um                   =       cfg.PITCH_um,
             pad_bitmap_collection   =       pad_bitmap_collection,
+            generate_pad_coords     =       (cfg.approximate_set == 1),
         )
 
         # Generate overlay terms
-        system_translation_x_um, system_translation_y_um, system_rotation_um, system_magnification, MAX_ALLOWED_MISALIGNMENT = overlay_term_simulator(
+        system_translation_x_um, system_translation_y_um, system_rotation_rad, system_magnification_ppm, MAX_ALLOWED_MISALIGNMENT = overlay_term_simulator(
             PAD_TOP_R_um                   =       cfg.PAD_TOP_R_um,
             PAD_BOT_R_um                   =       cfg.PAD_BOT_R_um,
             PITCH_um                       =       cfg.PITCH_um,
@@ -96,6 +107,7 @@ def Assembly_Yield_Simulator(
        
         # Calculate the overall yield
         yield_list = overall_yield_simulator(
+            cfg                         =       cfg,
             die_list                    =       die_list,
             NUM_DIES                    =       cfg.NUM_DIES,
             DIE_W_um                       =       cfg.DIE_W_um,
@@ -103,8 +115,8 @@ def Assembly_Yield_Simulator(
             base_pad_coords             =       base_pad_coords,
             system_translation_x_um        =       system_translation_x_um,
             system_translation_y_um        =       system_translation_y_um,
-            system_rotation_um             =       system_rotation_um,
-            system_magnification        =       system_magnification,
+            system_rotation_rad            =       system_rotation_rad,
+            system_magnification_ppm       =       system_magnification_ppm,
             MAX_ALLOWED_MISALIGNMENT    =       MAX_ALLOWED_MISALIGNMENT,
             zeta_0                      =       zeta_0,
             zeta_1                      =       zeta_1,
@@ -129,8 +141,8 @@ def Assembly_Yield_Simulator(
         
         del die_list
     if cfg.simulation_times > 1:
-        print("The batch yield list is: ", single_config_yield_list)
+        print("The batch yield list is:", format_yield_array(single_config_yield_list))
     assembly_yield = np.mean(single_config_yield_list)
-    print("The assembly yield is {:.2f}%.".format(assembly_yield * 100))
+    print("The assembly yield is {:.4f}%.".format(assembly_yield * 100))
 
     return assembly_yield, single_config_yield_list

@@ -245,6 +245,7 @@ def die_initialize(
     PITCH_um,
     pad_bitmap_collection,
     pad_yield_flag: bool = False,
+    generate_pad_coords: bool = True,
 ):
     die_list = []
     # Calculate the die center standard coordinates
@@ -265,7 +266,7 @@ def die_initialize(
 
     num_pads = PAD_ARR_ROW * PAD_ARR_COL  # Total number of pads in the pad array
 
-    if PITCH_um >= 1.0:
+    if generate_pad_coords and PITCH_um >= 1.0:
     # Calculate the top-left pad coordinates of the pad array
         PAD_COORDS = np.zeros([PAD_ARR_ROW * PAD_ARR_COL, 2], dtype=np.float32)  # pad coordinates: [x, y]
 
@@ -280,8 +281,10 @@ def die_initialize(
 
         # Combine x and y coordinates
         PAD_COORDS = np.stack((x_coords, y_coords), axis=-1).reshape(-1, 2)
-    else:
+    elif generate_pad_coords:
         print("Too many Cu pads... Will not generate the pad coordinates.")
+        PAD_COORDS = None
+    else:
         PAD_COORDS = None
 
     # Get the outer coordinates of the critical pads
