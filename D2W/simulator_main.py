@@ -1,69 +1,68 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
-import numpy as np
-from utils.util import *
-import matplotlib.pyplot as plt
-from assembly_yield_simulator import Assembly_Yield_Simulator
-from pad_bitmap_generation import pad_bitmap_generate_random
+import argparse
+import os
+import time
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent
+DEFAULT_CONFIG_PATH = BASE_DIR / "configs" / "config.yaml"
 
 
-# Load configuration
-cfg = load_modeling_config(path='configs/config.yaml', 
-                     mode='d2w_simulation',
-                     debug=False)
-num_points = 300     # Number of points for parameter sweep
-# Explore the impact of all factors on the assembly yield
-die_size_list = np.linspace(1e+4, 1e+4, num_points)
-PITCH_um_list = np.linspace(10, 10, num_points)
-particle_density_list = np.linspace(1e-10, 1e-10, num_points)  # More uniform distribution
-t_0_list = np.linspace(0.1, 0.1, num_points)
-dish_std_list = np.linspace(1, 1, num_points)
-translation_list = np.linspace(1e-2, 1e-2, num_points)
-rotation_mean_list = np.logspace(-3.37285, -3.37108, num_points)
-Roughness_sigma_m_list = np.linspace(1.0e-9, 1.0e-9, num_points)
-PAD_BOT_R_um_ratio_list = np.linspace(0.5, 0.5, num_points)
-PAD_TOP_R_um_ratio_list = np.linspace(2/3, 2/3, num_points)
-BOW_DIFFERENCE_MEAN_um_list = np.linspace(10, 10, num_points)
+def run(cfg):
+    from assembly_yield_simulator import Assembly_Yield_Simulator
+    from pad_bitmap_generation import pad_bitmap_generate_random
+    from utils.util import update_config_items
 
-assembly_yield_list = []
+    os.chdir(BASE_DIR)
+    update_config_items(cfg=cfg, mode="d2w_simulation")
 
-# Generate pad bitmap collection
-pad_bitmap_collection = pad_bitmap_generate_random(cfg=cfg, pad_layout_pattern='center')
-
-single_config_yield_list_array = np.zeros([len(particle_density_list), cfg.simulation_times * cfg.NUM_DIES])
-
-for i in range(num_points):
-    print("Processing {}/{}, particle dednsity: {}, translation: {}, dish_std: {}".format(i + 1, len(particle_density_list), particle_density_list[i], translation_list[i], dish_std_list[i]))
-    # Update parameters
-    cfg.DIE_W_um = float(die_size_list[i])  # die width (um)
-    cfg.DIE_L_um = float(die_size_list[i])  # die length (um)
-    cfg.PITCH_um = float(PITCH_um_list[i])  # PITCH_um (um)
-    cfg.PAD_TOP_R_um_ratio = float(PAD_TOP_R_um_ratio_list[i])  # top Cu pad radius ratio
-    cfg.PAD_BOT_R_um_ratio = float(PAD_BOT_R_um_ratio_list[i])  # bottom Cu pad radius ratio
-    cfg.SYSTEM_TRANSLATION_X_MEAN_um = float(translation_list[i])  # systematic translation mean (um) - x direction
-    cfg.SYSTEM_TRANSLATION_Y_MEAN_um = float(translation_list[i])  # systematic translation mean (um) - y direction
-    cfg.SYSTEM_ROTATION_MEAN_rad = float(rotation_mean_list[i])  # systematic rotation mean (rad)
-    cfg.D0 = float(particle_density_list[i])  # particle density (um^{-2})
-    cfg.t_0 = float(t_0_list[i])  # smallest particle thickness (um)
-    cfg.BOW_DIFFERENCE_MEAN_um = float(BOW_DIFFERENCE_MEAN_um_list[i])  # bow difference mean (um)
-    cfg.TOP_DISH_STD_nm = float(dish_std_list[i])  # Top Cu pad dish standard deviation (nm)
-    cfg.BOT_DISH_STD_nm = float(dish_std_list[i])  # Bottom Cu pad dish standard deviation (nm)
-    cfg.Roughness_sigma_m = float(Roughness_sigma_m_list[i])  # Surface roughness standard deviation (m)
-    # Update above parameters in the configuration
-    update_config_items(cfg=cfg, mode='d2w_simulation')
-
-    assembly_yield, single_config_yield_list = Assembly_Yield_Simulator(
-        cfg=cfg,
-        pad_bitmap_collection=pad_bitmap_collection,                                               
+    overlay_mode = (
+        "full pad-by-pad" if cfg.approximate_set == 1 else "boundary approximation"
     )
-                                                                        
-    assembly_yield_list.append(assembly_yield)
-    single_config_yield_list_array[i] = np.array(single_config_yield_list).flatten()
-    
-    if i % 10 == 0 or i == len(particle_density_list) - 1:
-        print("The assembly yield list is: ", assembly_yield_list)
-        # # # Save the data
-np.save("correlation/sim_config_info_ovl_300pts_20000dies.npy", cfg)
-np.save("correlation/sim_yield_list_ovl_300pts_20000dies.npy", assembly_yield_list)
-np.save("correlation/single_config_yield_list_array_ovl_300pts_20000dies.npy", single_config_yield_list_array)
+    print(
+        f"Monte Carlo workload: {cfg.simulation_times} batch(es) x "
+        f"{cfg.NUM_DIES} die(s); overlay mode: {overlay_mode}."
+    )
+
+    pad_bitmap_collection = pad_bitmap_generate_random(
+        cfg=cfg,
+        pad_layout_pattern=cfg.pad_layout_pattern,
+    )
+
+    start_time = time.time()
+    result = Assembly_Yield_Simulator(
+        cfg=cfg,
+        pad_bitmap_collection=pad_bitmap_collection,
+    )
+    print(f"Total time taken: {time.time() - start_time:.2f} seconds")
+    return result
+
+
+def main(config_path=DEFAULT_CONFIG_PATH):
+    from utils.util import load_modeling_config
+
+    cfg = load_modeling_config(
+        path=str(config_path),
+        mode="d2w_simulation",
+        debug=False,
+    )
+    return run(cfg)
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Run the D2W Monte Carlo simulation.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=DEFAULT_CONFIG_PATH,
+        help="Path to a YAML file containing the d2w_simulation section.",
+    )
+    return parser.parse_args()
+
+
+if __name__ == "__main__":
+    main(parse_args().config.resolve())

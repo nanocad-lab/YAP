@@ -12,6 +12,7 @@ from wafer_die_initialization import wafer_initialize
 from overlay_yield_calculator import overlay_yield_calculator
 from defect_yield_calculator import defect_yield_calculator
 from Cu_expansion_yield_calculator import Cu_expansion_yield_calculator
+from utils.util import configure_random_seed
 
 
 
@@ -20,6 +21,15 @@ def Assembly_Yield_Calculator(
     cfg,
     pad_bitmap_collection,
 ):
+    configure_random_seed(cfg, announce=False)
+    expected_bitmap_shape = (cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL)
+    actual_bitmap_shape = pad_bitmap_collection["CRITICAL_PAD_BITMAP"].shape
+    if actual_bitmap_shape != expected_bitmap_shape:
+        raise ValueError(
+            "Pad bitmap shape does not match the current modeling configuration: "
+            f"bitmap={actual_bitmap_shape}, expected={expected_bitmap_shape}. "
+            "Call update_config_items() before generating the bitmap."
+        )
     start_time = time.time()
     # Initialize the wafer
     waf_list = wafer_initialize(
@@ -40,13 +50,13 @@ def Assembly_Yield_Calculator(
     )
     
     wafer = waf_list[0]
-    # Save wafer info
-    with gzip.open('wafer_info.pkl.gz', 'wb') as f:
-        pickle.dump(wafer, f, protocol=pickle.HIGHEST_PROTOCOL)
+    if cfg.DEBUG:
+        with gzip.open('wafer_info.pkl.gz', 'wb') as f:
+            pickle.dump(wafer, f, protocol=pickle.HIGHEST_PROTOCOL)
     # raise Exception("Wafer info saved. Stop execution here for debugging.")
     print(len(wafer.die_list), "dies initialized on the wafer.")
     wafer_init_time = time.time() - start_time
-    print("Wafer initialization time: {} seconds.".format(wafer_init_time))
+    print("Wafer initialization time: {:.4f} seconds.".format(wafer_init_time))
 
     # Calculate the overlay yield
     overlay_die_yield = overlay_yield_calculator(
@@ -75,7 +85,7 @@ def Assembly_Yield_Calculator(
         pad_yield_map_sub_factor        = cfg.pad_yield_map_sub_factor,
     )
     overlay_yield_time = time.time() - start_time - wafer_init_time
-    print("Overlay yield calculation time: {} seconds.".format(overlay_yield_time))
+    print("Overlay yield calculation time: {:.4f} seconds.".format(overlay_yield_time))
     # Draw the die-level overlay yield map
     # wafer.draw_wafer_die(fig_size=(30, 30), draw_pad_yield_map_option='Y_ovl')
 
@@ -106,9 +116,10 @@ def Assembly_Yield_Calculator(
         pad_yield_map_sub_factor    = cfg.pad_yield_map_sub_factor,
     )
     defect_yield_time = time.time() - start_time - wafer_init_time - overlay_yield_time
-    print("Defect yield calculation time: {} seconds.".format(defect_yield_time))
+    print("Defect yield calculation time: {:.4f} seconds.".format(defect_yield_time))
     # Draw the die-level defect yield map
-    wafer.draw_wafer_die(fig_size=(10, 10), draw_pad_yield_map_option='Y_df')
+    if cfg.pad_yield_flag:
+        wafer.draw_wafer_die(fig_size=(10, 10), draw_pad_yield_map_option='Y_df')
 
 
 
@@ -129,7 +140,7 @@ def Assembly_Yield_Calculator(
     )
 
     Cu_expansion_yield_time = time.time() - start_time - wafer_init_time - overlay_yield_time - defect_yield_time
-    print("Cu expansion yield calculation time: {} seconds.".format(Cu_expansion_yield_time))
+    print("Cu expansion yield calculation time: {:.4f} seconds.".format(Cu_expansion_yield_time))
     
 
 

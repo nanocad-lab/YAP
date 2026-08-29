@@ -23,6 +23,8 @@ def get_bitmap_bounds(*,
         bitmap: np.ndarray,
         pad_block_size: int
     ):
+    if bitmap.ndim == 3:
+        bitmap = np.any(bitmap, axis=0)
     # Find the bounds of the non-zero pixels in the bitmap
     rows = np.any(bitmap, axis=1)
     cols = np.any(bitmap, axis=0)
@@ -165,8 +167,8 @@ def defect_yield_calculator(
 
     if cfg.DEBUG == True:
         L_avg = k_L * 2/3 * WAF_R_um * (z-1) / (z-1.5) * t_0**0.5
-        print("Average void tail length: ", L_avg)
-        print("The average main void size is {}.".format(r_avg_mv))
+        print("Average void tail length: {:.4f}".format(L_avg))
+        print("The average main void size is {:.4f}.".format(r_avg_mv))
     
     
     def A_critical_l_formula(a, b, l):
@@ -207,7 +209,7 @@ def defect_yield_calculator(
                 A_critical_l_formula(EFF_PAD_ARR_W_um, EFF_PAD_ARR_L_um, l), 
                 np.sqrt(PAD_ARR_W_um**2 + PAD_ARR_L_um**2),
                 np.inf)[0]
-            print("avg_num_defects1: ", avg_num_defects1, "avg_num_defects2: ", avg_num_defects2)
+            # print("avg_num_defects1: ", avg_num_defects1, "avg_num_defects2: ", avg_num_defects2)
             avg_num_defects = (avg_num_defects1 + avg_num_defects2) / 1e-11 * D0    # In this way, the integration can be faster
             # Save the critical area
             np.save('pad_bitmap/avg_num_defects_per_unit_area.npy', avg_num_defects / D0)
@@ -266,6 +268,6 @@ def defect_yield_calculator(
             die.pad_yield_map['Y_df'] = pad_yield_map_i_sub
             print("Generated pad-level defect yield map for die {}.".format(i))
         wafer.glb_pad_yield_min_max_dict['Y_df'] = (glb_defect_pad_yield_min, glb_defect_pad_yield_max)
-        print("Global min of the pad-level defect yield: {}".format(glb_defect_pad_yield_min))
-        print("Global max of the pad-level defect yield: {}".format(glb_defect_pad_yield_max))
+        print("Global min of the pad-level defect yield: {:.4f}".format(glb_defect_pad_yield_min))
+        print("Global max of the pad-level defect yield: {:.4f}".format(glb_defect_pad_yield_max))
     return particle_defect_die_yield

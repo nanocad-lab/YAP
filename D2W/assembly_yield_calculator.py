@@ -12,6 +12,7 @@ from wafer_die_initialization import die_initialize
 from overlay_yield_calculator import overlay_yield_calculator
 from defect_yield_calculator import defect_yield_calculator
 from Cu_expansion_yield_calculator import Cu_expansion_yield_calculator
+from utils.util import configure_random_seed
 
 
 
@@ -21,6 +22,15 @@ def Assembly_Yield_Calculator(
     cfg,
     pad_bitmap_collection: dict,
 ):  
+    configure_random_seed(cfg, announce=False)
+    expected_bitmap_shape = (cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL)
+    actual_bitmap_shape = pad_bitmap_collection["CRITICAL_PAD_BITMAP"].shape
+    if actual_bitmap_shape != expected_bitmap_shape:
+        raise ValueError(
+            "Pad bitmap shape does not match the current modeling configuration: "
+            f"bitmap={actual_bitmap_shape}, expected={expected_bitmap_shape}. "
+            "Call update_config_items() before generating the bitmap."
+        )
     # Initialize the die list
     die_list, _ = die_initialize(
         NUM_DIES            =       1,
@@ -91,7 +101,7 @@ def Assembly_Yield_Calculator(
         pad_yield_map_sub_factor = cfg.pad_yield_map_sub_factor,
     )
     die.die_yield['Y_df'], die.pad_yield_map['Y_df'] = defect_die_yield, defect_pad_yield_map
-    print(f"Defect yield calculation took {time.time() - start_time:.2f} seconds")
+    print(f"Defect yield calculation took {time.time() - start_time:.4f} seconds")
 
     # Calculate the Cu expansion yield
     Cu_expansion_die_yield, Cu_expansion_pad_yield_map = Cu_expansion_yield_calculator(

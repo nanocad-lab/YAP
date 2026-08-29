@@ -235,7 +235,7 @@ def wafer_initialize(
     NUM_PADS_PER_DIE = PAD_ARR_ROW * PAD_ARR_COL  # number of pads in a die
     
     # Calculate the top-left pad coordinates of the pad array
-    if PITCH_um >= 1.0:
+    if pad_yield_flag and PITCH_um >= 1.0:
         PAD_COORDS = np.zeros([PAD_ARR_ROW * PAD_ARR_COL, 2], dtype=np.float32)  # pad coordinates: [x, y]
     
         # Create grid of row and column indices
@@ -249,8 +249,10 @@ def wafer_initialize(
 
         # Combine x and y coordinates
         PAD_COORDS = np.stack((x_coords, y_coords), axis=-1).reshape(-1, 2)
-    else:
+    elif pad_yield_flag:
         print("Too many Cu pads... Will not generate the pad coordinates.")
+        PAD_COORDS = None
+    else:
         PAD_COORDS = None
 
     # Get the outer coordinates of the critical pads

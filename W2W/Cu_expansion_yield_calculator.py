@@ -42,8 +42,8 @@ def Cu_expansion_yield_calculator(*,
     zeta_1 = max(zeta_1_, 0)
     upper_limit = - zeta_1
     lower_limit = - zeta_0
-    print("upper_limit: ", upper_limit)
-    print("lower_limit: ", lower_limit)
+    # print("upper_limit: {:.4f}".format(upper_limit))
+    # print("lower_limit: {:.4f}".format(lower_limit))
 
     num_critical_pads = pad_bitmap_collection["num_critical_pads"]
     num_redundant_logical_pads = pad_bitmap_collection["num_redundant_logical_pads"]

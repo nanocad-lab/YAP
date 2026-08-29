@@ -16,11 +16,80 @@ Overlay yield calculator for D2W hybrid bonding:
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-from scipy.optimize import fsolve
+from scipy.optimize import brentq
 import math
-import sympy as sp
 from scipy.integrate import quad
 from scipy.stats import norm
+
+
+def _circle_overlap_area(distance_um, radius_1_um, radius_2_um):
+    """Return the overlap area of two circles without singular endpoints."""
+    distance_um = float(distance_um)
+    radius_1_um = float(radius_1_um)
+    radius_2_um = float(radius_2_um)
+
+    if distance_um >= radius_1_um + radius_2_um:
+        return 0.0
+    if distance_um <= abs(radius_1_um - radius_2_um):
+        return np.pi * min(radius_1_um, radius_2_um) ** 2
+
+    cosine_1 = np.clip(
+        (distance_um**2 + radius_1_um**2 - radius_2_um**2)
+        / (2 * distance_um * radius_1_um),
+        -1.0,
+        1.0,
+    )
+    cosine_2 = np.clip(
+        (distance_um**2 + radius_2_um**2 - radius_1_um**2)
+        / (2 * distance_um * radius_2_um),
+        -1.0,
+        1.0,
+    )
+    radical = (
+        (-distance_um + radius_1_um + radius_2_um)
+        * (distance_um + radius_1_um - radius_2_um)
+        * (distance_um - radius_1_um + radius_2_um)
+        * (distance_um + radius_1_um + radius_2_um)
+    )
+    return (
+        radius_1_um**2 * np.arccos(cosine_1)
+        + radius_2_um**2 * np.arccos(cosine_2)
+        - 0.5 * np.sqrt(max(radical, 0.0))
+    )
+
+
+def _contact_area_misalignment_limit(
+    pad_top_radius_um, pad_bottom_radius_um, contact_area_constraint
+):
+    if pad_top_radius_um <= 0 or pad_bottom_radius_um <= 0:
+        raise ValueError("Pad radii must be positive.")
+    if not 0.0 <= contact_area_constraint <= 1.0:
+        raise ValueError("CONTACT_AREA_CONSTRAINT must be between 0 and 1.")
+
+    target_area = contact_area_constraint * np.pi * pad_top_radius_um**2
+    maximum_area = np.pi * min(pad_top_radius_um, pad_bottom_radius_um) ** 2
+    area_tolerance = np.finfo(float).eps * max(maximum_area, 1.0) * 16
+    if target_area > maximum_area + area_tolerance:
+        raise ValueError(
+            "CONTACT_AREA_CONSTRAINT cannot be met even at perfect alignment "
+            "for the configured pad radii."
+        )
+
+    lower_distance = abs(pad_top_radius_um - pad_bottom_radius_um)
+    upper_distance = pad_top_radius_um + pad_bottom_radius_um
+    if np.isclose(target_area, maximum_area, rtol=1e-12, atol=area_tolerance):
+        return lower_distance
+    if target_area <= 0.0:
+        return upper_distance
+
+    return brentq(
+        lambda distance: _circle_overlap_area(
+            distance, pad_top_radius_um, pad_bottom_radius_um
+        )
+        - target_area,
+        lower_distance,
+        upper_distance,
+    )
 
 # Calculate the misalignment of the pad based on the systematic translation, rotation, and magnification
 def die_pad_misalignment(
@@ -67,32 +136,15 @@ def overlay_yield_calculator(*,
         CONTACT_AREA_CONSTRAINT, 
         CRITICAL_DIST_CONSTRAINT
     ):
-        # Calculate the overlay misalignment that will fail the contact area constraint
-        system_misalignment = sp.symbols("system_misalignment")
-        theta1 = sp.acos((PAD_TOP_R_um**2 + system_misalignment**2 - PAD_BOT_R_um**2) / (2 * PAD_TOP_R_um * system_misalignment))
-        theta2 = sp.acos((PAD_BOT_R_um**2 + system_misalignment**2 - PAD_TOP_R_um**2) / (2 * PAD_BOT_R_um * system_misalignment))
-        contact_area = (PAD_TOP_R_um**2 * theta1 + PAD_BOT_R_um**2 * theta2 - system_misalignment * (PAD_TOP_R_um * sp.sin(theta1)))
-        equation = sp.lambdify(system_misalignment, contact_area - CONTACT_AREA_CONSTRAINT * np.pi * PAD_TOP_R_um**2, "numpy")
-        max_allowed_misalignment_for_ca = fsolve(equation, PAD_BOT_R_um)
-        # print("The overlay misalignment that will fail the contact area constraint is {} um.".format(max_allowed_misalignment_for_ca[0]))
-        # Calculate the overlay misalignment that will fail the contact area constraint
-        system_misalignment = np.linspace(PAD_BOT_R_um - PAD_TOP_R_um, PAD_BOT_R_um + PAD_TOP_R_um, 1000)
-        theta1 = np.arccos((PAD_TOP_R_um**2 + system_misalignment**2 - PAD_BOT_R_um**2) / (2 * PAD_TOP_R_um * system_misalignment))
-        theta2 = np.arccos((PAD_BOT_R_um**2 + system_misalignment**2 - PAD_TOP_R_um**2) / (2 * PAD_BOT_R_um * system_misalignment))
-        contact_area = (PAD_TOP_R_um**2 * theta1 + PAD_BOT_R_um**2 * theta2 - system_misalignment * (PAD_TOP_R_um * np.sin(theta1)))
-        # plt.plot(system_misalignment, contact_area / (np.pi * PAD_TOP_R_um**2))
-        # plt.axhline(y=CONTACT_AREA_CONSTRAINT, color="r", linestyle="--")
-        # plt.axvline(x=max_allowed_misalignment_for_ca, color="g", linestyle="--")
-        # plt.xlabel("System Misalignment (um)")
-        # plt.ylabel("Contact Area Ratio")
-        # plt.title("Contact Area Ratio vs. System Misalignment")
-        # plt.show()
+        max_allowed_misalignment_for_ca = _contact_area_misalignment_limit(
+            PAD_TOP_R_um, PAD_BOT_R_um, CONTACT_AREA_CONSTRAINT
+        )
 
         # Calculate the overlay misalignment that will fail the critical distance constraint
         max_allowed_misalignment_for_cd = (1 - CRITICAL_DIST_CONSTRAINT) * PITCH_um - 0.5 * (2 * PAD_TOP_R_um) + (CRITICAL_DIST_CONSTRAINT - 0.5) * (2 * PAD_BOT_R_um)
         # print("The overlay misalignment that will fail the critical distance constraint is {} um.".format(max_allowed_misalignment_for_cd))
 
-        MAX_ALLOWED_MISALIGNMENT = min(max_allowed_misalignment_for_ca[0], max_allowed_misalignment_for_cd)
+        MAX_ALLOWED_MISALIGNMENT = min(max_allowed_misalignment_for_ca, max_allowed_misalignment_for_cd)
         # print("The overlay misalignment that will fail the both constraints is {} um.".format(MAX_ALLOWED_MISALIGNMENT))
 
         return MAX_ALLOWED_MISALIGNMENT
@@ -109,16 +161,16 @@ def overlay_yield_calculator(*,
     # print("PITCH_um: ", PITCH_um, "um")
     # print("CONTACT_AREA_CONSTRAINT: ", CONTACT_AREA_CONSTRAINT)
     # print("CRITICAL_DIST_CONSTRAINT: ", CRITICAL_DIST_CONSTRAINT)
-    print("The maximum allowed misalignment is {} nm.".format(MAX_ALLOWED_MISALIGNMENT * 1e3))
+    # print("The maximum allowed misalignment is {:.4f} nm.".format(MAX_ALLOWED_MISALIGNMENT * 1e3))
     num_samples = num_samples
     system_translation_x_samples_um = np.random.normal(SYSTEM_TRANSLATION_X_MEAN_um, SYSTEM_TRANSLATION_X_STD_um, num_samples)
     system_translation_y_samples_um = np.random.normal(SYSTEM_TRANSLATION_Y_MEAN_um, SYSTEM_TRANSLATION_Y_STD_um, num_samples)
     system_rotation_samples_rad = np.random.normal(SYSTEM_ROTATION_MEAN_rad, SYSTEM_ROTATION_STD_rad, num_samples)
     system_magnification_samples = np.random.normal(SYSTEM_MAGNIFICATION_MEAN_ppm, SYSTEM_MAGNIFICATION_STD_ppm, num_samples)
-    print("system_translation_x_samples_um contribution", system_translation_x_samples_um.mean()*1e3, " nm")
-    print("system_translation_y_samples_um contribution", system_translation_y_samples_um.mean()*1e3, " nm")
-    print("system_rotation_samples_rad contribution", system_rotation_samples_rad.mean() * np.sqrt(die.DIE_W_um**2 + die.DIE_L_um**2) * 1e3, " nm")
-    print("system_magnification_samples contribution", system_magnification_samples.mean() * np.sqrt(die.DIE_W_um**2 + die.DIE_L_um**2) * 1e3, " nm")
+    # print("Mean X translation contribution: {:.4f} nm".format(system_translation_x_samples_um.mean() * 1e3))
+    # print("Mean Y translation contribution: {:.4f} nm".format(system_translation_y_samples_um.mean() * 1e3))
+    # print("Mean rotation contribution: {:.4f} nm".format(system_rotation_samples_rad.mean() * np.sqrt(die.DIE_W_um**2 + die.DIE_L_um**2) * 1e3))
+    # print("Mean magnification contribution: {:.4f} nm".format(system_magnification_samples.mean() * np.sqrt(die.DIE_W_um**2 + die.DIE_L_um**2) * 1e3))
 
     # Sample the systematic misalignment for corner pads based on the systematic translation, rotation, and magnification
     # Calculate the die yield based on the worst-case pad misalignment
@@ -204,10 +256,10 @@ def overlay_yield_calculator(*,
         plt.xlabel('Pad Column Index')
         plt.ylabel('Pad Row Index')
         plt.show()
-        print ("The overall overlay yield for the die is {:.6f}.".format(overlay_die_yield))
-        print ("The overlay pad yield minimum is {:.6f}.".format(overlay_pad_yield_map_sub.min()))
+        print ("The overall overlay yield for the die is {:.4f}.".format(overlay_die_yield))
+        print ("The overlay pad yield minimum is {:.4f}.".format(overlay_pad_yield_map_sub.min()))
     else:
-        print ("The overall overlay yield for the die is {:.6f}.".format(overlay_die_yield))
+        print ("The overall overlay yield for the die is {:.4f}.".format(overlay_die_yield))
         overlay_pad_yield_map_sub = None
         
     return overlay_die_yield, overlay_pad_yield_map_sub
