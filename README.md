@@ -1,6 +1,6 @@
-# YAP+
-- YAP+ is a Python-based yield modeling and simulation tool for advanced packaging that supports yield analysis of arbitrary I/O pad layouts. Currently, the model is specifically designed for wafer-to-wafer (W2W) and die-to-wafer (D2W) hybrid bonding.
-- A [GUI of YAP](http://nanocad.ee.ucla.edu:8081/yap_gui/) and the [user guide video](https://youtu.be/8hiKIQ6C7ng) is available.
+# YAP+IO_Assign
+- YAP+IO_Assign is a Python-based yield modeling and simulation tool for advanced packaging that supports yield analysis of arbitrary I/O pad layouts. Currently, the model is specifically designed for wafer-to-wafer (W2W) and die-to-wafer (D2W) hybrid bonding.
+- A [GUI of YAP](http://nanocad.ee.ucla.edu/yap_gui/) and the [user guide video](https://youtu.be/8hiKIQ6C7ng) is available.
 
 Current active D2W design families in this repository are:
 - `design_1_p5`
