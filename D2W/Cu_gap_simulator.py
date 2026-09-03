@@ -24,10 +24,15 @@ def _scaled_normal_samples(mean_nm, std_nm, shape) -> np.ndarray:
     return samples
 
 
+def set_Cu_gap_seed(seed: int | None = None) -> None:
+    """Reset the internal Cu-gap RNG state, optionally to a deterministic seed."""
+    global _cu_gap_rng
+    _cu_gap_rng = np.random.default_rng(seed)
+
+
 def clear_Cu_gap_pool() -> None:
     """Reset the internal Cu-gap RNG state."""
-    global _cu_gap_rng
-    _cu_gap_rng = np.random.default_rng()
+    set_Cu_gap_seed()
 
 
 def Cu_gap_batch_simulator(

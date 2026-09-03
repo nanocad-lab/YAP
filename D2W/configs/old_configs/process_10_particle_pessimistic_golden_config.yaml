@@ -58,8 +58,8 @@ w2w_simulation:
   SYSTEM_TRANSLATION_X_STD_um: 0.02
   SYSTEM_TRANSLATION_Y_MEAN_um: 0
   SYSTEM_TRANSLATION_Y_STD_um: 0.02
-  SYSTEM_ROTATION_MEAN_rad: 6.0e-05
-  SYSTEM_ROTATION_STD_rad: 1.0e-05
+  SYSTEM_ROTATION_MEAN_rad: 6e-5            # Systematic rotation mean (rad)
+  SYSTEM_ROTATION_STD_rad: 1e-5             # Systematic rotation std (rad)
   BOW_DIFFERENCE_MEAN_um: 10.0               # Bow difference mean (µm)
   BOW_DIFFERENCE_STD_um: 1.0                 # Bow difference std (µm)
   k_mag: 0.1
@@ -186,8 +186,8 @@ w2w_modeling:
   SYSTEM_TRANSLATION_X_STD_um: 0.02
   SYSTEM_TRANSLATION_Y_MEAN_um: 0
   SYSTEM_TRANSLATION_Y_STD_um: 0.02
-  SYSTEM_ROTATION_MEAN_rad: 6.0e-05
-  SYSTEM_ROTATION_STD_rad: 1.0e-05
+  SYSTEM_ROTATION_MEAN_rad: 6e-5            # Systematic rotation mean (rad)
+  SYSTEM_ROTATION_STD_rad: 1e-5             # Systematic rotation std (rad)
   BOW_DIFFERENCE_MEAN_um: 10.0               # Bow difference mean (µm)
   BOW_DIFFERENCE_STD_um: 1.0                 # Bow difference std (µm)
   k_mag: 0.1
@@ -299,8 +299,8 @@ d2w_simulation:
   SYSTEM_TRANSLATION_X_STD_um: 0.02
   SYSTEM_TRANSLATION_Y_MEAN_um: 0
   SYSTEM_TRANSLATION_Y_STD_um: 0.02
-  SYSTEM_ROTATION_MEAN_rad: 6.0e-05
-  SYSTEM_ROTATION_STD_rad: 1.0e-05
+  SYSTEM_ROTATION_MEAN_rad: 6e-5            # Systematic rotation mean (rad)
+  SYSTEM_ROTATION_STD_rad: 1e-5             # Systematic rotation std (rad)
   BOW_DIFFERENCE_MEAN_um: 10.0               # Bow difference mean (µm)
   BOW_DIFFERENCE_STD_um: 1.0                 # Bow difference std (µm)
   k_mag: 0.1
@@ -417,8 +417,8 @@ d2w_modeling:
   SYSTEM_TRANSLATION_X_STD_um: 0.02
   SYSTEM_TRANSLATION_Y_MEAN_um: 0
   SYSTEM_TRANSLATION_Y_STD_um: 0.02
-  SYSTEM_ROTATION_MEAN_rad: 6.0e-05
-  SYSTEM_ROTATION_STD_rad: 1.0e-05
+  SYSTEM_ROTATION_MEAN_rad: 6e-5            # Systematic rotation mean (rad)
+  SYSTEM_ROTATION_STD_rad: 1e-5             # Systematic rotation std (rad)
   BOW_DIFFERENCE_MEAN_um: 10.0               # Bow difference mean (µm)
   BOW_DIFFERENCE_STD_um: 1.0                 # Bow difference std (µm)
   k_mag: 0.1

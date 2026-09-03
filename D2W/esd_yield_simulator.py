@@ -20,9 +20,9 @@ def _z_linear_coeffs(ax_deg: float, ay_deg: float) -> Tuple[float, float, float]
     return float(a), float(b), float(c)
 
 
-def _ipeak_from_die_voltage(area_mm2: float, v_chg: float) -> float:
+def _ipeak_from_die_voltage(area_mm2: float, v_chg: float, coeff: float = 0.0045) -> float:
     """Empirical peak-current model."""
-    return 0.0045 * (float(area_mm2) ** 0.35) * math.sqrt(float(v_chg))
+    return float(coeff) * (float(area_mm2) ** 0.35) * math.sqrt(float(v_chg))
 
 
 def _weibull_cdf(current_a: float, k: float, lam: float) -> float:
@@ -43,13 +43,14 @@ def _compute_p_fail_for_die(
     top_die_h_um: float,
     v_chg: float,
     *,
+    ipeak_coeff: float,
     weibull_k: float,
     weibull_lambda: float,
     cutoff_min_a: float,
 ) -> float:
     """Return the die-level failure probability for a sampled charging voltage."""
     area_mm2 = (float(top_die_w_um) * 1e-3) * (float(top_die_h_um) * 1e-3)
-    i_peak = _ipeak_from_die_voltage(area_mm2, float(v_chg))
+    i_peak = _ipeak_from_die_voltage(area_mm2, float(v_chg), float(ipeak_coeff))
     return _fail_prob_single(i_peak, float(weibull_k), float(weibull_lambda), float(cutoff_min_a))
 
 
@@ -433,6 +434,7 @@ def esd_failure_simulator(
     z_top_um = Z_TOP_UM
     v_min_v = float(cfg.V_MIN_V)
     v_max_v = float(cfg.V_MAX_V)
+    ipeak_coeff = float(getattr(cfg, "ESD_IPEAK_COEFF", 0.0045))
     weibull_k = float(cfg.WEIBULL_K)
     weibull_lambda = float(cfg.WEIBULL_LAMBDA)
     cutoff_min_a = float(cfg.CUTOFF_MIN_A)
@@ -477,6 +479,7 @@ def esd_failure_simulator(
         top_die_w_um,
         top_die_h_um,
         v_chg,
+        ipeak_coeff=ipeak_coeff,
         weibull_k=weibull_k,
         weibull_lambda=weibull_lambda,
         cutoff_min_a=cutoff_min_a,

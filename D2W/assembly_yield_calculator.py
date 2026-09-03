@@ -151,97 +151,104 @@ def Pad_Yield_Map_Generator(
         interface.pad_yield_map['Y_ce'] = Cu_expansion_pad_yield_map
         print(f"Cu expansion yield calculation took {time.perf_counter() - Cu_expansion_start_time:.2f} seconds")
 
-        esd_start_time = time.perf_counter()
-        esd_pad_map_sub_factor = int(
-            getattr(cfg, "ESD_PAD_MAP_SUB_FACTOR", 0)
-        )
-        if esd_pad_map_sub_factor <= 0:
-            esd_pad_map_sub_factor = _auto_esd_pad_map_sub_factor(
-                int(np.count_nonzero(valid_pad_mask))
-            )
-
-        if esd_pad_map_sub_factor > 1:
-            row_idx = _sample_grid_indices(cfg.PAD_ARR_ROW, esd_pad_map_sub_factor)
-            col_idx = _sample_grid_indices(cfg.PAD_ARR_COL, esd_pad_map_sub_factor)
-            sampled_valid_pad_mask = valid_pad_mask[np.ix_(row_idx, col_idx)]
-            sampled_pad_coords = (
-                interface.pad_coords.reshape(cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL, 2)[np.ix_(row_idx, col_idx)]
-                .reshape(-1, 2)
-            )
-            sampled_valid_pad_coords = sampled_pad_coords[sampled_valid_pad_mask.reshape(-1) == 1]
-
-            esd_sampled_valid_pad_yield_vec, _, _ = pad_esd_yield_map_generator(
-                cfg                   = cfg,
-                pad_coords_um         = sampled_valid_pad_coords,
-                pad_size_um           = cfg.PAD_TOP_R_um * 2,
-                pad_pitch_um          = cfg.PITCH_r_um,
-                top_die_w_um          = cfg.DIE_W_um,
-                top_die_h_um          = cfg.DIE_L_um,
-                tilt_x_mean_deg       = cfg.TILT_X_MEAN_DEG,
-                tilt_x_std_deg        = cfg.TILT_X_STD_DEG,
-                tilt_y_mean_deg       = cfg.TILT_Y_MEAN_DEG,
-                tilt_y_std_deg        = cfg.TILT_Y_STD_DEG,
-                top_dish_mean_nm      = cfg.TOP_DISH_MEAN_nm,
-                top_dish_std_nm       = cfg.TOP_DISH_STD_nm,
-                bot_dish_mean_nm      = cfg.BOT_DISH_MEAN_nm,
-                bot_dish_std_nm       = cfg.BOT_DISH_STD_nm,
-            )
-
-            sampled_esd_pad_yield_map = np.full(sampled_valid_pad_mask.shape, np.nan)
-            sampled_esd_pad_yield_map[sampled_valid_pad_mask == 1] = esd_sampled_valid_pad_yield_vec
-            esd_pad_yield_map = _upsample_pad_yield_map(
-                sampled_esd_pad_yield_map,
-                pad_map_shape,
-                esd_pad_map_sub_factor,
-            )
-            esd_pad_yield_map[valid_pad_mask == 0] = np.nan
-
-            if getattr(cfg, "verbose", False):
-                sampled_valid_count = int(np.count_nonzero(sampled_valid_pad_mask))
-                full_valid_count = int(np.count_nonzero(valid_pad_mask))
-                print(
-                    f"ESD analytical map subsampling: factor={esd_pad_map_sub_factor} | "
-                    f"sampled_valid_pads={sampled_valid_count}/{full_valid_count}"
-                )
-        else:
-            # Calculate the ESD yield on the full valid-pad set.
-            esd_valid_pad_yield_vec, _, _ = pad_esd_yield_map_generator(
-                cfg                   = cfg,
-                pad_coords_um         = valid_die_pad_coords,
-                pad_size_um           = cfg.PAD_TOP_R_um * 2,
-                pad_pitch_um          = cfg.PITCH_r_um,
-                top_die_w_um          = cfg.DIE_W_um,
-                top_die_h_um          = cfg.DIE_L_um,
-                tilt_x_mean_deg       = cfg.TILT_X_MEAN_DEG,
-                tilt_x_std_deg        = cfg.TILT_X_STD_DEG,
-                tilt_y_mean_deg       = cfg.TILT_Y_MEAN_DEG,
-                tilt_y_std_deg        = cfg.TILT_Y_STD_DEG,
-                top_dish_mean_nm      = cfg.TOP_DISH_MEAN_nm,
-                top_dish_std_nm       = cfg.TOP_DISH_STD_nm,
-                bot_dish_mean_nm      = cfg.BOT_DISH_MEAN_nm,
-                bot_dish_std_nm       = cfg.BOT_DISH_STD_nm,
-            )
-            
+        if not bool(input_args.get('enable_esd', False)):
             esd_pad_yield_map = np.full((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL), np.nan)
-            esd_pad_yield_map[valid_pad_mask == 1] = esd_valid_pad_yield_vec
-        interface.pad_yield_map['Y_esd'] = esd_pad_yield_map
-        interface.glb_pad_yield_min_max_dict['Y_esd'] = (np.nanmin(interface.pad_yield_map['Y_esd']), np.nanmax(interface.pad_yield_map['Y_esd']))
-        if cfg.plot_flag:
-            # Draw the pad yield map
-            plt.figure(figsize=(8, 6))
-            plt.imshow(
-                interface.pad_yield_map['Y_esd'],
-                cmap='viridis', 
-                vmin=interface.glb_pad_yield_min_max_dict['Y_esd'][0],
-                vmax=interface.glb_pad_yield_min_max_dict['Y_esd'][1],
-                interpolation='nearest',
+            esd_pad_yield_map[valid_pad_mask == 1] = 1.0
+            interface.pad_yield_map['Y_esd'] = esd_pad_yield_map
+            interface.glb_pad_yield_min_max_dict['Y_esd'] = (1.0, 1.0)
+            print("ESD yield calculation disabled; using unity ESD yield.")
+        else:
+            esd_start_time = time.perf_counter()
+            esd_pad_map_sub_factor = int(
+                getattr(cfg, "ESD_PAD_MAP_SUB_FACTOR", 0)
+            )
+            if esd_pad_map_sub_factor <= 0:
+                esd_pad_map_sub_factor = _auto_esd_pad_map_sub_factor(
+                    int(np.count_nonzero(valid_pad_mask))
                 )
-            plt.colorbar(label='Pad ESD Yield')
-            plt.xlabel('Pad Column Index')
-            plt.ylabel('Pad Row Index')
-            plt.show()
+
+            if esd_pad_map_sub_factor > 1:
+                row_idx = _sample_grid_indices(cfg.PAD_ARR_ROW, esd_pad_map_sub_factor)
+                col_idx = _sample_grid_indices(cfg.PAD_ARR_COL, esd_pad_map_sub_factor)
+                sampled_valid_pad_mask = valid_pad_mask[np.ix_(row_idx, col_idx)]
+                sampled_pad_coords = (
+                    interface.pad_coords.reshape(cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL, 2)[np.ix_(row_idx, col_idx)]
+                    .reshape(-1, 2)
+                )
+                sampled_valid_pad_coords = sampled_pad_coords[sampled_valid_pad_mask.reshape(-1) == 1]
+
+                esd_sampled_valid_pad_yield_vec, _, _ = pad_esd_yield_map_generator(
+                    cfg                   = cfg,
+                    pad_coords_um         = sampled_valid_pad_coords,
+                    pad_size_um           = cfg.PAD_TOP_R_um * 2,
+                    pad_pitch_um          = cfg.PITCH_r_um,
+                    top_die_w_um          = cfg.DIE_W_um,
+                    top_die_h_um          = cfg.DIE_L_um,
+                    tilt_x_mean_deg       = cfg.TILT_X_MEAN_DEG,
+                    tilt_x_std_deg        = cfg.TILT_X_STD_DEG,
+                    tilt_y_mean_deg       = cfg.TILT_Y_MEAN_DEG,
+                    tilt_y_std_deg        = cfg.TILT_Y_STD_DEG,
+                    top_dish_mean_nm      = cfg.TOP_DISH_MEAN_nm,
+                    top_dish_std_nm       = cfg.TOP_DISH_STD_nm,
+                    bot_dish_mean_nm      = cfg.BOT_DISH_MEAN_nm,
+                    bot_dish_std_nm       = cfg.BOT_DISH_STD_nm,
+                )
+
+                sampled_esd_pad_yield_map = np.full(sampled_valid_pad_mask.shape, np.nan)
+                sampled_esd_pad_yield_map[sampled_valid_pad_mask == 1] = esd_sampled_valid_pad_yield_vec
+                esd_pad_yield_map = _upsample_pad_yield_map(
+                    sampled_esd_pad_yield_map,
+                    pad_map_shape,
+                    esd_pad_map_sub_factor,
+                )
+                esd_pad_yield_map[valid_pad_mask == 0] = np.nan
+
+                if getattr(cfg, "verbose", False):
+                    sampled_valid_count = int(np.count_nonzero(sampled_valid_pad_mask))
+                    full_valid_count = int(np.count_nonzero(valid_pad_mask))
+                    print(
+                        f"ESD analytical map subsampling: factor={esd_pad_map_sub_factor} | "
+                        f"sampled_valid_pads={sampled_valid_count}/{full_valid_count}"
+                    )
+            else:
+                # Calculate the ESD yield on the full valid-pad set.
+                esd_valid_pad_yield_vec, _, _ = pad_esd_yield_map_generator(
+                    cfg                   = cfg,
+                    pad_coords_um         = valid_die_pad_coords,
+                    pad_size_um           = cfg.PAD_TOP_R_um * 2,
+                    pad_pitch_um          = cfg.PITCH_r_um,
+                    top_die_w_um          = cfg.DIE_W_um,
+                    top_die_h_um          = cfg.DIE_L_um,
+                    tilt_x_mean_deg       = cfg.TILT_X_MEAN_DEG,
+                    tilt_x_std_deg        = cfg.TILT_X_STD_DEG,
+                    tilt_y_mean_deg       = cfg.TILT_Y_MEAN_DEG,
+                    tilt_y_std_deg        = cfg.TILT_Y_STD_DEG,
+                    top_dish_mean_nm      = cfg.TOP_DISH_MEAN_nm,
+                    top_dish_std_nm       = cfg.TOP_DISH_STD_nm,
+                    bot_dish_mean_nm      = cfg.BOT_DISH_MEAN_nm,
+                    bot_dish_std_nm       = cfg.BOT_DISH_STD_nm,
+                )
+            
+                esd_pad_yield_map = np.full((cfg.PAD_ARR_ROW, cfg.PAD_ARR_COL), np.nan)
+                esd_pad_yield_map[valid_pad_mask == 1] = esd_valid_pad_yield_vec
+            interface.pad_yield_map['Y_esd'] = esd_pad_yield_map
+            interface.glb_pad_yield_min_max_dict['Y_esd'] = (np.nanmin(interface.pad_yield_map['Y_esd']), np.nanmax(interface.pad_yield_map['Y_esd']))
+            if cfg.plot_flag:
+                # Draw the pad yield map
+                plt.figure(figsize=(8, 6))
+                plt.imshow(
+                    interface.pad_yield_map['Y_esd'],
+                    cmap='viridis', 
+                    vmin=interface.glb_pad_yield_min_max_dict['Y_esd'][0],
+                    vmax=interface.glb_pad_yield_min_max_dict['Y_esd'][1],
+                    interpolation='nearest',
+                    )
+                plt.colorbar(label='Pad ESD Yield')
+                plt.xlabel('Pad Column Index')
+                plt.ylabel('Pad Row Index')
+                plt.show()
         
-        print(f"ESD yield calculation took {time.perf_counter() - esd_start_time:.2f} seconds")
+            print(f"ESD yield calculation took {time.perf_counter() - esd_start_time:.2f} seconds")
         interface.pad_yield_map['Y_bond'] = interface.pad_yield_map['Y_ovl'] * interface.pad_yield_map['Y_df'] * interface.pad_yield_map['Y_ce'] * interface.pad_yield_map['Y_esd']
         interface.glb_pad_yield_min_max_dict['Y_bond'] = (np.nanmin(interface.pad_yield_map['Y_bond']), np.nanmax(interface.pad_yield_map['Y_bond']))
         # print(f"Overall pad bonding yield min: {interface.glb_pad_yield_min_max_dict['Y_bond'][0]:.6f}, max: {interface.glb_pad_yield_min_max_dict['Y_bond'][1]:.6f}")
