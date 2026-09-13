@@ -22,6 +22,41 @@ from scipy.integrate import quad
 from scipy.stats import norm
 
 
+def _samplewise_worst_corner_yield(
+    corner_misalignment_samples_um,
+    max_allowed_misalignment_um,
+    random_misalignment_mean_um,
+    random_misalignment_std_um,
+):
+    """Average die yield after selecting the worst corner in each sample."""
+    corner_samples = np.asarray(corner_misalignment_samples_um)
+    if corner_samples.ndim != 2:
+        raise ValueError("corner_misalignment_samples_um must be a 2-D array")
+    worst_samples = np.max(corner_samples, axis=0)
+    upper_limit = max_allowed_misalignment_um - worst_samples
+    lower_limit = -max_allowed_misalignment_um - worst_samples
+    sample_yield = norm.cdf(
+        upper_limit,
+        loc=random_misalignment_mean_um,
+        scale=random_misalignment_std_um,
+    ) - norm.cdf(
+        lower_limit,
+        loc=random_misalignment_mean_um,
+        scale=random_misalignment_std_um,
+    )
+    return float(np.mean(sample_yield))
+
+
+def _wafer_to_die_distortion_scale(*, wafer_radius_um, die, enabled):
+    """Return the historical D2W wafer/die rotation-magnification scale."""
+    if not enabled:
+        return 1.0
+    die_half_diagonal_um = np.hypot(die.DIE_W_um / 2, die.DIE_L_um / 2)
+    if die_half_diagonal_um <= 0:
+        raise ValueError("Die dimensions must be positive for wafer/die scaling.")
+    return float(wafer_radius_um / die_half_diagonal_um)
+
+
 def _circle_overlap_area(distance_um, radius_1_um, radius_2_um):
     """Return the overlap area of two circles without singular endpoints."""
     distance_um = float(distance_um)
@@ -128,6 +163,8 @@ def overlay_yield_calculator(*,
     redundant_flag: bool,
     pad_yield_flag: bool = False,
     pad_yield_map_sub_factor: int = 1,
+    scale_systematic_distortion_from_wafer: bool = False,
+    WAF_R_um: float = 150000.0,
 ):
     def max_allowed_misalignment_calculator(*,
         PAD_TOP_R_um: float, 
@@ -167,6 +204,13 @@ def overlay_yield_calculator(*,
     system_translation_y_samples_um = np.random.normal(SYSTEM_TRANSLATION_Y_MEAN_um, SYSTEM_TRANSLATION_Y_STD_um, num_samples)
     system_rotation_samples_rad = np.random.normal(SYSTEM_ROTATION_MEAN_rad, SYSTEM_ROTATION_STD_rad, num_samples)
     system_magnification_samples = np.random.normal(SYSTEM_MAGNIFICATION_MEAN_ppm, SYSTEM_MAGNIFICATION_STD_ppm, num_samples)
+    distortion_scale = _wafer_to_die_distortion_scale(
+        wafer_radius_um=WAF_R_um,
+        die=die,
+        enabled=scale_systematic_distortion_from_wafer,
+    )
+    system_rotation_samples_rad *= distortion_scale
+    system_magnification_samples *= distortion_scale
     # print("Mean X translation contribution: {:.4f} nm".format(system_translation_x_samples_um.mean() * 1e3))
     # print("Mean Y translation contribution: {:.4f} nm".format(system_translation_y_samples_um.mean() * 1e3))
     # print("Mean rotation contribution: {:.4f} nm".format(system_rotation_samples_rad.mean() * np.sqrt(die.DIE_W_um**2 + die.DIE_L_um**2) * 1e3))
@@ -197,24 +241,20 @@ def overlay_yield_calculator(*,
     far_pad_misalignment_samples_2 = np.sqrt(far_dx_samples_2**2 + far_dy_samples_2**2)
     far_pad_misalignment_samples_3 = np.sqrt(far_dx_samples_3**2 + far_dy_samples_3**2)
 
-    upper_limit_0 = MAX_ALLOWED_MISALIGNMENT - far_pad_misalignment_samples_0
-    lower_limit_0 = -MAX_ALLOWED_MISALIGNMENT - far_pad_misalignment_samples_0
-    upper_limit_1 = MAX_ALLOWED_MISALIGNMENT - far_pad_misalignment_samples_1
-    lower_limit_1 = -MAX_ALLOWED_MISALIGNMENT - far_pad_misalignment_samples_1
-    upper_limit_2 = MAX_ALLOWED_MISALIGNMENT - far_pad_misalignment_samples_2
-    lower_limit_2 = -MAX_ALLOWED_MISALIGNMENT - far_pad_misalignment_samples_2
-    upper_limit_3 = MAX_ALLOWED_MISALIGNMENT - far_pad_misalignment_samples_3
-    lower_limit_3 = -MAX_ALLOWED_MISALIGNMENT - far_pad_misalignment_samples_3
-
-    overlay_die_yield_0 = np.mean(norm.cdf(upper_limit_0, loc=RANDOM_MISALIGNMENT_MEAN_um, scale=RANDOM_MISALIGNMENT_STD_um) \
-                        - norm.cdf(lower_limit_0, loc=RANDOM_MISALIGNMENT_MEAN_um, scale=RANDOM_MISALIGNMENT_STD_um))
-    overlay_die_yield_1 = np.mean(norm.cdf(upper_limit_1, loc=RANDOM_MISALIGNMENT_MEAN_um, scale=RANDOM_MISALIGNMENT_STD_um) \
-                        - norm.cdf(lower_limit_1, loc=RANDOM_MISALIGNMENT_MEAN_um, scale=RANDOM_MISALIGNMENT_STD_um))
-    overlay_die_yield_2 = np.mean(norm.cdf(upper_limit_2, loc=RANDOM_MISALIGNMENT_MEAN_um, scale=RANDOM_MISALIGNMENT_STD_um) \
-                        - norm.cdf(lower_limit_2, loc=RANDOM_MISALIGNMENT_MEAN_um, scale=RANDOM_MISALIGNMENT_STD_um))
-    overlay_die_yield_3 = np.mean(norm.cdf(upper_limit_3, loc=RANDOM_MISALIGNMENT_MEAN_um, scale=RANDOM_MISALIGNMENT_STD_um) \
-                        - norm.cdf(lower_limit_3, loc=RANDOM_MISALIGNMENT_MEAN_um, scale=RANDOM_MISALIGNMENT_STD_um))
-    overlay_die_yield = min(overlay_die_yield_0, overlay_die_yield_1, overlay_die_yield_2, overlay_die_yield_3)
+    # A Monte Carlo sample is one global systematic-overlay realization.
+    # Determine whether that realization survives the worst die corner before
+    # averaging across independent realizations.
+    overlay_die_yield = _samplewise_worst_corner_yield(
+        [
+            far_pad_misalignment_samples_0,
+            far_pad_misalignment_samples_1,
+            far_pad_misalignment_samples_2,
+            far_pad_misalignment_samples_3,
+        ],
+        MAX_ALLOWED_MISALIGNMENT,
+        RANDOM_MISALIGNMENT_MEAN_um,
+        RANDOM_MISALIGNMENT_STD_um,
+    )
     
 
     if pad_yield_flag == True:
